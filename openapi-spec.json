@@ -1,0 +1,5026 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/health": {
+      "get": {
+        "operationId": "HealthController_check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Check server and database health",
+        "tags": [
+          "Health"
+        ]
+      }
+    },
+    "/api/auth/signup": {
+      "post": {
+        "description": "Creates a new teacher instance (tenant) with a brand, teacher profile, and returns JWT tokens. The subdomain is auto-generated from the teacher name if not provided. The instance starts on the FREE tier by default.",
+        "operationId": "AuthController_signup",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Account created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "409": {
+            "description": "Email or subdomain already taken"
+          }
+        },
+        "summary": "Register a new teacher account",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "description": "Authenticates a teacher using their email and password. Returns access and refresh JWT tokens upon successful authentication.",
+        "operationId": "AuthController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid email or password"
+          }
+        },
+        "summary": "Login with email and password",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/api/auth/refresh": {
+      "post": {
+        "description": "Exchange a valid refresh token for a new access token and refresh token pair. Refresh tokens are valid for 30 days.",
+        "operationId": "AuthController_refresh",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tokens refreshed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or expired refresh token"
+          }
+        },
+        "summary": "Refresh access token",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "description": "Returns the authenticated teacher&#39;s profile including instance tier, subdomain, and account metadata. Requires a valid JWT token in the Authorization header.",
+        "operationId": "AuthController_me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Profile retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — invalid or missing token"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get current teacher profile",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/api/auth/student/signup": {
+      "post": {
+        "description": "Allows a student to join a group and get a JWT. If the code is a valid group ID and the group is in OPEN mode, the student joins directly. If the code is an invitation code (from a CLOSED group), the student joins via invitation. If the student email already exists, a new JWT is returned (idempotent re-auth). Returns access and refresh JWT tokens for student API access.",
+        "operationId": "AuthController_studentSignup",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StudentSignupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Student signed up successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentAuthResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Group is not open for registration"
+          },
+          "404": {
+            "description": "Invalid invitation code or group ID"
+          }
+        },
+        "summary": "Student signup via invitation code or open group",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/api/groups": {
+      "post": {
+        "description": "Creates a group scoped to the authenticated teacher's instance. Enforces tier limits: FREE plan allows only 1 group. Group names must be unique within the instance.",
+        "operationId": "GroupsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Group created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Tier limit exceeded"
+          },
+          "409": {
+            "description": "Group name already exists"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new group",
+        "tags": [
+          "Groups"
+        ]
+      },
+      "get": {
+        "description": "Returns all groups for the authenticated teacher's instance, including active/inactive student counts and current tier limits.",
+        "operationId": "GroupsController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Groups retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupListResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all groups",
+        "tags": [
+          "Groups"
+        ]
+      }
+    },
+    "/api/groups/{id}": {
+      "get": {
+        "description": "Returns a single group with student counts.",
+        "operationId": "GroupsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Group ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Group retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Group not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get group by ID",
+        "tags": [
+          "Groups"
+        ]
+      },
+      "patch": {
+        "description": "Updates group name, description, or registration mode. Group names must remain unique within the instance.",
+        "operationId": "GroupsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Group ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Group updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Group not found"
+          },
+          "409": {
+            "description": "Group name already exists"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update group",
+        "tags": [
+          "Groups"
+        ]
+      },
+      "delete": {
+        "description": "Deletes a group and all its associated data (students, courses, sessions, quizzes, assignments, chat messages). This action is irreversible.",
+        "operationId": "GroupsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Group ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Group deleted successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Group not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete group",
+        "tags": [
+          "Groups"
+        ]
+      }
+    },
+    "/api/groups/{id}/invitation-code": {
+      "post": {
+        "description": "Generates a new unique invitation code for the group. When registration mode is CLOSED, students can only join using this code. Generating a new code invalidates the previous one.",
+        "operationId": "GroupsController_generateInvitationCode",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Group ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Invitation code generated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "example": "clx..."
+                    },
+                    "name": {
+                      "type": "string",
+                      "example": "الصف الأول الثانوي"
+                    },
+                    "invitationCode": {
+                      "type": "string",
+                      "example": "a1b2c3d4e5f6"
+                    },
+                    "registrationMode": {
+                      "type": "string",
+                      "example": "CLOSED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Group not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Generate invitation code",
+        "tags": [
+          "Groups"
+        ]
+      },
+      "delete": {
+        "description": "Removes the invitation code from the group, preventing new students from joining via invitation link.",
+        "operationId": "GroupsController_revokeInvitationCode",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Group ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Invitation code revoked"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Group not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Revoke invitation code",
+        "tags": [
+          "Groups"
+        ]
+      }
+    },
+    "/api/students": {
+      "post": {
+        "description": "Adds a student to a group within the teacher's instance. If the instance has reached its tier student limit, the student is created as INACTIVE. Email is unique within the instance.",
+        "operationId": "StudentsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStudentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Student created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Group not found"
+          },
+          "409": {
+            "description": "Email already exists in this instance"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new student",
+        "tags": [
+          "Students"
+        ]
+      },
+      "get": {
+        "description": "Returns all students in the teacher's instance. Optionally filter by groupId. Includes active/inactive counts and tier student limit.",
+        "operationId": "StudentsController_findAll",
+        "parameters": [
+          {
+            "name": "groupId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by group ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Students retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentListResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all students",
+        "tags": [
+          "Students"
+        ]
+      }
+    },
+    "/api/students/export": {
+      "get": {
+        "description": "Downloads all students (optionally filtered by group) as a CSV file. Columns: name, email, phone, status, groupId, createdAt.",
+        "operationId": "StudentsController_exportCsv",
+        "parameters": [
+          {
+            "name": "groupId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by group ID",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CSV file download",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string",
+                  "example": "name,email,phone,status,groupId,createdAt\n\"علي أحمد\",\"ali@example.com\",\"+201234567890\",ACTIVE,clx...,2025-01-01T00:00:00.000Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export students as CSV",
+        "tags": [
+          "Students"
+        ]
+      }
+    },
+    "/api/students/import": {
+      "post": {
+        "description": "Imports multiple students into a group in one request. Students beyond the tier limit are created as INACTIVE. Duplicate emails within the instance are skipped.",
+        "operationId": "StudentsController_bulkImport",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkImportDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Import completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkImportResultDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Group not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Bulk import students",
+        "tags": [
+          "Students"
+        ]
+      }
+    },
+    "/api/students/redeem-invitation": {
+      "post": {
+        "description": "Allows a student to join a group using an invitation code. No authentication required — this is a public endpoint. The group must be in CLOSED registration mode. Students beyond the tier limit are created as INACTIVE.",
+        "operationId": "StudentsController_redeemInvitation",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedeemInvitationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successfully joined the group",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "example": "clx..."
+                    },
+                    "name": {
+                      "type": "string",
+                      "example": "علي أحمد"
+                    },
+                    "email": {
+                      "type": "string",
+                      "example": "ali@example.com"
+                    },
+                    "phone": {
+                      "type": "string",
+                      "example": "+201234567890"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "ACTIVE"
+                    },
+                    "groupId": {
+                      "type": "string",
+                      "example": "clx..."
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "example": "2025-01-01T00:00:00.000Z"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Group is not in CLOSED mode"
+          },
+          "404": {
+            "description": "Invalid or expired invitation code"
+          },
+          "409": {
+            "description": "Email already exists"
+          }
+        },
+        "summary": "Redeem invitation code",
+        "tags": [
+          "Students"
+        ]
+      }
+    },
+    "/api/students/{id}": {
+      "get": {
+        "description": "Returns a single student's details.",
+        "operationId": "StudentsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Student ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Student retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Student not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get student by ID",
+        "tags": [
+          "Students"
+        ]
+      },
+      "patch": {
+        "description": "Updates student name, email, phone, status, or group assignment. Email must remain unique within the instance. Can move a student to a different group within the same instance.",
+        "operationId": "StudentsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Student ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStudentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Student updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Student or target group not found"
+          },
+          "409": {
+            "description": "Email already exists"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update student",
+        "tags": [
+          "Students"
+        ]
+      },
+      "delete": {
+        "description": "Removes a student and all associated data (enrollments, quiz attempts, assignment submissions, payments). This action is irreversible.",
+        "operationId": "StudentsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Student ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Student deleted successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Student not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete student",
+        "tags": [
+          "Students"
+        ]
+      }
+    },
+    "/api/courses": {
+      "post": {
+        "description": "Creates a course within a group. All sessions, quizzes, assignments, and enrollments will be scoped to this course. Courses are tenant-isolated — only visible within the teacher's instance.",
+        "operationId": "CoursesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCourseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Course created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CourseResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Group not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new course",
+        "tags": [
+          "Courses"
+        ]
+      },
+      "get": {
+        "description": "Returns all courses for the authenticated teacher's instance. Optionally filter by groupId to get courses in a specific group. Includes enrolled student counts.",
+        "operationId": "CoursesController_findAll",
+        "parameters": [
+          {
+            "name": "groupId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by group ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Courses retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CourseListResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all courses",
+        "tags": [
+          "Courses"
+        ]
+      }
+    },
+    "/api/courses/{id}": {
+      "get": {
+        "description": "Returns a single course with its details and enrolled student count. Includes sessions, quizzes, and assignments counts.",
+        "operationId": "CoursesController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Course ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Course retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CourseResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Course not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get course by ID",
+        "tags": [
+          "Courses"
+        ]
+      },
+      "patch": {
+        "description": "Updates course title, description, or price. Only fields provided in the request body will be updated.",
+        "operationId": "CoursesController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Course ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCourseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Course updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CourseResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Course not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update course",
+        "tags": [
+          "Courses"
+        ]
+      },
+      "delete": {
+        "description": "Deletes a course and all its associated data (sessions, quizzes, quiz questions, assignments, submissions, enrollments, payments). This action is irreversible.",
+        "operationId": "CoursesController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Course ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Course deleted successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Course not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete course",
+        "tags": [
+          "Courses"
+        ]
+      }
+    },
+    "/api/courses/{id}/enrollments": {
+      "post": {
+        "description": "Enrolls one or more students in a course. Students must belong to the same group as the course. Duplicate enrollments are silently ignored (idempotent).",
+        "operationId": "CoursesController_enroll",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Course ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEnrollmentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Students enrolled successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentListResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Some students not found or not in the same group"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Course not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Enroll students in course",
+        "tags": [
+          "Courses"
+        ]
+      },
+      "get": {
+        "description": "Returns all students enrolled in a course. Includes student name, email, and enrollment date.",
+        "operationId": "CoursesController_findEnrollments",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Course ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Enrollments retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentListResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Course not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List enrolled students",
+        "tags": [
+          "Courses"
+        ]
+      }
+    },
+    "/api/courses/{courseId}/enrollments/{studentId}": {
+      "delete": {
+        "description": "Removes a student's enrollment from a course. Does not delete the student or course — only the enrollment link.",
+        "operationId": "CoursesController_unenroll",
+        "parameters": [
+          {
+            "name": "courseId",
+            "required": true,
+            "in": "path",
+            "description": "Course ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "description": "Student ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Student unenrolled successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Course or enrollment not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Unenroll student from course",
+        "tags": [
+          "Courses"
+        ]
+      }
+    },
+    "/api/sessions": {
+      "post": {
+        "description": "Creates a session within a course. Supports both LOCAL (in-person) and ONLINE (virtual) session types. For LOCAL sessions, provide a location. For ONLINE sessions, provide platform and meetingUrl. Session creation triggers a notification event (handled by the notification system).",
+        "operationId": "SessionsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSessionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Session created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Course not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new session",
+        "tags": [
+          "Sessions"
+        ]
+      },
+      "get": {
+        "description": "Returns all sessions for the authenticated teacher's instance. Optionally filter by courseId, date range (from/to). Sessions are sorted by start time ascending.",
+        "operationId": "SessionsController_findAll",
+        "parameters": [
+          {
+            "name": "courseId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by course ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Filter sessions starting from this date (ISO 8601)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Filter sessions starting until this date (ISO 8601)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sessions retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionListResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all sessions",
+        "tags": [
+          "Sessions"
+        ]
+      }
+    },
+    "/api/sessions/{id}": {
+      "get": {
+        "description": "Returns a single session with full details including type-specific fields (location for LOCAL, platform/meetingUrl for ONLINE).",
+        "operationId": "SessionsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Session ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Session not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get session by ID",
+        "tags": [
+          "Sessions"
+        ]
+      },
+      "patch": {
+        "description": "Updates session details including title, time, type, and type-specific fields. Can change a session from LOCAL to ONLINE or vice versa. Only fields provided in the request body will be updated.",
+        "operationId": "SessionsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Session ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSessionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Session updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Session not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update session",
+        "tags": [
+          "Sessions"
+        ]
+      },
+      "delete": {
+        "description": "Deletes a session. This action is irreversible. Does not delete the associated course or any other data.",
+        "operationId": "SessionsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Session ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Session deleted successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Session not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete session",
+        "tags": [
+          "Sessions"
+        ]
+      }
+    },
+    "/api/brand": {
+      "get": {
+        "description": "Returns the brand configuration (colors, font, logo, white-label status) for the current instance.",
+        "operationId": "BrandController_find",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Brand settings retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Brand not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get brand settings",
+        "tags": [
+          "Brand"
+        ]
+      },
+      "patch": {
+        "description": "Updates brand colors, font family, custom domain, or white-label toggle. White-label requires a paid tier.",
+        "operationId": "BrandController_update",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBrandDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Brand updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "White-label not available on Free tier"
+          },
+          "404": {
+            "description": "Brand not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update brand settings",
+        "tags": [
+          "Brand"
+        ]
+      }
+    },
+    "/api/brand/logo": {
+      "post": {
+        "description": "Uploads a logo image to MinIO storage and updates the brand logo URL.",
+        "operationId": "BrandController_uploadLogo",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Logo image file (png, jpg, svg)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Logo uploaded successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Brand not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Upload brand logo",
+        "tags": [
+          "Brand"
+        ]
+      },
+      "delete": {
+        "description": "Deletes the logo from MinIO storage and clears the logo URL.",
+        "operationId": "BrandController_removeLogo",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Logo removed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Brand not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove brand logo",
+        "tags": [
+          "Brand"
+        ]
+      }
+    },
+    "/api/brand/public/{subdomain}": {
+      "get": {
+        "description": "Returns public brand settings (logo, colors, font) for anonymous visitors. Used to render the teacher's public-facing site.",
+        "operationId": "BrandPublicController_findBySubdomain",
+        "parameters": [
+          {
+            "name": "subdomain",
+            "required": true,
+            "in": "path",
+            "description": "Instance subdomain",
+            "schema": {
+              "example": "myschool",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public brand info retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandPublicResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Instance not found"
+          }
+        },
+        "summary": "Get public brand info by subdomain",
+        "tags": [
+          "Brand (Public)"
+        ]
+      }
+    },
+    "/api/quizzes": {
+      "post": {
+        "description": "Creates a quiz within a course. Quiz totalMarks should equal the sum of all question marks. Quizzes are tenant-isolated — only visible within the teacher's instance.",
+        "operationId": "QuizzesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateQuizDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Quiz created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuizResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Course not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new quiz",
+        "tags": [
+          "Quizzes"
+        ]
+      },
+      "get": {
+        "description": "Returns all quizzes for the authenticated teacher's instance. Optionally filter by courseId. Includes question counts for each quiz.",
+        "operationId": "QuizzesController_findAll",
+        "parameters": [
+          {
+            "name": "courseId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by course ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Quizzes retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuizListResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all quizzes",
+        "tags": [
+          "Quizzes"
+        ]
+      }
+    },
+    "/api/quizzes/{id}": {
+      "get": {
+        "description": "Returns a single quiz with all its questions. Includes question details, types, options, and correct answers.",
+        "operationId": "QuizzesController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Quiz ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Quiz retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuizDetailResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Quiz not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get quiz by ID",
+        "tags": [
+          "Quizzes"
+        ]
+      },
+      "patch": {
+        "description": "Updates quiz title, description, or total marks. Only fields provided in the request body will be updated.",
+        "operationId": "QuizzesController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Quiz ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateQuizDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Quiz updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuizResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Quiz not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update quiz",
+        "tags": [
+          "Quizzes"
+        ]
+      },
+      "delete": {
+        "description": "Deletes a quiz and all its associated questions and attempts. This action is irreversible.",
+        "operationId": "QuizzesController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Quiz ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Quiz deleted successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Quiz not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete quiz",
+        "tags": [
+          "Quizzes"
+        ]
+      }
+    },
+    "/api/quizzes/{id}/questions": {
+      "post": {
+        "description": "Adds a new question to an existing quiz. Supports MCQ (multiple choice) and THEORY (written answer) types. For MCQ, provide options array and correctAnswer for auto-grading. For THEORY, no correctAnswer is needed (teacher grades manually).",
+        "operationId": "QuizzesController_addQuestion",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Quiz ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateQuestionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Question added successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Quiz not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add a question to a quiz",
+        "tags": [
+          "Quizzes"
+        ]
+      },
+      "get": {
+        "description": "Returns all questions for a quiz. Includes options, correct answers, and marks for each question.",
+        "operationId": "QuizzesController_findQuestions",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Quiz ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Questions retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionListResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Quiz not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all questions in a quiz",
+        "tags": [
+          "Quizzes"
+        ]
+      }
+    },
+    "/api/quizzes/{quizId}/questions/{questionId}": {
+      "patch": {
+        "description": "Updates a question's text, type, options, correct answer, or marks. Only fields provided in the request body will be updated.",
+        "operationId": "QuizzesController_updateQuestion",
+        "parameters": [
+          {
+            "name": "quizId",
+            "required": true,
+            "in": "path",
+            "description": "Quiz ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questionId",
+            "required": true,
+            "in": "path",
+            "description": "Question ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateQuestionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Question updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Question not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a question",
+        "tags": [
+          "Quizzes"
+        ]
+      },
+      "delete": {
+        "description": "Removes a question from a quiz. This action is irreversible and may affect existing quiz attempts.",
+        "operationId": "QuizzesController_removeQuestion",
+        "parameters": [
+          {
+            "name": "quizId",
+            "required": true,
+            "in": "path",
+            "description": "Quiz ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questionId",
+            "required": true,
+            "in": "path",
+            "description": "Question ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Question deleted successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Question not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a question",
+        "tags": [
+          "Quizzes"
+        ]
+      }
+    },
+    "/api/quizzes/{id}/submit": {
+      "post": {
+        "description": "Submits a student's answers for a quiz. MCQ questions are auto-graded immediately — score is calculated. THEORY questions are left ungraded (teacher must grade manually). Each student can only submit once per quiz (unique constraint). The answers array must contain one entry per question in the quiz.",
+        "operationId": "QuizzesController_submit",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Quiz ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitQuizAttemptDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Quiz submitted and auto-graded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuizAttemptResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Quiz not found"
+          },
+          "409": {
+            "description": "Student has already submitted this quiz"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Submit quiz attempt",
+        "tags": [
+          "Quizzes"
+        ]
+      }
+    },
+    "/api/quizzes/{id}/attempts": {
+      "get": {
+        "description": "Returns all student attempts for a quiz. Shows each student's score, answers, and submission time. Use this to review student performance on a quiz.",
+        "operationId": "QuizzesController_findAttempts",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Quiz ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Attempts retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttemptListResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Quiz not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all attempts for a quiz",
+        "tags": [
+          "Quizzes"
+        ]
+      }
+    },
+    "/api/quizzes/{id}/attempts/{studentId}": {
+      "get": {
+        "description": "Returns a single student's attempt for a quiz with full details. Shows each answer, whether it was correct (MCQ), and marks earned.",
+        "operationId": "QuizzesController_findStudentAttempt",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Quiz ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "description": "Student ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Attempt retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuizAttemptResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Attempt not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get a specific student attempt",
+        "tags": [
+          "Quizzes"
+        ]
+      }
+    },
+    "/api/assignments": {
+      "post": {
+        "description": "Creates an assignment within a course. Students can submit text and/or file attachments. An optional due date can be set for submission deadline.",
+        "operationId": "AssignmentsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAssignmentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Assignment created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignmentResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Course not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new assignment",
+        "tags": [
+          "Assignments"
+        ]
+      },
+      "get": {
+        "description": "Returns all assignments for the authenticated teacher's instance. Optionally filter by courseId.",
+        "operationId": "AssignmentsController_findAll",
+        "parameters": [
+          {
+            "name": "courseId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by course ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Assignments retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignmentListResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all assignments",
+        "tags": [
+          "Assignments"
+        ]
+      }
+    },
+    "/api/assignments/{id}": {
+      "get": {
+        "description": "Returns a single assignment with full details including due date and description.",
+        "operationId": "AssignmentsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Assignment ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Assignment retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignmentResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Assignment not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get assignment by ID",
+        "tags": [
+          "Assignments"
+        ]
+      },
+      "patch": {
+        "description": "Updates assignment title, description, or due date. Only fields provided in the request body will be updated.",
+        "operationId": "AssignmentsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Assignment ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAssignmentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Assignment updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignmentResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Assignment not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update assignment",
+        "tags": [
+          "Assignments"
+        ]
+      },
+      "delete": {
+        "description": "Deletes an assignment and all associated submissions. This action is irreversible.",
+        "operationId": "AssignmentsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Assignment ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Assignment deleted successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Assignment not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete assignment",
+        "tags": [
+          "Assignments"
+        ]
+      }
+    },
+    "/api/assignments/{id}/submissions": {
+      "post": {
+        "description": "Submits a student's work for an assignment. Supports both text content and file upload. File is uploaded to MinIO storage and a URL is stored with the submission. Each student can only submit once per assignment (use PATCH to update).",
+        "operationId": "AssignmentsController_submit",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Assignment ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "content": {
+                    "type": "string",
+                    "description": "Text content of the submission"
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "File attachment"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Assignment submitted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmissionResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Assignment not found"
+          },
+          "409": {
+            "description": "Already submitted — use PATCH to resubmit"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Submit assignment",
+        "tags": [
+          "Assignments"
+        ]
+      },
+      "get": {
+        "description": "Returns all student submissions for an assignment. Shows student ID, content, file URL, grade, and feedback. Use this to review and grade student work.",
+        "operationId": "AssignmentsController_findSubmissions",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Assignment ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Submissions retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmissionListResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Assignment not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all submissions for an assignment",
+        "tags": [
+          "Assignments"
+        ]
+      }
+    },
+    "/api/assignments/{id}/submissions/{studentId}": {
+      "get": {
+        "description": "Returns a single student's submission for an assignment. Shows content, file URL, grade, and feedback.",
+        "operationId": "AssignmentsController_findSubmission",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Assignment ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "description": "Student ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Submission retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmissionResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Submission not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get a specific submission",
+        "tags": [
+          "Assignments"
+        ]
+      }
+    },
+    "/api/assignments/{assignmentId}/submissions/{studentId}/grade": {
+      "patch": {
+        "description": "Grades a student's submission with a score and optional feedback. Grade should be on the same scale as the assignment (e.g., out of 20). Feedback is visible to the student.",
+        "operationId": "AssignmentsController_grade",
+        "parameters": [
+          {
+            "name": "assignmentId",
+            "required": true,
+            "in": "path",
+            "description": "Assignment ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "description": "Student ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GradeSubmissionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Submission graded successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmissionResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Submission not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Grade a submission",
+        "tags": [
+          "Assignments"
+        ]
+      }
+    },
+    "/api/gradebook/courses/{courseId}": {
+      "get": {
+        "description": "Returns a complete gradebook for a course. Shows all enrolled students with their quiz scores, assignment grades, and overall percentage. Quiz scores are auto-graded (MCQ) or null (theory pending). Assignment grades are null until the teacher grades them.",
+        "operationId": "GradebookController_getCourseGradebook",
+        "parameters": [
+          {
+            "name": "courseId",
+            "required": true,
+            "in": "path",
+            "description": "Course ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Gradebook retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GradebookCourseResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Course not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get course gradebook",
+        "tags": [
+          "Gradebook"
+        ]
+      }
+    },
+    "/api/gradebook/groups/{groupId}": {
+      "get": {
+        "description": "Returns an aggregated gradebook for an entire group. Combines quiz and assignment results across all courses in the group. Shows each student's performance across all courses.",
+        "operationId": "GradebookController_getGroupGradebook",
+        "parameters": [
+          {
+            "name": "groupId",
+            "required": true,
+            "in": "path",
+            "description": "Group ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Gradebook retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GradebookGroupResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Group not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get group gradebook",
+        "tags": [
+          "Gradebook"
+        ]
+      }
+    },
+    "/api/gradebook/students/{studentId}": {
+      "get": {
+        "description": "Returns a single student's performance across all courses. Shows all quiz attempts with scores and all assignment submissions with grades. Includes overall percentage across all graded items.",
+        "operationId": "GradebookController_getStudentGradebook",
+        "parameters": [
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "description": "Student ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Student gradebook retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GradebookStudentResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Student not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get student gradebook",
+        "tags": [
+          "Gradebook"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Basma API",
+    "description": "Educational platform backend — multi-tenant, white-labeled",
+    "version": "1.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "SignupDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "teacher@example.com",
+            "description": "Teacher email address"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "example": "Demo@123",
+            "description": "Password (min 8 characters)"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "example": "أحمد محمد",
+            "description": "Full name in Arabic or English"
+          },
+          "subdomain": {
+            "type": "string",
+            "example": "myschool",
+            "description": "Subdomain for the instance (auto-generated from name if omitted)"
+          },
+          "lang": {
+            "type": "string",
+            "enum": [
+              "ar",
+              "en"
+            ],
+            "example": "ar",
+            "description": "Preferred language"
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "name"
+        ]
+      },
+      "TeacherProfile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "email": {
+            "type": "string",
+            "example": "teacher@example.com"
+          },
+          "name": {
+            "type": "string",
+            "example": "أحمد محمد"
+          },
+          "lang": {
+            "type": "string",
+            "example": "ar"
+          },
+          "instanceId": {
+            "type": "string",
+            "example": "clx..."
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name",
+          "lang",
+          "instanceId"
+        ]
+      },
+      "AuthResponseDto": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiIs..."
+          },
+          "refreshToken": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiIs..."
+          },
+          "teacher": {
+            "$ref": "#/components/schemas/TeacherProfile"
+          }
+        },
+        "required": [
+          "accessToken",
+          "refreshToken",
+          "teacher"
+        ]
+      },
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "teacher@basma.demo",
+            "description": "Registered email address"
+          },
+          "password": {
+            "type": "string",
+            "example": "Demo@123",
+            "description": "Account password"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "RefreshTokenDto": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "description": "JWT refresh token"
+          }
+        },
+        "required": [
+          "refreshToken"
+        ]
+      },
+      "MeResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "email": {
+            "type": "string",
+            "example": "teacher@example.com"
+          },
+          "name": {
+            "type": "string",
+            "example": "أحمد محمد"
+          },
+          "lang": {
+            "type": "string",
+            "example": "ar"
+          },
+          "tier": {
+            "type": "string",
+            "example": "FREE",
+            "enum": [
+              "FREE",
+              "MID",
+              "BIG",
+              "HUGE"
+            ]
+          },
+          "instanceId": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "subdomain": {
+            "type": "string",
+            "example": "myschool"
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name",
+          "lang",
+          "tier",
+          "instanceId",
+          "subdomain",
+          "createdAt"
+        ]
+      },
+      "StudentSignupDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "example": "علي أحمد",
+            "description": "Student full name"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "ali@example.com",
+            "description": "Student email"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+201234567890",
+            "description": "Student phone number"
+          },
+          "code": {
+            "type": "string",
+            "example": "INV234",
+            "description": "Invitation code for closed groups, or group ID for open registration"
+          }
+        },
+        "required": [
+          "name",
+          "code"
+        ]
+      },
+      "StudentAuthProfile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "name": {
+            "type": "string",
+            "example": "علي أحمد"
+          },
+          "email": {
+            "type": "string",
+            "example": "ali@example.com"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+201234567890"
+          },
+          "groupId": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "instanceId": {
+            "type": "string",
+            "example": "clx..."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "groupId",
+          "instanceId"
+        ]
+      },
+      "StudentAuthResponseDto": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiIs..."
+          },
+          "refreshToken": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiIs..."
+          },
+          "student": {
+            "$ref": "#/components/schemas/StudentAuthProfile"
+          }
+        },
+        "required": [
+          "accessToken",
+          "refreshToken",
+          "student"
+        ]
+      },
+      "CreateGroupDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "example": "الصف الأول الثانوي",
+            "description": "Group name"
+          },
+          "description": {
+            "type": "string",
+            "example": "شعبة علمي رياضة",
+            "description": "Optional description"
+          },
+          "registrationMode": {
+            "enum": [
+              "OPEN",
+              "CLOSED"
+            ],
+            "type": "string",
+            "example": "OPEN",
+            "description": "Student registration mode (OPEN = public sign-up, CLOSED = invitation only)"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "StudentCount": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "number",
+            "example": 5
+          },
+          "inactive": {
+            "type": "number",
+            "example": 2
+          }
+        },
+        "required": [
+          "active",
+          "inactive"
+        ]
+      },
+      "GroupResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "name": {
+            "type": "string",
+            "example": "الصف الأول الثانوي"
+          },
+          "description": {
+            "type": "string",
+            "example": "شعبة علمي رياضة"
+          },
+          "registrationMode": {
+            "enum": [
+              "OPEN",
+              "CLOSED"
+            ],
+            "type": "string",
+            "example": "OPEN"
+          },
+          "invitationCode": {
+            "type": "string",
+            "example": "abc123def"
+          },
+          "instanceId": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "studentCount": {
+            "$ref": "#/components/schemas/StudentCount"
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "registrationMode",
+          "instanceId",
+          "studentCount",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "GroupListResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupResponseDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "example": 3
+          },
+          "limits": {
+            "type": "object",
+            "properties": {
+              "groups": {
+                "type": "number"
+              },
+              "students": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "groups",
+              "students"
+            ]
+          }
+        },
+        "required": [
+          "data",
+          "total",
+          "limits"
+        ]
+      },
+      "UpdateGroupDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "example": "الصف الأول الثانوي",
+            "description": "Group name"
+          },
+          "description": {
+            "type": "string",
+            "example": "شعبة علمي رياضة",
+            "description": "Optional description"
+          },
+          "registrationMode": {
+            "enum": [
+              "OPEN",
+              "CLOSED"
+            ],
+            "type": "string",
+            "example": "OPEN",
+            "description": "Student registration mode (OPEN = public sign-up, CLOSED = invitation only)"
+          }
+        }
+      },
+      "CreateStudentDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "example": "علي أحمد",
+            "description": "Student full name"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "ali@example.com",
+            "description": "Student email (unique within instance)"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+201234567890",
+            "description": "Student phone number"
+          },
+          "groupId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Group ID to assign the student to"
+          }
+        },
+        "required": [
+          "name",
+          "groupId"
+        ]
+      },
+      "StudentResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "name": {
+            "type": "string",
+            "example": "علي أحمد"
+          },
+          "email": {
+            "type": "string",
+            "example": "ali@example.com"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+201234567890"
+          },
+          "status": {
+            "enum": [
+              "ACTIVE",
+              "INACTIVE"
+            ],
+            "type": "string",
+            "example": "ACTIVE"
+          },
+          "groupId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Group ID"
+          },
+          "instanceId": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "status",
+          "groupId",
+          "instanceId",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "StudentListResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StudentResponseDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "example": 15
+          },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "active": {
+                "type": "number"
+              },
+              "inactive": {
+                "type": "number"
+              },
+              "limit": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "active",
+              "inactive",
+              "limit"
+            ]
+          }
+        },
+        "required": [
+          "data",
+          "total",
+          "summary"
+        ]
+      },
+      "CsvStudentRow": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "example": "علي أحمد",
+            "description": "Student full name"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "ali@example.com"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+201234567890"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "BulkImportDto": {
+        "type": "object",
+        "properties": {
+          "students": {
+            "description": "Array of students to import",
+            "example": [
+              {
+                "name": "علي أحمد",
+                "email": "ali@example.com",
+                "phone": "+201234567890"
+              },
+              {
+                "name": "محمد حسن",
+                "email": "mohamed@example.com"
+              }
+            ],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CsvStudentRow"
+            }
+          },
+          "groupId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Target group ID"
+          }
+        },
+        "required": [
+          "students",
+          "groupId"
+        ]
+      },
+      "BulkImportResultDto": {
+        "type": "object",
+        "properties": {
+          "imported": {
+            "type": "number",
+            "example": 50
+          },
+          "inactive": {
+            "type": "number",
+            "example": 3
+          },
+          "skipped": {
+            "type": "number",
+            "example": 2
+          },
+          "skippedEmails": {
+            "example": [
+              "ali@example.com"
+            ],
+            "description": "Emails that were skipped (already existed)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "imported",
+          "inactive",
+          "skipped",
+          "skippedEmails"
+        ]
+      },
+      "RedeemInvitationDto": {
+        "type": "object",
+        "properties": {
+          "invitationCode": {
+            "type": "string",
+            "example": "a1b2c3d4e5f6",
+            "description": "Invitation code from the group"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "example": "علي أحمد",
+            "description": "Student full name"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "ali@example.com"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+201234567890"
+          }
+        },
+        "required": [
+          "invitationCode",
+          "name"
+        ]
+      },
+      "UpdateStudentDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "example": "علي أحمد",
+            "description": "Student full name"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "ali@example.com",
+            "description": "Student email"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+201234567890",
+            "description": "Student phone number"
+          },
+          "status": {
+            "enum": [
+              "ACTIVE",
+              "INACTIVE"
+            ],
+            "type": "string",
+            "example": "ACTIVE",
+            "description": "Student status"
+          },
+          "groupId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Group ID to move the student to"
+          }
+        }
+      },
+      "CreateCourseDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 2,
+            "example": "الرياضيات - الجبر",
+            "description": "Course title"
+          },
+          "description": {
+            "type": "string",
+            "example": "مقرر الجبر للصف الأول الثانوي",
+            "description": "Optional course description"
+          },
+          "price": {
+            "type": "number",
+            "minimum": 0,
+            "example": 0,
+            "description": "Course price in EGP (0 = free)"
+          },
+          "groupId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Group ID this course belongs to"
+          }
+        },
+        "required": [
+          "title",
+          "groupId"
+        ]
+      },
+      "CourseStudentCount": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number",
+            "example": 15
+          }
+        },
+        "required": [
+          "total"
+        ]
+      },
+      "CourseResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "title": {
+            "type": "string",
+            "example": "الرياضيات - الجبر"
+          },
+          "description": {
+            "type": "string",
+            "example": "مقرر الجبر للصف الأول الثانوي"
+          },
+          "price": {
+            "type": "number",
+            "example": 0,
+            "description": "Course price in EGP"
+          },
+          "groupId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Group ID"
+          },
+          "instanceId": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "studentCount": {
+            "description": "Enrolled student count",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CourseStudentCount"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "price",
+          "groupId",
+          "instanceId",
+          "studentCount",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "CourseListResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CourseResponseDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "example": 5
+          }
+        },
+        "required": [
+          "data",
+          "total"
+        ]
+      },
+      "UpdateCourseDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 2,
+            "example": "الرياضيات - الجبر",
+            "description": "Course title"
+          },
+          "description": {
+            "type": "string",
+            "example": "مقرر الجبر للصف الأول الثانوي",
+            "description": "Optional course description"
+          },
+          "price": {
+            "type": "number",
+            "minimum": 0,
+            "example": 199.99,
+            "description": "Course price in EGP (0 = free)"
+          }
+        }
+      },
+      "CreateEnrollmentDto": {
+        "type": "object",
+        "properties": {
+          "studentIds": {
+            "minItems": 1,
+            "example": [
+              "clx...",
+              "clx..."
+            ],
+            "description": "Array of student IDs to enroll in the course",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "studentIds"
+        ]
+      },
+      "EnrolledStudent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "name": {
+            "type": "string",
+            "example": "علي أحمد"
+          },
+          "email": {
+            "type": "string",
+            "example": "ali@example.com"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "EnrollmentResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "courseId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Course ID"
+          },
+          "studentId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Student ID"
+          },
+          "student": {
+            "$ref": "#/components/schemas/EnrolledStudent"
+          },
+          "enrolledAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "courseId",
+          "studentId",
+          "student",
+          "enrolledAt"
+        ]
+      },
+      "EnrollmentListResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EnrollmentResponseDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "example": 10
+          }
+        },
+        "required": [
+          "data",
+          "total"
+        ]
+      },
+      "CreateSessionDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 2,
+            "example": "مراجعة الجبر - الوحدة الأولى",
+            "description": "Session title"
+          },
+          "startTime": {
+            "type": "string",
+            "example": "2025-09-15T10:00:00.000Z",
+            "description": "Session start time (ISO 8601)"
+          },
+          "endTime": {
+            "type": "string",
+            "example": "2025-09-15T12:00:00.000Z",
+            "description": "Session end time (ISO 8601)"
+          },
+          "type": {
+            "enum": [
+              "LOCAL",
+              "ONLINE"
+            ],
+            "type": "string",
+            "example": "LOCAL",
+            "description": "Session delivery mode. LOCAL = in-person (uses location field). ONLINE = virtual (uses platform + meetingUrl fields)."
+          },
+          "location": {
+            "type": "string",
+            "example": "قاعة 3 - مركز التعليم, القاهرة",
+            "description": "Physical location (required when type=LOCAL)"
+          },
+          "platform": {
+            "enum": [
+              "ZOOM",
+              "GOOGLE_MEET",
+              "MICROSOFT_TEAMS",
+              "OTHER"
+            ],
+            "type": "string",
+            "example": "ZOOM",
+            "description": "Video conferencing platform (used when type=ONLINE)"
+          },
+          "meetingUrl": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://zoom.us/j/123456789",
+            "description": "Meeting URL (used when type=ONLINE)"
+          },
+          "notes": {
+            "type": "string",
+            "example": "يرجى مراجعة الوحدة الأولى قبل الجلسة",
+            "description": "Optional notes or instructions for the session"
+          },
+          "courseId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Course ID this session belongs to"
+          }
+        },
+        "required": [
+          "title",
+          "startTime",
+          "courseId"
+        ]
+      },
+      "SessionResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "title": {
+            "type": "string",
+            "example": "مراجعة الجبر - الوحدة الأولى"
+          },
+          "startTime": {
+            "type": "string",
+            "example": "2025-09-15T10:00:00.000Z"
+          },
+          "endTime": {
+            "type": "string",
+            "example": "2025-09-15T12:00:00.000Z"
+          },
+          "type": {
+            "enum": [
+              "LOCAL",
+              "ONLINE"
+            ],
+            "type": "string",
+            "example": "LOCAL"
+          },
+          "location": {
+            "type": "string",
+            "example": "قاعة 3 - مركز التعليم, القاهرة"
+          },
+          "platform": {
+            "enum": [
+              "ZOOM",
+              "GOOGLE_MEET",
+              "MICROSOFT_TEAMS",
+              "OTHER"
+            ],
+            "type": "string",
+            "example": "ZOOM"
+          },
+          "meetingUrl": {
+            "type": "string",
+            "example": "https://zoom.us/j/123456789"
+          },
+          "notes": {
+            "type": "string",
+            "example": "يرجى مراجعة الوحدة الأولى قبل الجلسة"
+          },
+          "courseId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Course ID"
+          },
+          "instanceId": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "startTime",
+          "type",
+          "courseId",
+          "instanceId",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "SessionListResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SessionResponseDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "example": 8
+          }
+        },
+        "required": [
+          "data",
+          "total"
+        ]
+      },
+      "UpdateSessionDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 2,
+            "example": "مراجعة الجبر - الوحدة الأولى",
+            "description": "Session title"
+          },
+          "startTime": {
+            "type": "string",
+            "example": "2025-09-15T10:00:00.000Z",
+            "description": "Session start time (ISO 8601)"
+          },
+          "endTime": {
+            "type": "string",
+            "example": "2025-09-15T12:00:00.000Z",
+            "description": "Session end time (ISO 8601)"
+          },
+          "type": {
+            "enum": [
+              "LOCAL",
+              "ONLINE"
+            ],
+            "type": "string",
+            "example": "ONLINE",
+            "description": "Session delivery mode"
+          },
+          "location": {
+            "type": "string",
+            "example": "قاعة 3 - مركز التعليم, القاهرة",
+            "description": "Physical location (for LOCAL sessions)"
+          },
+          "platform": {
+            "enum": [
+              "ZOOM",
+              "GOOGLE_MEET",
+              "MICROSOFT_TEAMS",
+              "OTHER"
+            ],
+            "type": "string",
+            "example": "GOOGLE_MEET",
+            "description": "Video conferencing platform (for ONLINE sessions)"
+          },
+          "meetingUrl": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://meet.google.com/abc-defg-hij",
+            "description": "Meeting URL (for ONLINE sessions)"
+          },
+          "notes": {
+            "type": "string",
+            "example": "يرجى مراجعة الوحدة الأولى قبل الجلسة",
+            "description": "Optional notes or instructions"
+          }
+        }
+      },
+      "BrandResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Brand ID"
+          },
+          "logoUrl": {
+            "type": "string",
+            "nullable": true,
+            "example": "http://localhost:9000/basma-assets/abc123/logo.png",
+            "description": "Logo URL"
+          },
+          "primaryColor": {
+            "type": "string",
+            "example": "#2563eb",
+            "description": "Primary brand color"
+          },
+          "secondaryColor": {
+            "type": "string",
+            "example": "#1e40af",
+            "description": "Secondary brand color"
+          },
+          "fontFamily": {
+            "type": "string",
+            "example": "Cairo",
+            "description": "Font family"
+          },
+          "customDomain": {
+            "type": "string",
+            "nullable": true,
+            "example": "myschool.example.com",
+            "description": "Custom domain"
+          },
+          "whiteLabelEnabled": {
+            "type": "boolean",
+            "example": false,
+            "description": "Whether white-label is enabled (removes Basma branding)"
+          },
+          "instanceId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Instance ID"
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2026-06-25T10:00:00.000Z",
+            "description": "Creation timestamp"
+          },
+          "updatedAt": {
+            "type": "string",
+            "example": "2026-06-25T10:00:00.000Z",
+            "description": "Last update timestamp"
+          }
+        },
+        "required": [
+          "id",
+          "primaryColor",
+          "secondaryColor",
+          "fontFamily",
+          "whiteLabelEnabled",
+          "instanceId",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "UpdateBrandDto": {
+        "type": "object",
+        "properties": {
+          "primaryColor": {
+            "type": "string",
+            "example": "#2563eb",
+            "description": "Primary brand color (hex)"
+          },
+          "secondaryColor": {
+            "type": "string",
+            "example": "#1e40af",
+            "description": "Secondary brand color (hex)"
+          },
+          "fontFamily": {
+            "type": "string",
+            "example": "Cairo",
+            "description": "Font family name"
+          },
+          "customDomain": {
+            "type": "string",
+            "example": "myschool.example.com",
+            "description": "Custom domain for the platform"
+          },
+          "whiteLabelEnabled": {
+            "type": "boolean",
+            "description": "Enable white-label (remove \"Powered by Basma\" branding). Requires paid tier."
+          }
+        }
+      },
+      "BrandPublicResponseDto": {
+        "type": "object",
+        "properties": {
+          "logoUrl": {
+            "type": "string",
+            "nullable": true,
+            "example": "http://localhost:9000/basma-assets/abc123/logo.png",
+            "description": "Logo URL (null if no logo uploaded)"
+          },
+          "primaryColor": {
+            "type": "string",
+            "example": "#2563eb",
+            "description": "Primary brand color"
+          },
+          "secondaryColor": {
+            "type": "string",
+            "example": "#1e40af",
+            "description": "Secondary brand color"
+          },
+          "fontFamily": {
+            "type": "string",
+            "example": "Cairo",
+            "description": "Font family"
+          },
+          "whiteLabelEnabled": {
+            "type": "boolean",
+            "example": false,
+            "description": "Whether this instance has white-label enabled"
+          },
+          "instanceName": {
+            "type": "string",
+            "example": "مدرستي",
+            "description": "Instance name"
+          }
+        },
+        "required": [
+          "logoUrl",
+          "primaryColor",
+          "secondaryColor",
+          "fontFamily",
+          "whiteLabelEnabled",
+          "instanceName"
+        ]
+      },
+      "CreateQuizDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 2,
+            "example": "اختبار الجبر - الوحدة الأولى",
+            "description": "Quiz title"
+          },
+          "description": {
+            "type": "string",
+            "example": "اختبار شامل على الوحدة الأولى",
+            "description": "Optional quiz description"
+          },
+          "totalMarks": {
+            "type": "number",
+            "minimum": 1,
+            "example": 20,
+            "description": "Total marks for the quiz"
+          },
+          "courseId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Course ID this quiz belongs to"
+          }
+        },
+        "required": [
+          "title",
+          "totalMarks",
+          "courseId"
+        ]
+      },
+      "QuizQuestionCount": {
+        "type": "object",
+        "properties": {
+          "questions": {
+            "type": "number",
+            "example": 5
+          }
+        },
+        "required": [
+          "questions"
+        ]
+      },
+      "QuizResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "title": {
+            "type": "string",
+            "example": "اختبار الجبر - الوحدة الأولى"
+          },
+          "description": {
+            "type": "string",
+            "example": "اختبار شامل على الوحدة الأولى"
+          },
+          "totalMarks": {
+            "type": "number",
+            "example": 20
+          },
+          "courseId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Course ID"
+          },
+          "instanceId": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "questionCount": {
+            "description": "Number of questions in the quiz",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/QuizQuestionCount"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "totalMarks",
+          "courseId",
+          "instanceId",
+          "questionCount",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "QuizListResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuizResponseDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "example": 3
+          }
+        },
+        "required": [
+          "data",
+          "total"
+        ]
+      },
+      "QuizDetailResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "title": {
+            "type": "string",
+            "example": "اختبار الجبر - الوحدة الأولى"
+          },
+          "description": {
+            "type": "string",
+            "example": "اختبار شامل على الوحدة الأولى"
+          },
+          "totalMarks": {
+            "type": "number",
+            "example": 20
+          },
+          "courseId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Course ID"
+          },
+          "instanceId": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "questionCount": {
+            "description": "Number of questions in the quiz",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/QuizQuestionCount"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          },
+          "questions": {
+            "description": "List of questions in the quiz",
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "totalMarks",
+          "courseId",
+          "instanceId",
+          "questionCount",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "UpdateQuizDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 2,
+            "example": "اختبار الجبر - الوحدة الأولى (معدل)",
+            "description": "Quiz title"
+          },
+          "description": {
+            "type": "string",
+            "example": "اختبار شامل على الوحدة الأولى",
+            "description": "Quiz description"
+          },
+          "totalMarks": {
+            "type": "number",
+            "minimum": 1,
+            "example": 25,
+            "description": "Total marks for the quiz"
+          }
+        }
+      },
+      "CreateQuestionDto": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 2,
+            "example": "ما ناتج (x+2)(x-2)؟",
+            "description": "Question text"
+          },
+          "type": {
+            "enum": [
+              "MCQ",
+              "THEORY"
+            ],
+            "type": "string",
+            "example": "MCQ",
+            "description": "Question type: MCQ (auto-graded) or THEORY (teacher graded)"
+          },
+          "options": {
+            "example": [
+              "x²-4",
+              "x²+4",
+              "x²-4x+4",
+              "x²+4x+4"
+            ],
+            "description": "Multiple choice options (required for MCQ type)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "correctAnswer": {
+            "type": "string",
+            "example": "x²-4",
+            "description": "Correct answer (used for auto-grading MCQ)"
+          },
+          "marks": {
+            "type": "number",
+            "minimum": 1,
+            "example": 5,
+            "description": "Marks for this question"
+          }
+        },
+        "required": [
+          "text",
+          "type",
+          "marks"
+        ]
+      },
+      "QuestionResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "text": {
+            "type": "string",
+            "example": "ما ناتج (x+2)(x-2)؟"
+          },
+          "type": {
+            "enum": [
+              "MCQ",
+              "THEORY"
+            ],
+            "type": "string",
+            "example": "MCQ"
+          },
+          "options": {
+            "example": [
+              "x²-4",
+              "x²+4",
+              "x²-4x+4",
+              "x²+4x+4"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "correctAnswer": {
+            "type": "string",
+            "example": "x²-4",
+            "description": "Correct answer (hidden from students in responses)"
+          },
+          "marks": {
+            "type": "number",
+            "example": 5
+          },
+          "quizId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Quiz ID"
+          },
+          "instanceId": {
+            "type": "string",
+            "example": "clx..."
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "type",
+          "marks",
+          "quizId",
+          "instanceId"
+        ]
+      },
+      "QuestionListResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionResponseDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "example": 5
+          }
+        },
+        "required": [
+          "data",
+          "total"
+        ]
+      },
+      "UpdateQuestionDto": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 2,
+            "example": "ما ناتج (x+3)(x-3)؟",
+            "description": "Question text"
+          },
+          "type": {
+            "enum": [
+              "MCQ",
+              "THEORY"
+            ],
+            "type": "string",
+            "example": "MCQ",
+            "description": "Question type"
+          },
+          "options": {
+            "example": [
+              "x²-9",
+              "x²+9",
+              "x²-6x+9",
+              "x²+6x+9"
+            ],
+            "description": "Multiple choice options",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "correctAnswer": {
+            "type": "string",
+            "example": "x²-9",
+            "description": "Correct answer"
+          },
+          "marks": {
+            "type": "number",
+            "minimum": 1,
+            "example": 5,
+            "description": "Marks for this question"
+          }
+        }
+      },
+      "SubmitQuizAttemptDto": {
+        "type": "object",
+        "properties": {
+          "answers": {
+            "minItems": 1,
+            "example": [
+              {
+                "questionId": "clx...",
+                "answer": "x²-4"
+              }
+            ],
+            "description": "Array of questionId-answer pairs",
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "answers"
+        ]
+      },
+      "AttemptAnswerDetail": {
+        "type": "object",
+        "properties": {
+          "questionId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Question ID"
+          },
+          "answer": {
+            "type": "string",
+            "example": "x²-4",
+            "description": "Student's submitted answer"
+          },
+          "correct": {
+            "type": "boolean",
+            "nullable": true,
+            "example": true,
+            "description": "Whether the answer was correct (null for theory questions)"
+          },
+          "marksEarned": {
+            "type": "number",
+            "example": 5,
+            "description": "Marks earned for this question"
+          }
+        },
+        "required": [
+          "questionId",
+          "answer",
+          "correct",
+          "marksEarned"
+        ]
+      },
+      "QuizAttemptResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "studentId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Student ID"
+          },
+          "quizId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Quiz ID"
+          },
+          "score": {
+            "type": "number",
+            "example": 15,
+            "description": "Total score (null if not yet graded — theory questions pending)"
+          },
+          "answers": {
+            "example": [
+              {
+                "questionId": "clx...",
+                "answer": "x²-4",
+                "correct": true,
+                "marksEarned": 5
+              }
+            ],
+            "description": "Detailed answer results",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AttemptAnswerDetail"
+            }
+          },
+          "submittedAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "studentId",
+          "quizId",
+          "answers",
+          "submittedAt"
+        ]
+      },
+      "AttemptListResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuizAttemptResponseDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "example": 3
+          }
+        },
+        "required": [
+          "data",
+          "total"
+        ]
+      },
+      "CreateAssignmentDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 2,
+            "example": "واجب الجبر - الوحدة الأولى",
+            "description": "Assignment title"
+          },
+          "description": {
+            "type": "string",
+            "example": "حل التمارين من 1 إلى 10 في صفحة 25",
+            "description": "Assignment description / instructions"
+          },
+          "dueDate": {
+            "type": "string",
+            "example": "2025-10-01T23:59:00.000Z",
+            "description": "Due date for submission (ISO 8601)"
+          },
+          "courseId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Course ID this assignment belongs to"
+          }
+        },
+        "required": [
+          "title",
+          "courseId"
+        ]
+      },
+      "AssignmentResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "title": {
+            "type": "string",
+            "example": "واجب الجبر - الوحدة الأولى"
+          },
+          "description": {
+            "type": "string",
+            "example": "حل التمارين من 1 إلى 10 في صفحة 25"
+          },
+          "dueDate": {
+            "type": "string",
+            "example": "2025-10-01T23:59:00.000Z"
+          },
+          "courseId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Course ID"
+          },
+          "instanceId": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "courseId",
+          "instanceId",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "AssignmentListResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssignmentResponseDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "example": 3
+          }
+        },
+        "required": [
+          "data",
+          "total"
+        ]
+      },
+      "UpdateAssignmentDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 2,
+            "example": "واجب الجبر - الوحدة الأولى (معدل)",
+            "description": "Assignment title"
+          },
+          "description": {
+            "type": "string",
+            "example": "حل التمارين من 1 إلى 15 في صفحة 30",
+            "description": "Assignment description"
+          },
+          "dueDate": {
+            "type": "string",
+            "example": "2025-10-05T23:59:00.000Z",
+            "description": "Due date"
+          }
+        }
+      },
+      "SubmissionResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "studentId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Student ID"
+          },
+          "assignmentId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Assignment ID"
+          },
+          "content": {
+            "type": "string",
+            "example": "إليك حل التمارين..."
+          },
+          "fileUrl": {
+            "type": "string",
+            "example": "http://localhost:9000/basma-assets/assignments/.../solution.pdf",
+            "description": "URL of the uploaded file"
+          },
+          "grade": {
+            "type": "number",
+            "example": 18,
+            "description": "Grade given by teacher"
+          },
+          "feedback": {
+            "type": "string",
+            "example": "أحسنت! حل ممتاز",
+            "description": "Teacher feedback"
+          },
+          "submittedAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "studentId",
+          "assignmentId",
+          "submittedAt"
+        ]
+      },
+      "SubmissionListResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubmissionResponseDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "example": 5
+          }
+        },
+        "required": [
+          "data",
+          "total"
+        ]
+      },
+      "GradeSubmissionDto": {
+        "type": "object",
+        "properties": {
+          "grade": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10000,
+            "example": 18,
+            "description": "Grade / score for the submission (0-100 or custom scale)"
+          },
+          "feedback": {
+            "type": "string",
+            "example": "أحسنت! حل ممتاز",
+            "description": "Optional feedback comment"
+          }
+        },
+        "required": [
+          "grade"
+        ]
+      },
+      "GradebookQuizScore": {
+        "type": "object",
+        "properties": {
+          "quizId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Quiz ID"
+          },
+          "title": {
+            "type": "string",
+            "example": "اختبار الجبر - الوحدة الأولى",
+            "description": "Quiz title"
+          },
+          "score": {
+            "type": "number",
+            "nullable": true,
+            "example": 15,
+            "description": "Score achieved (null if theory questions ungraded)"
+          },
+          "totalMarks": {
+            "type": "number",
+            "example": 20,
+            "description": "Total marks for the quiz"
+          },
+          "percentage": {
+            "type": "number",
+            "nullable": true,
+            "example": 75,
+            "description": "Percentage score (null if ungraded)"
+          }
+        },
+        "required": [
+          "quizId",
+          "title",
+          "score",
+          "totalMarks"
+        ]
+      },
+      "GradebookAssignmentScore": {
+        "type": "object",
+        "properties": {
+          "assignmentId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Assignment ID"
+          },
+          "title": {
+            "type": "string",
+            "example": "واجب الجبر - الوحدة الأولى",
+            "description": "Assignment title"
+          },
+          "grade": {
+            "type": "number",
+            "nullable": true,
+            "example": 18,
+            "description": "Grade achieved (null if not yet graded)"
+          },
+          "percentage": {
+            "type": "number",
+            "nullable": true,
+            "example": 75,
+            "description": "Percentage of max grade in this assignment set"
+          }
+        },
+        "required": [
+          "assignmentId",
+          "title"
+        ]
+      },
+      "GradebookStudentEntry": {
+        "type": "object",
+        "properties": {
+          "studentId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Student ID"
+          },
+          "studentName": {
+            "type": "string",
+            "example": "علي أحمد",
+            "description": "Student name"
+          },
+          "email": {
+            "type": "string",
+            "example": "ali@example.com",
+            "description": "Student email"
+          },
+          "quizzes": {
+            "description": "Quiz scores for this student",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GradebookQuizScore"
+            }
+          },
+          "assignments": {
+            "description": "Assignment grades for this student",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GradebookAssignmentScore"
+            }
+          },
+          "overallPercentage": {
+            "type": "number",
+            "nullable": true,
+            "example": 72.5,
+            "description": "Overall percentage across all graded items"
+          }
+        },
+        "required": [
+          "studentId",
+          "studentName",
+          "quizzes",
+          "assignments"
+        ]
+      },
+      "GradebookCourseResponseDto": {
+        "type": "object",
+        "properties": {
+          "courseId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Course ID"
+          },
+          "courseTitle": {
+            "type": "string",
+            "example": "الرياضيات - الجبر",
+            "description": "Course title"
+          },
+          "students": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GradebookStudentEntry"
+            }
+          }
+        },
+        "required": [
+          "courseId",
+          "courseTitle",
+          "students"
+        ]
+      },
+      "GradebookGroupResponseDto": {
+        "type": "object",
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Group ID"
+          },
+          "groupName": {
+            "type": "string",
+            "example": "الصف الأول الثانوي",
+            "description": "Group name"
+          },
+          "students": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GradebookStudentEntry"
+            }
+          }
+        },
+        "required": [
+          "groupId",
+          "groupName",
+          "students"
+        ]
+      },
+      "GradebookStudentResponseDto": {
+        "type": "object",
+        "properties": {
+          "studentId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Student ID"
+          },
+          "studentName": {
+            "type": "string",
+            "example": "علي أحمد",
+            "description": "Student name"
+          },
+          "quizzes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GradebookQuizScore"
+            }
+          },
+          "assignments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GradebookAssignmentScore"
+            }
+          },
+          "overallPercentage": {
+            "type": "number",
+            "nullable": true,
+            "example": 72.5
+          }
+        },
+        "required": [
+          "studentId",
+          "studentName",
+          "quizzes",
+          "assignments"
+        ]
+      }
+    }
+  }
+}

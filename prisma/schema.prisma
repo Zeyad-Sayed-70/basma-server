@@ -1,0 +1,390 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Tier {
+  FREE
+  MID
+  BIG
+  HUGE
+}
+
+enum RegistrationMode {
+  OPEN
+  CLOSED
+}
+
+enum StudentStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum QuestionType {
+  MCQ
+  THEORY
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum NotificationType {
+  SESSION_REMINDER
+  QUIZ_GRADED
+  ASSIGNMENT_DUE
+  CUSTOM
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum PaymentStatus {
+  PAID
+  PENDING
+  REFUNDED
+}
+
+enum SessionType {
+  LOCAL
+  ONLINE
+}
+
+enum SessionPlatform {
+  ZOOM
+  GOOGLE_MEET
+  MICROSOFT_TEAMS
+  OTHER
+}
+
+enum ChatSenderRole {
+  TEACHER
+  STUDENT
+}
+
+model Instance {
+  id        String   @id @default(cuid())
+  name      String
+  subdomain String   @unique
+  tier      Tier     @default(FREE)
+  settings  Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teacher      Teacher?
+  brand        Brand?
+  groups       Group[]
+  students     Student[]
+  courses      Course[]
+  sessions     Session[]
+  quizzes      Quiz[]
+  assignments  Assignment[]
+  notifications Notification[]
+  payments     Payment[]
+  questions    QuestionBank[]
+  chatMessages ChatMessage[]
+
+  @@map("instances")
+}
+
+model Teacher {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  lang         String   @default("ar")
+  instanceId   String   @unique
+  instance     Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("teachers")
+}
+
+model Brand {
+  id                String   @id @default(cuid())
+  logoUrl           String?
+  primaryColor      String   @default("#2563eb")
+  secondaryColor    String   @default("#1e40af")
+  fontFamily        String   @default("Cairo")
+  customDomain      String?
+  whiteLabelEnabled Boolean  @default(false)
+  instanceId        String   @unique
+  instance          Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("brands")
+}
+
+model Group {
+  id               String           @id @default(cuid())
+  name             String
+  description      String?
+  registrationMode RegistrationMode @default(OPEN)
+  invitationCode   String?          @unique
+  instanceId       String
+  instance         Instance         @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  students     Student[]
+  courses      Course[]
+  chatMessages ChatMessage[]
+
+  @@unique([instanceId, name])
+  @@index([instanceId])
+  @@map("groups")
+}
+
+model Student {
+  id         String        @id @default(cuid())
+  name       String
+  email      String?
+  phone      String?
+  status     StudentStatus @default(ACTIVE)
+  groupId    String
+  group      Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  instanceId String
+  instance   Instance      @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  enrollments             CourseEnrollment[]
+  quizAttempts            StudentQuizAttempt[]
+  assignmentSubmissions   StudentAssignmentSubmission[]
+  payments                Payment[]
+
+  @@unique([instanceId, email])
+  @@index([groupId])
+  @@index([instanceId])
+  @@map("students")
+}
+
+model Course {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  price       Float    @default(0)
+  groupId     String
+  group       Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  instanceId  String
+  instance    Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sessions     Session[]
+  quizzes      Quiz[]
+  assignments  Assignment[]
+  enrollments  CourseEnrollment[]
+  payments     Payment[]
+
+  @@index([groupId])
+  @@index([instanceId])
+  @@map("courses")
+}
+
+model CourseEnrollment {
+  id         String   @id @default(cuid())
+  studentId  String
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  courseId   String
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  enrolledAt DateTime @default(now())
+  instanceId String
+
+  @@unique([studentId, courseId])
+  @@index([courseId])
+  @@map("course_enrollments")
+}
+
+model Session {
+  id         String           @id @default(cuid())
+  title      String
+  startTime  DateTime
+  endTime    DateTime?
+  type       SessionType      @default(LOCAL)
+  location   String?
+  platform   SessionPlatform?
+  meetingUrl String?
+  notes      String?
+  courseId   String
+  course     Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  instanceId String
+  instance   Instance         @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@index([courseId])
+  @@index([instanceId])
+  @@map("sessions")
+}
+
+model Quiz {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  totalMarks  Int      @default(0)
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  instanceId  String
+  instance    Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  questions QuizQuestion[]
+  attempts  StudentQuizAttempt[]
+
+  @@index([courseId])
+  @@index([instanceId])
+  @@map("quizzes")
+}
+
+model QuizQuestion {
+  id            String       @id @default(cuid())
+  text          String
+  type          QuestionType @default(MCQ)
+  options       Json         @default("[]")
+  correctAnswer String?
+  marks         Int          @default(1)
+  quizId        String
+  quiz          Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  instanceId    String
+
+  @@index([quizId])
+  @@map("quiz_questions")
+}
+
+model StudentQuizAttempt {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  quizId      String
+  quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  score       Int?
+  answers     Json     @default("[]")
+  submittedAt DateTime @default(now())
+  instanceId  String
+
+  @@unique([studentId, quizId])
+  @@index([quizId])
+  @@map("student_quiz_attempts")
+}
+
+model Assignment {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  dueDate     DateTime?
+  courseId    String
+  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  instanceId  String
+  instance    Instance  @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  submissions StudentAssignmentSubmission[]
+
+  @@index([courseId])
+  @@index([instanceId])
+  @@map("assignments")
+}
+
+model StudentAssignmentSubmission {
+  id           String   @id @default(cuid())
+  studentId    String
+  student      Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  content      String?
+  fileUrl      String?
+  grade        Int?
+  feedback     String?
+  submittedAt  DateTime  @default(now())
+  instanceId   String
+
+  @@unique([studentId, assignmentId])
+  @@index([assignmentId])
+  @@map("student_assignment_submissions")
+}
+
+model Notification {
+  id             String             @id @default(cuid())
+  type           NotificationType
+  title          String
+  body           String
+  recipientPhone String?
+  status         NotificationStatus @default(PENDING)
+  instanceId     String
+  instance       Instance           @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([instanceId])
+  @@index([status])
+  @@map("notifications")
+}
+
+model Payment {
+  id         String        @id @default(cuid())
+  studentId  String
+  student    Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  courseId   String?
+  course     Course?       @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  amount     Float
+  currency   String        @default("EGP")
+  status     PaymentStatus @default(PAID)
+  notes      String?
+  instanceId String
+  instance   Instance      @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@index([studentId])
+  @@index([instanceId])
+  @@map("payments")
+}
+
+model QuestionBank {
+  id            String       @id @default(cuid())
+  text          String
+  type          QuestionType @default(MCQ)
+  options       Json         @default("[]")
+  correctAnswer String?
+  category      String?
+  difficulty    Difficulty   @default(MEDIUM)
+  instanceId    String
+  instance      Instance     @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([instanceId])
+  @@index([category])
+  @@map("question_bank")
+}
+
+model ChatMessage {
+  id         String          @id @default(cuid())
+  content    String
+  senderId   String
+  senderRole ChatSenderRole
+  fileUrl    String?
+  groupId    String
+  group      Group           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  instanceId String
+  instance   Instance        @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  createdAt  DateTime        @default(now())
+
+  @@index([groupId])
+  @@index([instanceId])
+  @@map("chat_messages")
+}

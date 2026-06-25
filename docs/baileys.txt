@@ -1,0 +1,890 @@
+# Deep Guide: Using the Baileys WhatsApp Library (Node.js, WebSocket)
+
+Baileys is an unofficial, TypeScript/JavaScript library that connects directly to WhatsApp's Web servers over **WebSocket** — no Selenium, no Chromium, no WhatsApp Business API. It links to a personal/business mobile account through the "Linked Devices" feature, and exposes a fully event-driven socket you can listen to and call functions on. As of v7, the package is published as `baileys` on npm (formerly `@whiskeysockets/baileys`), is ESM-only, and requires Node 17+ (Node 20+ recommended).【turn1fetch0】【turn27fetch0】
+
+Below is the full lifecycle you'll be implementing, then every section from install to production hardening.
+
+```mermaid
+flowchart LR
+    A[Install baileys<br/>Configure socket] --> B{Auth state<br/>exists?}
+    B -- No --> C[QR code<br/>or Pairing Code]
+    B -- Yes --> D[Auto-reconnect<br/>no QR needed]
+    C --> E[connection.update<br/>restartRequired 515]
+    E --> F[Recreate socket<br/>with saved creds]
+    D --> F
+    F --> G[connection: open]
+    G --> H[Listen to events<br/>messages.upsert / presence / groups ...]
+    H --> I[SendMessage /<br/>sendPresenceUpdate /<br/>readMessages / groups ...]
+    I --> H
+    H -. close .-> J{statusCode?}
+    J -- 401 loggedOut --> K[Stop:<br/>delete session]
+    J -- 515 restartRequired --> F
+    J -- 403/500/428/408 --> L[Backoff<br/>reconnect]
+    L --> F
+```
+
+---
+
+## 1. Installation & Project Setup
+
+Install Baileys plus a few helpers you'll need (pino logger, qrcode for terminal/HTML rendering, @hapi/boom for error parsing, link-preview-js for link previews, sharp/jimp/ffmpeg for thumbnails):
+
+```bash
+npm install baileys @hapi/boom pino qrcode link-preview-js
+# optional, for media thumbnails:
+npm install sharp      # or jimp
+# system-level, for video thumbnails:
+sudo apt install ffmpeg
+```
+
+> As of v7, Baileys is **ESM-only**. Set `"type": "module"` in `package.json` and use `import` (or wrap with `createRequire` / `await import()` if you're stuck on CommonJS).【turn27fetch0】
+
+Minimum project skeleton (`bot.js`):
+
+```js
+import makeWASocket, {
+  DisconnectReason,
+  useMultiFileAuthState,
+  Browsers,
+  makeCacheableSignalKeyStore,
+} from 'baileys'
+import { Boom } from '@hapi/boom'
+import P from 'pino'
+import NodeCache from 'node-cache'
+
+const logger = P({ level: 'silent' }) // use 'debug' while developing
+// ... rest below
+```
+
+---
+
+## 2. Socket Configuration (`makeWASocket`)
+
+All config is passed through `makeWASocket(opts)`. The strictly required props are `auth`, `logger`, and `getMessage` (the latter is needed for reliable retries and poll-vote decryption).【turn3fetch0】
+
+```js
+const groupCache = new NodeCache({ stdTTL: 5 * 60, useClones: false })
+
+const sock = makeWASocket({
+  auth: state,                                   // AuthenticationState (see §3)
+  logger,                                        // pino logger instance
+  printQRInTerminal: false,                      // we'll render QR ourselves
+  browser: Browsers.ubuntu('MyApp'),             // affects device label + history sync
+  markOnlineOnConnect: false,                    // keep phone push notifications
+  syncFullHistory: false,                        // true = emulate desktop, more history
+  cachedGroupMetadata: async (jid) => groupCache.get(jid), // avoid rate-limits on group sends
+  getMessage: async (key) => getMessageFromStore(key),     // for retries & poll votes
+  // version: [2, 2412, 54],   // optional; leave default unless you know what you're doing
+})
+```
+
+Key options explained:
+
+| Option | Purpose | Recommendation |
+|---|---|---|
+| `auth` | Encryption keys + credentials | Implement your own for prod (see §14) |
+| `logger` | pino logger | `silent` in prod, `debug` when developing |
+| `browser` | Device identity string | Use `Browsers.macOS('Desktop')` when `syncFullHistory: true` |
+| `version` | WhatsApp Web version | Leave default; don't call `fetchLatestWaWebVersion` on every connect — may cause incompatibility |
+| `syncFullHistory` | Pull full chat history on first link | Only with desktop `browser` string |
+| `markOnlineOnConnect` | Auto-mark online | Set `false` so the phone keeps receiving push notifications |
+| `cachedGroupMetadata` | Async fn returning cached group metadata | **Strongly recommended** — avoids rate-limit/ban when sending to groups |
+| `getMessage` | Async fn returning stored message | **Required** for message-retry receipts and poll-vote decryption |
+| `printQRInTerminal` | Auto-print QR to stdout | Use `false` if you render QR to web UI yourself |
+
+【turn3fetch0】【turn18fetch0】【turn19fetch0】
+
+---
+
+## 3. Authentication: QR Code & Pairing Code
+
+Baileys offers two pairing methods. The library exposes `useMultiFileAuthState` as a built-in demo helper — **the official docs explicitly warn: "DON'T EVER USE IT IN PROD"** because it does heavy synchronous file I/O and is "purely for demo purposes." Use it for tutorials, then replace it (see §14).【turn1fetch1】
+
+### 3.1 QR Code login
+
+```js
+import QRCode from 'qrcode'
+
+sock.ev.on('connection.update', async (update) => {
+  const { connection, lastDisconnect, qr } = update
+  if (qr) {
+    // In prod: send this string to your frontend and render there
+    console.log(await QRCode.toString(qr, { type: 'terminal' }))
+  }
+})
+```
+
+After scanning, **WhatsApp will forcibly disconnect you** to present the new credentials — this is expected, not an error, and is the `restartRequired (515)` path shown below.【turn1fetch1】
+
+### 3.2 Pairing Code (phone number) login
+
+The phone number must be **E.164 without `+`, `()`, or `-`** (e.g. `1234567890` for US). Wait until `connection === 'connecting'` or a QR arrives, then request the code. When using pairing code, set a logical browser config like `Browsers.macOS('Google Chrome')`, otherwise pairing can fail.【turn1fetch1】【turn3fetch0】
+
+```js
+const sock = makeWASocket({
+  auth: state,
+  printQRInTerminal: false,        // must be false for pairing
+  browser: Browsers.macOS('Chrome'),
+})
+
+if (!sock.authState.creds.registered) {
+  const phoneNumber = '1234567890'
+  // wait for 'connecting' state, then:
+  const code = await sock.requestPairingCode(phoneNumber)
+  console.log(`Pairing code: ${code}`)  // 8-char code, valid ~60s
+}
+```
+
+You can only pair one device per code, and pairing-code is **not** the Mobile API — it's a way to link WhatsApp Web without a QR.【turn6fetch0】
+
+---
+
+## 4. Connection Lifecycle, Reconnection & Disconnect Handling
+
+The single most important event is `connection.update`. It carries `connection` (`'connecting' | 'open' | 'close'`), `lastDisconnect` (with a Boom error), `qr`, and `isNewLogin`.【turn12fetch0】
+
+```js
+async function startSock() {
+  const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys')
+
+  const sock = makeWASocket({
+    auth: state,
+    logger,
+    markOnlineOnConnect: false,
+    cachedGroupMetadata: async (jid) => groupCache.get(jid),
+    getMessage: async (key) => await getMessageFromStore(key),
+  })
+
+  // Save credentials whenever they change — NON-NEGOTIABLE
+  sock.ev.on('creds.update', saveCreds)
+
+  sock.ev.on('connection.update', (update) => {
+    const { connection, lastDisconnect, qr } = update
+
+    if (qr) {
+      // render QR (see §3.1)
+    }
+
+    if (connection === 'open') {
+      console.log('✅ Connection opened')
+    }
+
+    if (connection === 'close') {
+      const code = (lastDisconnect?.error as Boom)?.output?.statusCode
+      const shouldReconnect = code !== DisconnectReason.loggedOut
+      console.log(`Connection closed. Code: ${code}. Reconnecting: ${shouldReconnect}`)
+
+      if (shouldReconnect) {
+        // optional: exponential backoff for transient codes
+        startSock()
+      } else {
+        // 401 — session is gone; delete auth folder so a fresh QR can be requested
+      }
+    }
+  })
+
+  // ...attach message/presence/group handlers here...
+  return sock
+}
+
+startSock()
+```
+
+### 4.1 `DisconnectReason` reference
+
+The statusCode on `lastDisconnect.error` maps to these enum values — decide your reconnection strategy from them:【turn17fetch0】
+
+| Code | Enum | Meaning | Action |
+|---|---|---|---|
+| `401` | `loggedOut` | Session logged out / revoked | **Stop.** Delete auth state, request new QR |
+| `403` | `forbidden` | Banned / blocked by WA | Stop, investigate; usually number banned |
+| `408` | `connectionLost` / `timedOut` | Network blip | Reconnect with backoff |
+| `411` | `multideviceMismatch` | Wrong protocol mode | Recreate socket fresh |
+| `428` | `connectionClosed` | Server closed socket | Reconnect |
+| `440` | `connectionReplaced` | Another client took over | Stop (or restart with delay) |
+| `500` | `badSession` | Session corrupted | Re-pair from scratch |
+| `515` | `restartRequired` | WA demands a fresh socket (e.g. after QR scan) | **Recreate the socket** — this one is dead |
+| `503` | `unavailableService` | WA server problem | Backoff + retry |
+
+Note: codes like `405`, `479`, unknown numeric stream errors do occur between versions — treat anything that isn't `401` as retryable, but cap retries and use exponential backoff so you don't hammer the server.【turn16search5】【turn25search11】
+
+### 4.2 Summary of first-connection flow
+
+1. On first connect, `connection.update` fires with `restartRequired` (515) — recreate the socket.
+2. History messages arrive via `messaging.history-set`.
+3. From then on, real-time updates come through the events listed below.【turn20fetch0】
+
+---
+
+## 5. Event Reference
+
+All events come through `sock.ev`. They're strongly typed via `BaileysEventMap`.【turn12fetch0】【turn3fetch1】
+
+| Event | Payload | When it fires |
+|---|---|---|
+| `connection.update` | `{ connection, lastDisconnect, qr, isNewLogin }` | Connection state change / QR generated |
+| `creds.update` | none | Auth credentials changed — **must save** |
+| `messages.upsert` | `{ messages: WAMessage[], type: 'notify'\|'append', requestId? }` | New (notify) or backfilled (append) messages |
+| `messages.update` | `[{ key, update }]` | Status/receipt changes, edits, poll-vote updates |
+| `messages.delete` | `{ keys } \| { jid }` | Message(s) deleted |
+| `messages.reaction` | `[{ key, reaction }]` | Reaction added/removed |
+| `message-receipt.update` | `[{ key, receipt }]` | Per-recipient receipt updates in groups |
+| `presence.update` | `[{ id, presences }]` | Someone's online/typing state changed |
+| `chats.upsert` / `chats.update` / `chats.delete` | chat objects | Chat list changes |
+| `contacts.upsert` / `contacts.update` | contact objects | Contact added/changed |
+| `groups.upsert` / `groups.update` | group metadata | Group joined / metadata changed |
+| `group-participants.update` | `{ id, participants, action }` | Members added/removed/promoted/demoted |
+| `messaging.history-set` | history blobs | Initial / paginated history sync |
+| `blocklist.set` / `blocklist.update` | blocklist | Block list changed |
+| `call` | call event object | Incoming/outgoing call events |
+| `lid-mapping.update` | PN↔LID mappings | New LID/PN mapping discovered (v7+) |
+
+> Always iterate the `messages` array in `messages.upsert` with a `for` loop — multiple messages can arrive in one event, and handling only `messages[0]` will silently drop messages.【turn3fetch1】【turn19fetch0】
+
+### 5.1 Using `makeEventBuffer` for consolidated processing
+
+`makeEventBuffer(logger)` returns a `BaileysBufferableEventEmitter` that logically consolidates related events (e.g. multiple `messages.update` for the same message) into single emissions, making data processing more efficient and avoiding double-handling during history sync bursts.【turn34fetch0】
+
+```js
+import { makeEventBuffer } from 'baileys'
+const eventBuffer = makeEventBuffer(logger)
+
+// bind it to the socket
+eventBuffer.bind(sock.ev)
+
+// consume consolidated events
+eventBuffer.on('messages.upsert', ({ messages, type }) => { /* ... */ })
+```
+
+---
+
+## 6. Receiving & Handling Messages
+
+```js
+sock.ev.on('messages.upsert', async ({ messages, type }) => {
+  if (type !== 'notify') return     // ignore backfill
+
+  for (const msg of messages) {
+    if (!msg.message || msg.key.fromMe) continue
+
+    const jid = msg.key.remoteJid
+    const conversation = msg.message.conversation        // plain text
+    const extText      = msg.message.extendedTextMessage?.text  // text with quote/preview
+    const text         = conversation || extText || ''
+
+    console.log(`From ${jid}: ${text}`)
+
+    // store msg for later quoting, retries, poll-vote decryption
+    await saveMessageToStore(msg)
+  }
+})
+```
+
+Helper utilities you'll want:
+
+- `getContentType(msg)` — returns the actual message type (`'imageMessage'`, `'videoMessage'`, `'conversation'`, …).
+- `getDevice(msg.key.id)` — returns sender's device platform.
+- `extractMessageContent(msg.message)` — unwraps nested message types (e.g. ephemeral, view-once, LID containers).
+
+【turn20fetch0】
+
+---
+
+## 7. Sending Messages
+
+Everything goes through `sock.sendMessage(jid, content, options)`. The content shape decides the type; `options` carries quote, ephemeral, messageId, etc.【turn20fetch0】
+
+### 7.1 Text, mentions, quotes, link preview
+
+```js
+// plain
+await sock.sendMessage(jid, { text: 'Hello!' })
+
+// mentions (the @text is optional; mentions array is what matters)
+await sock.sendMessage(jid, {
+  text: 'Hey @12345678901',
+  mentions: ['12345678901@s.whatsapp.net'],
+})
+
+// quote / reply (quoted goes in OPTIONS, not content)
+await sock.sendMessage(jid, { text: 'Replying you' }, { quoted: originalMessage })
+
+// disable link preview
+await sock.sendMessage(jid, { text: 'https://example.com', linkPreview: null })
+
+// ephemeral (disappearing) message — value in SECONDS
+await sock.sendMessage(jid, { text: 'shhh' }, { ephemeralExpiration: 86400 }) // 24h
+```
+
+Automatic link previews require `link-preview-js` installed; otherwise provide `linkPreview: { ... }` manually.【turn5fetch0】【turn6fetch1】
+
+### 7.2 Media (image / video / audio / document / sticker)
+
+Media can be passed as a `Buffer`, `{ url: '...' }`, or `{ stream: Readable }`. **Stream/URL is recommended** to avoid loading the whole buffer into memory — Baileys encrypts media as a readable stream internally.【turn8fetch0】
+
+```js
+// image
+await sock.sendMessage(jid, {
+  image: { url: './img.png' },
+  caption: 'hello world',
+  // jpegThumbnail, width, height optional
+})
+
+// video (ptv: true => circular video note)
+await sock.sendMessage(jid, {
+  video: { url: './v.mp4' },
+  caption: 'clip',
+  gifPlayback: false,
+  ptv: false,
+})
+
+// audio — for voice notes use .ogg/libopus + ptt: true
+await sock.sendMessage(jid, {
+  audio: { url: './voice.ogg' },
+  mimetype: 'audio/ogg; codecs=opus',
+  ptt: true,
+  seconds: 30,
+})
+
+// document
+await sock.sendMessage(jid, {
+  document: { url: './report.pdf' },
+  mimetype: 'application/pdf',
+  fileName: 'Report.pdf',
+  caption: 'Monthly report',
+})
+
+// sticker (WebP 512×512)
+await sock.sendMessage(jid, {
+  sticker: { url: './sticker.webp' },
+  isAnimated: false,
+  width: 512,
+  height: 512,
+})
+
+// view-once (works for image/video/audio)
+await sock.sendMessage(jid, {
+  image: { url: './secret.png' },
+  viewOnce: true,
+  caption: 'disappears after view',
+})
+```
+
+For audio to play on all devices, transcode with ffmpeg: `ffmpeg -i input.mp4 -avoid_negative_ts make_zero -ac 1 output.ogg` (codec libopus, mono).【turn9fetch0】
+
+### 7.3 Reactions, polls, pins, forwards, contacts, location, edit, delete
+
+```js
+// reaction (empty string removes it)
+await sock.sendMessage(jid, { react: { text: '💖', key: msg.key } })
+
+// poll
+await sock.sendMessage(jid, {
+  poll: { name: 'Lunch?', values: ['Pizza', 'Sushi'], selectableCount: 1 },
+})
+
+// forward
+await sock.sendMessage(jid, { forward: originalMessage })
+
+// contact (vCard)
+await sock.sendMessage(jid, {
+  contacts: { displayName: 'Jeff', contacts: [{ vcard }] },
+})
+
+// location
+await sock.sendMessage(jid, {
+  location: { degreesLatitude: 24.121, degreesLongitude: 55.112 },
+})
+
+// edit an existing message you sent
+await sock.sendMessage(jid, { text: 'updated text', edit: sentMsg.key })
+
+// delete for everyone
+await sock.sendMessage(jid, { delete: sentMsg.key })
+```
+
+【turn20fetch0】【turn21fetch0】
+
+### 7.4 Broadcasts & Stories
+
+```js
+await sock.sendMessage(
+  'status@broadcast',
+  { image: { url }, caption },
+  { backgroundColor: '#000000', statusJidList: ['123@s.whatsapp.net'], broadcast: true }
+)
+```
+
+Broadcast list IDs look like `12345678@broadcast`.【turn24fetch0】
+
+---
+
+## 8. Media Handling: Download & Re-upload
+
+To download media you received, use `downloadMediaMessage`. It accepts `'buffer'` or `'stream'` and an options object that **must** include a `reuploadRequest` handler (`sock.updateMediaMessage`) so Baileys can ask another linked device to re-upload media WhatsApp has expired from its servers.【turn22fetch0】
+
+```js
+import { createWriteStream } from 'fs'
+import { downloadMediaMessage, getContentType } from 'baileys'
+
+sock.ev.on('messages.upsert', async ({ messages, type }) => {
+  if (type !== 'notify') return
+  for (const m of messages) {
+    if (!m.message) continue
+    const messageType = getContentType(m) // 'imageMessage' | 'videoMessage' | ...
+    if (!['imageMessage', 'videoMessage', 'audioMessage', 'documentMessage', 'stickerMessage'].includes(messageType)) continue
+
+    const stream = await downloadMediaMessage(
+      m,
+      'stream',          // or 'buffer'
+      {},
+      { logger, reuploadRequest: sock.updateMediaMessage }
+    )
+    const out = createWriteStream(`./downloads/${m.key.id}.bin`)
+    stream.pipe(out)
+  }
+})
+```
+
+If WhatsApp has dropped the media and no linked device has it, `sock.updateMediaMessage(msg)` triggers a re-upload request; call it manually when you hit a missing-media error.【turn22fetch0】
+
+---
+
+## 9. Presence Updates, Typing & Recording (deep dive)
+
+Presence is one of the trickiest parts because it's both socket-level (your own online state) and chat-level (typing/recording indicators per chat). Misuse is a common cause of "number appearing always online / phone not getting notifications" issues.【turn1fetch2】【turn19fetch0】
+
+### 9.1 Presence types
+
+| Presence | Level | Effect |
+|---|---|---|
+| `available` | socket | Mark yourself online |
+| `unavailable` | socket | Mark offline → phone receives push notifications |
+| `composing` | chat (needs jid) | "typing…" indicator in that chat |
+| `recording` | chat (needs jid) | "recording audio…" indicator |
+| `paused` | chat (needs jid) | Stop typing/recording indicator |
+
+```js
+// socket-level
+await sock.sendPresenceUpdate('available')
+await sock.sendPresenceUpdate('unavailable')   // do this periodically so phone gets notifications
+
+// chat-level — MUST pass the jid
+await sock.sendPresenceUpdate('composing', jid)   // typing…
+await sock.sendPresenceUpdate('recording', jid)   // recording audio…
+await sock.sendPresenceUpdate('paused', jid)      // stop the indicator
+```
+
+Critical behaviors and pitfalls:
+
+- **Presence expires after ~10 seconds.** If you want a sustained "typing" indicator while doing long work, you must **re-send `composing` periodically** (e.g. every ~5–8s) until you send the message, then send `paused`.【turn22fetch0】
+- **`composing`/`paused` only work in a chat you have an active session with.** If `authState.creds.me.name` is not yet set (right after QR connect), `sendPresenceUpdate` silently no-ops with the log `"no name present, ignoring presence update request..."`. Wait for `connection === 'open'` and credentials to populate before sending presence.【turn10search4】
+- **`markOnlineOnConnect: false`** keeps the phone receiving notifications, but the socket itself may still appear "online" momentarily on `open` — there's a known issue around this; explicitly send `'unavailable'` after connect if you need to stay fully offline.【turn2search10】
+- **`composing` then `sendMessage`** is the natural pattern and also looks human to WhatsApp (helps anti-ban).
+- To **subscribe to someone else's presence** (are they typing? online?), call `sock.presenceSubscribe(jid)` and listen to `presence.update`.【turn23fetch0】
+
+```js
+sock.ev.on('presence.update', ({ id, presences }) => {
+  console.log(id, presences)  // { participantJid: { lastKnownPresence, lastSeen } }
+})
+await sock.presenceSubscribe('12345678901@s.whatsapp.net')
+```
+
+### 9.2 Recommended "human typing" helper
+
+```js
+async function humanSendText(jid, text) {
+  await sock.sendPresenceUpdate('composing', jid)
+  const typeTime = Math.min(4000, Math.max(800, text.length * 40))  // human-like
+  await new Promise(r => setTimeout(r, typeTime + Math.random() * 600))
+  await sock.sendPresenceUpdate('paused', jid)
+  return sock.sendMessage(jid, { text })
+}
+```
+
+This pattern — short typing delay proportional to text length, small jitter, then `paused` before sending — is exactly what anti-ban middleware like `baileys-antiban` automates.【turn15find0】
+
+---
+
+## 10. Read Receipts
+
+WhatsApp no longer lets you "mark a chat read" — you must pass explicit message keys.【turn22fetch0】
+
+```js
+await sock.readMessages([
+  { remoteJid, id: msg.key.id, fromMe: false },
+  // ... multiple keys at once
+])
+```
+
+Use this right after you've processed an inbound `notify` message so the sender sees blue ticks (or batch them every few seconds to avoid rate-limiting).
+
+---
+
+## 11. Groups Management
+
+You must be a group admin to change group properties. Always pair group operations with the `cachedGroupMetadata` cache (see §2) to avoid hitting rate-limits, because every group send otherwise triggers a participant-list fetch.【turn19fetch0】
+
+```js
+// create
+const group = await sock.groupCreate(
+  'My Group',
+  ['1234@s.whatsapp.net', '5678@s.whatsapp.net']
+)
+await sock.sendMessage(group.id, { text: 'hello everyone' })
+
+// add / remove / promote / demote
+await sock.groupParticipantsUpdate(jid, ['abcd@s.whatsapp.net'], 'add')     // also 'remove' | 'promote' | 'demote'
+
+// metadata
+const meta = await sock.groupMetadata(jid)   // { id, subject, desc, participants, owner, ... }
+const all  = await sock.groupFetchAllParticipating()
+
+// settings
+await sock.groupSettingUpdate(jid, 'announcement')    // only admins can send
+await sock.groupSettingUpdate(jid, 'not_announcement')// everyone can send
+await sock.groupSettingUpdate(jid, 'locked')          // only admins edit info
+await sock.groupSettingUpdate(jid, 'unlocked')
+
+// subject / description
+await sock.groupUpdateSubject(jid, 'New name')
+await sock.groupUpdateDescription(jid, 'New desc')
+
+// invites
+const code = await sock.groupInviteCode(jid)               // => 'abc123xyz'
+await sock.groupRevokeInvite(jid)                          // rotate code
+const joined = await sock.groupAcceptInvite('abc123xyz')   // join by code (no URL prefix)
+const info   = await sock.groupGetInviteInfo('abc123xyz')
+
+// requests (when group requires admin approval)
+const list = await sock.groupRequestParticipantsList(jid)
+await sock.groupRequestParticipantsUpdate(jid, ['x@s.whatsapp.net'], 'approve') // or 'reject'
+
+// ephemeral + add-mode + leave
+await sock.groupToggleEphemeral(jid, 86400)        // 0 = off, 86400 = 24h, 604800 = 7d, 7776000 = 90d
+await sock.groupMemberAddMode(jid, 'admin_add')    // or 'all_member_add'
+await sock.groupLeave(jid)
+```
+
+Keep your cache fresh by re-fetching on changes:
+
+```js
+sock.ev.on('groups.update', async ([ev]) => {
+  groupCache.set(ev.id, await sock.groupMetadata(ev.id))
+})
+sock.ev.on('group-participants.update', async (ev) => {
+  groupCache.set(ev.id, await sock.groupMetadata(ev.id))
+})
+```
+
+【turn18fetch0】【turn23fetch0】【turn24fetch0】
+
+---
+
+## 12. Chat Modifications (`chatModify`)
+
+`chatModify` uses WA's encrypted app-state channel. **If you send a malformed update, WhatsApp may log you out of all devices** and you'll have to re-pair — so double-check shapes.【turn22fetch0】
+
+```js
+// archive / unarchive (needs last message in chat)
+await sock.chatModify({ archive: true, lastMessages: [lastMsg] }, jid)
+
+// mute (ms) — 8h=28800000, 7d=604800000, null=unmute
+await sock.chatModify({ mute: 86400000 }, jid)
+
+// pin / unpin
+await sock.chatModify({ pin: true }, jid)
+
+// mark read/unread
+await sock.chatModify({ markRead: true, lastMessages: [lastMsg] }, jid)
+
+// delete message for ME (for everyone use sendMessage({ delete: key }))
+await sock.chatModify({ clear: { messages: [{ id, fromMe, timestamp }] } }, jid)
+
+// delete entire chat
+await sock.chatModify({ delete: true, lastMessages: [{ key, messageTimestamp }] }, jid)
+
+// star
+await sock.chatModify({ star: { messages: [{ id, fromMe }], star: true } }, jid)
+
+// turn on/off disappearing messages
+await sock.sendMessage(jid, { disappearingMessagesInChat: 86400 }) // 0/false = off
+```
+
+You'll need `getLastMessageInChat(jid)` implemented against your own store (Baileys doesn't ship one).【turn12fetch1】
+
+---
+
+## 13. Privacy, Profile & User Queries
+
+```js
+// existence check
+const [res] = await sock.onWhatsApp('12345678901')
+if (res.exists) console.log(res.jid)
+
+// profile picture / status / business profile
+const url    = await sock.profilePictureUrl(jid)         // low-res; 'image' for high-res
+const status = await sock.fetchStatus(jid)
+const biz    = await sock.getBusinessProfile(jid)
+
+// update your own profile
+await sock.updateProfileName('My Bot')
+await sock.updateProfileStatus('available')
+await sock.updateProfilePicture(jid, { url: './pic.jpg' })
+await sock.removeProfilePicture(jid)
+
+// privacy
+await sock.updateLastSeenPrivacy('all')          // 'contacts' | 'contact_blacklist' | 'none'
+await sock.updateOnlinePrivacy('all')            // 'match_last_seen'
+await sock.updateReadReceiptsPrivacy('all')      // 'none'
+await sock.updateGroupsAddPrivacy('contacts')    // 'contact_blacklist'
+
+// block / unblock
+await sock.updateBlockStatus(jid, 'block')       // 'unblock'
+```
+
+【turn23fetch0】【turn24fetch0】
+
+---
+
+## 14. Custom Auth State for Production
+
+`useMultiFileAuthState` writes a JSON file per key — it's inefficient, race-prone, and not safe under concurrent access or multiple containers. For anything beyond a hobby bot, implement your own `AuthenticationState` against SQL/NoSQL/Redis, then wrap it with `makeCacheableSignalKeyStore` for in-memory caching.【turn3fetch0】【turn10search6】【turn32search0】
+
+A minimal Redis-backed pattern (same shape works for Postgres/Mongo):
+
+```js
+import { initAuthCreds, BufferJSON, makeCacheableSignalKeyStore } from 'baileys'
+
+async function useRedisAuthState(redis, sessionId) {
+  const writeData = (data, key) =>
+    redis.set(`baileys:${sessionId}:${key}`, JSON.stringify(data, BufferJSON.replacer))
+
+  const readData = async (key) => {
+    const raw = await redis.get(`baileys:${sessionId}:${key}`)
+    return raw ? JSON.parse(raw, BufferJSON.reviver) : null
+  }
+
+  const removeData = (key) => redis.del(`baileys:${sessionId}:${key}`)
+
+  let creds = (await readData('creds')) || initAuthCreds()
+
+  return {
+    state: {
+      creds,
+      keys: {
+        get: async (type, ids) => {
+          const data = {}
+          await Promise.all(ids.map(async (id) => {
+            const value = await readData(`${type}-${id}`)
+            if (value) data[id] = value
+          }))
+          return data
+        },
+        set: async (data) => {
+          const tasks = []
+          for (const category in data) {
+            for (const id in data[category]) {
+              const value = data[category][id]
+              tasks.push(value ? writeData(value, `${category}-${id}`) : removeData(`${category}-${id}`))
+            }
+          }
+          await Promise.all(tasks)
+        },
+      },
+    },
+    saveCreds: async () => writeData(creds, 'creds'),
+  }
+}
+
+// usage
+const { state, saveCreds } = await useRedisAuthState(redis, 'user-123')
+const sock = makeWASocket({
+  auth: {
+    creds: state.creds,
+    keys: makeCacheableSignalKeyStore(state.keys, logger),  // wrap with in-memory cache
+  },
+  logger,
+  // ...
+})
+sock.ev.on('creds.update', saveCreds)
+```
+
+**Why `BufferJSON`?** Auth state contains `Buffer`s (signal keys, pre-keys). Plain `JSON.stringify`/`parse` corrupts them. Always use `BufferJSON.replacer`/`reviver` when serializing.【turn20fetch0】【turn27fetch0】
+
+Existing community adapters you can use instead of rolling your own: `baileys-redis-auth`, `baileys-auth-states` (SQLite/Redis/Mongo).【turn10search7】【turn11search10】
+
+### 14.1 v7 note on auth state
+
+v7 introduced **LIDs** (Local Identifiers) to replace phone-number JIDs. Your auth state must support three new key types — `lid-mapping`, `device-list`, and `tctoken` — or Baileys will break. If you upgrade an existing custom adapter, check `SignalDataTypeMap` for the new entries.【turn27fetch0】
+
+---
+
+## 15. Best Practices & Anti-Ban
+
+WhatsApp aggressively bans numbers that behave like spam bots. These practices are not optional for any non-trivial deployment.
+
+**Rate limiting & timing**
+
+- Don't fire `sendMessage` in a tight loop. Sustain ≤ ~12 msgs/min to be safe; add gaussian jitter, not constant delays.
+- For new numbers, use a **warm-up ramp** (gradually increase volume over ~7 days).
+- Send `composing` → wait → `paused` → `sendMessage` so the timing looks human.
+
+**Health monitoring**
+
+- Watch for HTTP `403` and stream errors; auto-pause sending when you see them, before a ban lands.
+- Watch for repeated `connection.close` codes; back off instead of reconnect-storming.
+
+**Message queue with retry**
+
+- Wrap `sendMessage` in a persistent queue (in-memory or Redis/DB-backed). On failure, retry with exponential backoff. Persist undelivered messages so a crash or restart doesn't lose them — and on reconnect, flush the queue.
+- Use `getMessage` (from your store) so Baileys can resend messages that WhatsApp asks it to retry.
+
+**Content variation**
+
+- Vary message bodies with invisible character variations, alternative phrasings, or rotating templates. Identical bulk messages are the fastest path to a ban.
+
+**Avoid known ban triggers**
+
+- **Don't send ACKs on delivery in v7** — WhatsApp is banning users for this and Baileys removed the behavior. If you forked/patched, undo it.【turn27fetch0】
+- Don't link the same number from many IPs/sockets simultaneously (`connectionReplaced` 440).
+- Don't bulk-add people to groups who didn't consent — group adds are heavily rate-limited and flag the number.
+- Keep `markOnlineOnConnect: false` and periodically send `'unavailable'` so the primary phone keeps receiving notifications (otherwise WhatsApp may treat the link as suspicious).
+
+**Drop-in middleware**: `baileys-antiban` wraps your socket in one line and adds rate-limiting, typing simulation, warm-up, health monitoring, content variation, queueing with exponential backoff, and webhook alerts. Stress-tested with 1000 messages on a real number with no ban at ~12 msgs/min and ~4.7s avg delay per message.【turn15find0】
+
+```js
+import makeWASocket from 'baileys'
+import { wrapSocket } from 'baileys-antiban'
+
+const sock    = makeWASocket({ /* config */ })
+const safeSock = wrapSocket(sock)
+await safeSock.sendMessage(jid, { text: 'Hello!' })
+```
+
+---
+
+## 16. Common Errors & Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| QR never appears, immediate `connection.close` | Corrupted auth folder / wrong Node version (<17) | Delete auth folder, use Node 20+ |
+| `creds.json` broke after reconnections | Reconnecting blindly on every code (incl. 401) corrupts JSON | Only reconnect on non-401 codes; write creds atomically |
+| `SessionError: No session record` / 479 | LID/PN session mismatch (v7) | Keep `getMessage` implemented; ensure auth state supports `lid-mapping` keys |
+| `sendPresenceUpdate` no-ops, log "no name present" | Called before `creds.me.name` is set | Wait for `connection === 'open'` before sending presence |
+| Number appears always online, phone stops getting notifications | `markOnlineOnConnect` true, or never sending `'unavailable'` | Set `markOnlineOnConnect: false`; periodically `sendPresenceUpdate('unavailable')` |
+| Group sends throw / hit rate-limits | No `cachedGroupMetadata` cache | Provide `cachedGroupMetadata: async (jid) => cache.get(jid)` and refresh on `groups.update`/`group-participants.update` |
+| `downloadMediaMessage` fails on nested media | Known bug with `associatedChildMessage` not unwrapped | Patch `normalizeMessageContent` or upgrade Baileys |
+| `readableStream must be instance of ReadableStream` on download | Node version mismatch with web-streams adapter | Use Node 20+ and pass `'buffer'` instead of `'stream'` if it persists |
+| `440 connectionReplaced` | Same number linked from another socket | Ensure only one socket per number; on 440, stop instead of loop-reconnect |
+| Poll votes not decrypting | No `getMessage` implementation | Implement `getMessage` against your store so Baileys can fetch the poll creation message |
+| Logged out after `chatModify` | Malformed chat-modification payload | Strictly follow the shapes in §12; test on your own number first |
+
+【turn10search4】【turn2search10】【turn0search7】【turn25search11】【turn2search0】【turn7search5】【turn13search0】【turn22fetch0】
+
+---
+
+## 17. Production-Ready Boilerplate
+
+Putting it all together — error-handled reconnect with backoff, custom-cache, presence-friendly config, message store hook, and a send queue:
+
+```js
+import makeWASocket, {
+  DisconnectReason, useMultiFileAuthState, Browsers,
+  makeCacheableSignalKeyStore, makeEventBuffer,
+} from 'baileys'
+import { Boom } from '@hapi/boom'
+import P from 'pino'
+import NodeCache from 'node-cache'
+
+const logger = P({ level: 'info' })
+const groupCache = new NodeCache({ stdTTL: 5 * 60, useClones: false })
+const messageStore = new Map() // replace with DB in prod
+
+async function getMessageFromStore(key) {
+  const chat = messageStore.get(key.remoteJid)
+  return chat?.find(m => m.key.id === key.id)
+}
+
+async function startSock() {
+  const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys')
+
+  const sock = makeWASocket({
+    auth: {
+      creds: state.creds,
+      keys: makeCacheableSignalKeyStore(state.keys, logger),
+    },
+    logger,
+    browser: Browsers.ubuntu('MyApp'),
+    markOnlineOnConnect: false,
+    cachedGroupMetadata: async (jid) => groupCache.get(jid),
+    getMessage: getMessageFromStore,
+    printQRInTerminal: false,
+  })
+
+  const eventBuffer = makeEventBuffer(logger)
+  eventBuffer.bind(sock.ev)
+
+  sock.ev.on('creds.update', saveCreds)
+
+  sock.ev.on('connection.update', (u) => {
+    const { connection, lastDisconnect, qr } = u
+    if (qr) { /* send to frontend / render in terminal */ }
+    if (connection === 'open') logger.info('connected')
+    if (connection === 'close') {
+      const code = (lastDisconnect?.error as Boom)?.output?.statusCode
+      if (code === DisconnectReason.loggedOut) {
+        logger.error('logged out — delete auth folder')
+        return
+      }
+      const delay = code === DisconnectReason.restartRequired ? 1000
+                  : Math.min(30000, 1000 * 2 ** (retryCount++))
+      setTimeout(startSock, delay)
+    }
+  })
+
+  sock.ev.on('groups.update', async ([ev]) => {
+    if (ev.id) groupCache.set(ev.id, await sock.groupMetadata(ev.id))
+  })
+  sock.ev.on('group-participants.update', async (ev) => {
+    groupCache.set(ev.id, await sock.groupMetadata(ev.id))
+  })
+
+  eventBuffer.on('messages.upsert', async ({ messages, type }) => {
+    if (type !== 'notify') return
+    for (const m of messages) {
+      if (!m.message || m.key.fromMe) continue
+      // persist for retries/quotes/polls
+      const list = messageStore.get(m.key.remoteJid) || []
+      list.push(m); messageStore.set(m.key.remoteJid, list)
+      // mark read + human-like reply
+      await sock.readMessages([m.key])
+      await sock.sendPresenceUpdate('composing', m.key.remoteJid)
+      await new Promise(r => setTimeout(r, 800 + Math.random() * 600))
+      await sock.sendPresenceUpdate('paused', m.key.remoteJid)
+      await sock.sendMessage(m.key.remoteJid, { text: 'got it 👍' }, { quoted: m })
+    }
+  })
+
+  return sock
+}
+
+let retryCount = 0
+startSock()
+```
+
+Swap `useMultiFileAuthState` for your Redis/SQL adapter (§14) before shipping, and replace the in-memory `messageStore` with a real database.
+
+---
+
+## 18. Pitfalls & Final Warnings
+
+- **`useMultiFileAuthState` is demo-only.** The official docs warn against it twice. It's fine for a weekend bot; not for production at any scale.【turn1fetch1】【turn3fetch0】
+- **Always save on `creds.update`.** Skipping it causes decryption failures and messages not reaching recipients.【turn6fetch0】
+- **Implement `getMessage`.** Without it, retry receipts and poll-vote decryption silently fail.【turn19fetch0】
+- **Use `cachedGroupMetadata`.** Every group send without it fetches the participant list → rate-limit → ban risk.【turn3fetch0】
+- **Don't pin `fetchLatestWaWebVersion` on every connect.** It can break compatibility. Leave `version` at the default.【turn3fetch0】
+- **v7 is ESM-only** and ships breaking LID changes. Migrate carefully if upgrading from v6; consult the official migration guide.【turn27fetch0】
+- **Respect WhatsApp's ToS.** Baileys is unofficial and not affiliated with WhatsApp. Bulk/automated messaging, stalkerware, and spam are explicitly discouraged by the maintainers and will get numbers banned.【turn1fetch0】【turn17fetch1】
+
+This gives you a complete, end-to-end working surface: install → configure → authenticate (QR or pairing code) → reconnect resiliently → handle every relevant event → send/receive text and media → manage presence/typing/receipts → administer groups → run a production-safe auth state → and avoid the ban hammer with proper rate-limiting and queueing.
