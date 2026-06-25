@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   ConflictException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContext } from '../common/context/tenant-context';
 import { CreateQuizDto } from './dto/create-quiz.dto';
@@ -14,7 +15,10 @@ import { SubmitQuizAttemptDto } from './dto/submit-quiz-attempt.dto';
 
 @Injectable()
 export class QuizzesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   private getInstanceId(): string {
     const id = TenantContext.getInstanceId();
@@ -278,6 +282,17 @@ export class QuizzesService {
         instanceId,
       },
     });
+
+    if (allGraded) {
+      this.eventEmitter.emit('quiz.graded', {
+        quizId,
+        quizTitle: quiz.title,
+        studentId,
+        score: totalScore,
+        totalMarks: quiz.totalMarks,
+        instanceId,
+      });
+    }
 
     return {
       id: attempt.id,

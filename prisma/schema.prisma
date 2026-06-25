@@ -35,6 +35,16 @@ enum Difficulty {
   HARD
 }
 
+enum WhatsAppSessionStatus {
+  DISCONNECTED
+  CONNECTING
+  CONNECTED
+  QR_PENDING
+  PAIRING_PENDING
+  BANNED
+  LOGGED_OUT
+}
+
 enum NotificationType {
   SESSION_REMINDER
   QUIZ_GRADED
@@ -93,7 +103,38 @@ model Instance {
   questions    QuestionBank[]
   chatMessages ChatMessage[]
 
+  whatsappSession         WhatsAppSession?
+  notificationPreferences NotificationPreference[]
+
   @@map("instances")
+}
+
+model WhatsAppSession {
+  id              String                @id @default(cuid())
+  instanceId      String                @unique
+  instance        Instance              @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  phoneNumber     String?
+  status          WhatsAppSessionStatus @default(DISCONNECTED)
+  lastConnectedAt DateTime?
+  lastError       String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@index([instanceId])
+  @@map("whatsapp_sessions")
+}
+
+model NotificationPreference {
+  id         String         @id @default(cuid())
+  type       NotificationType
+  enabled    Boolean        @default(true)
+  instanceId String
+  instance   Instance       @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@unique([instanceId, type])
+  @@map("notification_preferences")
 }
 
 model Teacher {
@@ -329,9 +370,29 @@ model Notification {
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 
+  logs NotificationLog[]
+
   @@index([instanceId])
   @@index([status])
   @@map("notifications")
+}
+
+model NotificationLog {
+  id              String             @id @default(cuid())
+  notificationId  String
+  notification    Notification       @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  recipientPhone  String
+  status          NotificationStatus @default(PENDING)
+  waMessageId     String?
+  error           String?
+  attempts        Int                @default(0)
+  lastAttemptedAt DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([notificationId])
+  @@index([status])
+  @@map("notification_logs")
 }
 
 model Payment {

@@ -20,4 +20,11 @@ export class TenantContext {
   static getInstanceId(): string | undefined {
     return this.storage.getStore()?.instanceId;
   }
+
+  static async runWithContext<T>(
+    data: TenantData,
+    callback: () => Promise<T>,
+  ): Promise<T> {
+    return this.storage.run(data, callback);
+  }
 }

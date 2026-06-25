@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   ConflictException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { MinioService } from '../minio/minio.service';
 import { TenantContext } from '../common/context/tenant-context';
@@ -16,6 +17,7 @@ export class AssignmentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly minio: MinioService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   private getInstanceId(): string {
@@ -245,6 +247,21 @@ export class AssignmentsService {
         ...(dto.feedback !== undefined && { feedback: dto.feedback }),
       },
     });
+
+    const assignment = await this.prisma.assignment.findFirst({
+      where: { id: assignmentId },
+    });
+
+    if (assignment) {
+      this.eventEmitter.emit('assignment.graded', {
+        assignmentId,
+        assignmentTitle: assignment.title,
+        studentId,
+        grade: dto.grade,
+        feedback: dto.feedback,
+        instanceId,
+      });
+    }
 
     return {
       id: updated.id,

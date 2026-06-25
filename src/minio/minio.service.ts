@@ -27,11 +27,26 @@ export class MinioService implements OnModuleInit {
     });
   }
 
+  private minioReady = false;
+
   async onModuleInit() {
-    const exists = await this.client.bucketExists(this.bucket);
-    if (!exists) {
-      await this.client.makeBucket(this.bucket);
-      this.logger.log(`Created bucket "${this.bucket}"`);
+    try {
+      const exists = await this.client.bucketExists(this.bucket);
+      if (!exists) {
+        await this.client.makeBucket(this.bucket);
+        this.logger.log(`Created bucket "${this.bucket}"`);
+      }
+      this.minioReady = true;
+    } catch (error) {
+      this.logger.warn(
+        `MinIO not available at ${this.endpoint} — file uploads will fail until it's started. ${(error as Error).message}`,
+      );
+    }
+  }
+
+  private checkReady() {
+    if (!this.minioReady) {
+      throw new Error('MinIO is not available');
     }
   }
 
@@ -40,6 +55,7 @@ export class MinioService implements OnModuleInit {
     objectPath: string,
     mimeType: string,
   ): Promise<string> {
+    this.checkReady();
     await this.client.putObject(
       this.bucket,
       objectPath,
@@ -53,6 +69,7 @@ export class MinioService implements OnModuleInit {
   }
 
   async deleteObject(objectPath: string): Promise<void> {
+    this.checkReady();
     await this.client.removeObject(this.bucket, objectPath);
   }
 

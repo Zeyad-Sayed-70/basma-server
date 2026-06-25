@@ -14,6 +14,7 @@ import { MinioModule } from './minio/minio.module';
 import { QuizzesModule } from './quizzes/quizzes.module';
 import { AssignmentsModule } from './assignments/assignments.module';
 import { GradebookModule } from './gradebook/gradebook.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { TenantMiddleware } from './common/context/tenant.middleware';
 
 @Module({
@@ -33,6 +34,7 @@ import { TenantMiddleware } from './common/context/tenant.middleware';
     QuizzesModule,
     AssignmentsModule,
     GradebookModule,
+    NotificationsModule,
   ],
 })
 export class AppModule implements NestModule {
