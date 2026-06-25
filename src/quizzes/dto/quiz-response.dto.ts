@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { QuestionResponseDto } from './question-response.dto';
 
 class QuizQuestionCount {
   @ApiProperty({ example: 5 })
@@ -47,8 +48,8 @@ export class QuizListResponseDto {
 
 export class QuizDetailResponseDto extends QuizResponseDto {
   @ApiProperty({
-    type: () => [Object],
+    type: [QuestionResponseDto],
     description: 'List of questions in the quiz',
   })
-  questions?: Record<string, unknown>[];
+  questions?: QuestionResponseDto[];
 }

@@ -18,11 +18,13 @@ import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
+import { StudentLoginDto } from './dto/student-login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import {
   AuthResponseDto,
   MeResponseDto,
   StudentAuthResponseDto,
+  StudentMeResponseDto,
 } from './dto/auth-response.dto';
 import { StudentSignupDto } from './dto/student-signup.dto';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -124,6 +126,7 @@ export class AuthController {
       'If the code is a valid group ID and the group is in OPEN mode, the student joins directly. ' +
       'If the code is an invitation code (from a CLOSED group), the student joins via invitation. ' +
       'If the student email already exists, a new JWT is returned (idempotent re-auth). ' +
+      'An optional password can be set during signup to enable future email+password login. ' +
       'Returns access and refresh JWT tokens for student API access.',
   })
   @ApiBody({ type: StudentSignupDto })
@@ -142,5 +145,53 @@ export class AuthController {
   })
   async studentSignup(@Body() dto: StudentSignupDto) {
     return this.authService.studentSignup(dto);
+  }
+
+  @Post('student/login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Student login with email and password',
+    description:
+      'Authenticates a student using their email and password. ' +
+      'The student must have set a password during signup. ' +
+      'Returns access and refresh JWT tokens upon successful authentication. ' +
+      'Use this endpoint to sign in from another device after initial signup.',
+  })
+  @ApiBody({ type: StudentLoginDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Login successful',
+    type: StudentAuthResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description:
+      'Invalid email or password, or no password set for this account',
+  })
+  async studentLogin(@Body() dto: StudentLoginDto) {
+    return this.authService.studentLogin(dto);
+  }
+
+  @Get('student/me')
+  @UseGuards(AuthGuard('jwt'))
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get current student profile',
+    description:
+      'Returns the authenticated student\'s profile including group info. ' +
+      'Requires a valid student JWT token in the Authorization header.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Student profile retrieved successfully',
+    type: StudentMeResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized — invalid or missing token',
+  })
+  async studentMe(@CurrentUser() user: AuthenticatedUser) {
+    return this.authService.getStudentProfile(user.id);
   }
 }

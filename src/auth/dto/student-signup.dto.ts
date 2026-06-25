@@ -23,6 +23,16 @@ export class StudentSignupDto {
   @IsOptional()
   phone?: string;
 
+  @ApiPropertyOptional({
+    example: '1234',
+    description:
+      'Account password (min 4 characters). If set, enables email+password login on other devices. Recommended if email is provided.',
+  })
+  @IsString()
+  @MinLength(4)
+  @IsOptional()
+  password?: string;
+
   @ApiProperty({
     example: 'INV234',
     description:

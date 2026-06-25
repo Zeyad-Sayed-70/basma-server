@@ -11,6 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
+import { StudentLoginDto } from './dto/student-login.dto';
 import { TenantContext } from '../common/context/tenant-context';
 import * as bcrypt from 'bcrypt';
 
@@ -124,10 +125,37 @@ export class AuthService {
         email: string;
         instanceId: string;
         type: string;
+        role?: string;
       }>(refreshToken);
 
       if (payload.type !== 'refresh') {
         throw new UnauthorizedException('Invalid refresh token');
+      }
+
+      if (payload.role === 'student') {
+        const student = await this.prisma.student.findUnique({
+          where: { id: payload.sub },
+        });
+        if (!student) {
+          throw new UnauthorizedException('Student not found');
+        }
+
+        const tokens = this.generateStudentTokens(
+          student.id,
+          student.name,
+          student.instanceId,
+        );
+        return {
+          ...tokens,
+          student: {
+            id: student.id,
+            name: student.name,
+            email: student.email,
+            phone: student.phone,
+            groupId: student.groupId,
+            instanceId: student.instanceId,
+          },
+        };
       }
 
       const teacher = await this.prisma.teacher.findUnique({
@@ -182,9 +210,21 @@ export class AuthService {
     name: string;
     email?: string;
     phone?: string;
+    password?: string;
     code: string;
   }) {
-    const instanceId = TenantContext.getInstanceId();
+    let instanceId = TenantContext.getInstanceId();
+    if (!instanceId) {
+      const subdomain = TenantContext.get()?.subdomain;
+      if (subdomain) {
+        const instance = await this.prisma.instance.findUnique({
+          where: { subdomain },
+        });
+        if (instance) {
+          instanceId = instance.id;
+        }
+      }
+    }
     let groupId: string;
     let instanceIdForGroup: string;
 
@@ -222,6 +262,13 @@ export class AuthService {
         },
       });
       if (existing) {
+        if (dto.password) {
+          const passwordHash = await bcrypt.hash(dto.password, 10);
+          await this.prisma.student.update({
+            where: { id: existing.id },
+            data: { passwordHash },
+          });
+        }
         const tokens = this.generateStudentTokens(
           existing.id,
           existing.name,
@@ -241,11 +288,16 @@ export class AuthService {
       }
     }
 
+    const passwordHash = dto.password
+      ? await bcrypt.hash(dto.password, 10)
+      : undefined;
+
     const student = await this.prisma.student.create({
       data: {
         name: dto.name,
         email: dto.email,
         phone: dto.phone,
+        passwordHash,
         groupId,
         instanceId: instanceIdForGroup,
       },
@@ -266,6 +318,83 @@ export class AuthService {
         groupId: student.groupId,
         instanceId: student.instanceId,
       },
+    };
+  }
+
+  async studentLogin(dto: StudentLoginDto) {
+    let instanceId = TenantContext.getInstanceId();
+    if (!instanceId) {
+      const subdomain = TenantContext.get()?.subdomain;
+      if (subdomain) {
+        const instance = await this.prisma.instance.findUnique({
+          where: { subdomain },
+        });
+        if (instance) {
+          instanceId = instance.id;
+        }
+      }
+    }
+
+    const student = await this.prisma.student.findFirst({
+      where: {
+        email: dto.email,
+        instanceId,
+      },
+    });
+    if (!student) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    if (!student.passwordHash) {
+      throw new UnauthorizedException(
+        'No password set for this account. Sign up with a password first.',
+      );
+    }
+
+    const passwordValid = await bcrypt.compare(
+      dto.password,
+      student.passwordHash,
+    );
+    if (!passwordValid) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    const tokens = this.generateStudentTokens(
+      student.id,
+      student.name,
+      student.instanceId,
+    );
+    return {
+      ...tokens,
+      student: {
+        id: student.id,
+        name: student.name,
+        email: student.email,
+        phone: student.phone,
+        groupId: student.groupId,
+        instanceId: student.instanceId,
+      },
+    };
+  }
+
+  async getStudentProfile(studentId: string) {
+    const student = await this.prisma.student.findUnique({
+      where: { id: studentId },
+      include: { group: true },
+    });
+    if (!student) {
+      throw new UnauthorizedException('Student not found');
+    }
+    return {
+      id: student.id,
+      name: student.name,
+      email: student.email,
+      phone: student.phone,
+      status: student.status,
+      groupId: student.groupId,
+      instanceId: student.instanceId,
+      groupName: student.group.name,
+      createdAt: student.createdAt.toISOString(),
     };
   }
 

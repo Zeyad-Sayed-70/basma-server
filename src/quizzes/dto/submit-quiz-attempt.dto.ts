@@ -13,7 +13,7 @@ class AnswerEntry {
 
 export class SubmitQuizAttemptDto {
   @ApiProperty({
-    type: [Object],
+    type: [AnswerEntry],
     example: [{ questionId: 'clx...', answer: 'x²-4' }],
     description: 'Array of questionId-answer pairs',
   })

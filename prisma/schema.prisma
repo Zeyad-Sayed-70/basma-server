@@ -59,9 +59,13 @@ enum NotificationStatus {
 }
 
 enum PaymentStatus {
-  PAID
   PENDING
+  PROCESSING
+  PAID
+  FAILED
   REFUNDED
+  PARTIALLY_REFUNDED
+  VOIDED
 }
 
 enum SessionType {
@@ -90,18 +94,19 @@ model Instance {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  teacher      Teacher?
-  brand        Brand?
-  groups       Group[]
-  students     Student[]
-  courses      Course[]
-  sessions     Session[]
-  quizzes      Quiz[]
-  assignments  Assignment[]
+  teacher       Teacher?
+  brand         Brand?
+  groups        Group[]
+  students      Student[]
+  courses       Course[]
+  sessions      Session[]
+  quizzes       Quiz[]
+  assignments   Assignment[]
   notifications Notification[]
-  payments     Payment[]
-  questions    QuestionBank[]
-  chatMessages ChatMessage[]
+  paymobConfig  PaymobConfig?
+  payments      Payment[]
+  questions     QuestionBank[]
+  chatMessages  ChatMessage[]
 
   whatsappSession         WhatsAppSession?
   notificationPreferences NotificationPreference[]
@@ -125,13 +130,13 @@ model WhatsAppSession {
 }
 
 model NotificationPreference {
-  id         String         @id @default(cuid())
+  id         String           @id @default(cuid())
   type       NotificationType
-  enabled    Boolean        @default(true)
+  enabled    Boolean          @default(true)
   instanceId String
-  instance   Instance       @relation(fields: [instanceId], references: [id], onDelete: Cascade)
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
+  instance   Instance         @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
 
   @@unique([instanceId, type])
   @@map("notification_preferences")
@@ -188,22 +193,23 @@ model Group {
 }
 
 model Student {
-  id         String        @id @default(cuid())
-  name       String
-  email      String?
-  phone      String?
-  status     StudentStatus @default(ACTIVE)
-  groupId    String
+  id           String        @id @default(cuid())
+  name         String
+  email        String?
+  phone        String?
+  passwordHash String?
+  status       StudentStatus @default(ACTIVE)
+  groupId      String
   group      Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
   instanceId String
   instance   Instance      @relation(fields: [instanceId], references: [id], onDelete: Cascade)
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
 
-  enrollments             CourseEnrollment[]
-  quizAttempts            StudentQuizAttempt[]
-  assignmentSubmissions   StudentAssignmentSubmission[]
-  payments                Payment[]
+  enrollments           CourseEnrollment[]
+  quizAttempts          StudentQuizAttempt[]
+  assignmentSubmissions StudentAssignmentSubmission[]
+  payments              Payment[]
 
   @@unique([instanceId, email])
   @@index([groupId])
@@ -223,11 +229,11 @@ model Course {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  sessions     Session[]
-  quizzes      Quiz[]
-  assignments  Assignment[]
-  enrollments  CourseEnrollment[]
-  payments     Payment[]
+  sessions    Session[]
+  quizzes     Quiz[]
+  assignments Assignment[]
+  enrollments CourseEnrollment[]
+  payments    Payment[]
 
   @@index([groupId])
   @@index([instanceId])
@@ -341,16 +347,16 @@ model Assignment {
 }
 
 model StudentAssignmentSubmission {
-  id           String   @id @default(cuid())
+  id           String     @id @default(cuid())
   studentId    String
-  student      Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student      Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
   assignmentId String
   assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   content      String?
   fileUrl      String?
   grade        Int?
   feedback     String?
-  submittedAt  DateTime  @default(now())
+  submittedAt  DateTime   @default(now())
   instanceId   String
 
   @@unique([studentId, assignmentId])
@@ -395,23 +401,49 @@ model NotificationLog {
   @@map("notification_logs")
 }
 
+model PaymobConfig {
+  id                  String   @id @default(cuid())
+  instanceId          String   @unique
+  instance            Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  secretKey           String
+  publicKey           String
+  hmacSecret          String
+  cardIntegrationId   Int?
+  walletIntegrationId Int?
+  mode                String   @default("test")
+  isConfigured        Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("paymob_configs")
+}
+
 model Payment {
-  id         String        @id @default(cuid())
-  studentId  String
-  student    Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  courseId   String?
-  course     Course?       @relation(fields: [courseId], references: [id], onDelete: SetNull)
-  amount     Float
-  currency   String        @default("EGP")
-  status     PaymentStatus @default(PAID)
-  notes      String?
-  instanceId String
-  instance   Instance      @relation(fields: [instanceId], references: [id], onDelete: Cascade)
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
+  id                  String        @id @default(cuid())
+  studentId           String
+  student             Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  courseId            String?
+  course              Course?       @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  amountCents         Int
+  currency            String        @default("EGP")
+  status              PaymentStatus @default(PENDING)
+  paymobIntentionId   String?
+  paymobOrderId       String?
+  paymobTransactionId String?
+  clientSecret        String?
+  specialReference    String?       @unique
+  notes               String?
+  metadata            Json          @default("{}")
+  instanceId          String
+  instance            Instance      @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
   @@index([studentId])
+  @@index([courseId])
   @@index([instanceId])
+  @@index([status])
+  @@index([paymobOrderId])
   @@map("payments")
 }
 
@@ -434,16 +466,16 @@ model QuestionBank {
 }
 
 model ChatMessage {
-  id         String          @id @default(cuid())
+  id         String         @id @default(cuid())
   content    String
   senderId   String
   senderRole ChatSenderRole
   fileUrl    String?
   groupId    String
-  group      Group           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  group      Group          @relation(fields: [groupId], references: [id], onDelete: Cascade)
   instanceId String
-  instance   Instance        @relation(fields: [instanceId], references: [id], onDelete: Cascade)
-  createdAt  DateTime        @default(now())
+  instance   Instance       @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  createdAt  DateTime       @default(now())
 
   @@index([groupId])
   @@index([instanceId])

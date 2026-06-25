@@ -84,3 +84,32 @@ export class MeResponseDto {
   @ApiProperty({ example: '2025-01-01T00:00:00.000Z' })
   createdAt: string;
 }
+
+export class StudentMeResponseDto {
+  @ApiProperty({ example: 'clx...' })
+  id: string;
+
+  @ApiProperty({ example: 'علي أحمد' })
+  name: string;
+
+  @ApiPropertyOptional({ example: 'ali@example.com' })
+  email?: string;
+
+  @ApiPropertyOptional({ example: '+201234567890' })
+  phone?: string;
+
+  @ApiProperty({ enum: ['ACTIVE', 'INACTIVE'], example: 'ACTIVE' })
+  status: string;
+
+  @ApiProperty({ example: 'clx...', description: 'Group ID' })
+  groupId: string;
+
+  @ApiProperty({ example: 'clx...', description: 'Instance ID' })
+  instanceId: string;
+
+  @ApiProperty({ example: 'clx...', description: 'Group name' })
+  groupName: string;
+
+  @ApiProperty({ example: '2025-01-01T00:00:00.000Z' })
+  createdAt: string;
+}

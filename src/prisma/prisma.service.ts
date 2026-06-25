@@ -19,6 +19,7 @@ const TENANT_MODELS = new Set([
   'NotificationLog',
   'NotificationPreference',
   'WhatsAppSession',
+  'PaymobConfig',
   'Payment',
   'QuestionBank',
   'ChatMessage',

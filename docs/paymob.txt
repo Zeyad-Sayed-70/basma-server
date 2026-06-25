@@ -1,0 +1,509 @@
+# Paymob Egypt Payment Integration — Complete Technical Guide (Including White-Label / Multi-Tenant)
+
+Paymob Egypt is integrated through an **Intention-based API flow**: your backend creates a payment intention with your *secret key*, the frontend launches Paymob's Unified Checkout (redirect) or Pixel (embedded) using the returned `client_secret` + your *public key*, and Paymob confirms the result to your backend via signed webhooks (HMAC‑SHA512). For a Shopify-style white-label platform you have two architectural paths — **per-merchant Paymob accounts** (truest to the Shopify model) or a **single platform account with Paymob's Marketplace / Split Features** — each with different KYC, settlement, and refund implications.【turn1fetch1】【turn3click1】
+
+---
+
+## 1. Account Setup & Onboarding
+
+Paymob is an Egypt-based PSP operating across EGY, KSA, UAE, OMN, and Pakistan. Onboarding is a staged commercial + technical process, not just an API key signup.【turn0search2】【turn3click1】
+
+The official Integration Checklist defines the end-to-end go-live journey, and each stage must be completed in sequence:【turn3click1】
+
+```mermaid
+flowchart LR
+    A[Account Creation<br/>Dashboard + Test env] --> B[Paperwork Validation<br/>Business & legal docs]
+    B --> C[Contract Finalization<br/>Commercial terms signed]
+    C --> D[Risk Approvals<br/>Risk team assessment]
+    D --> E[Integration Cycle<br/>APIs / SDKs / Plugins]
+    E --> F[Test & Validation<br/>Test transactions]
+    F --> G[Technical Approval<br/>Security review]
+    G --> H[Live Credentials<br/>Production keys issued]
+    H --> I[Going Live<br/>Real transactions]
+```
+
+**Practical steps to start:**
+
+1. Register on the Paymob portal, upload business documents (commercial register, tax ID, bank account, IDs of owners), and choose the payment methods you want to enable.【turn0search2】
+2. Document verification takes up to ~3 days; a sales representative assists if any document is rejected.【turn0search2】
+3. Once approved you get dashboard access and a **Test environment** with test credentials — you can begin integrating immediately while the commercial/contract phase continues in parallel.【turn3click1】
+4. The **Commercial Phase** (Business Activity Approval → Contract Signing & Data Verification → Compliance check → Bank approvals) is what officially unlocks live credentials. A successful technical test alone does **not** let you accept real money.【turn1fetch0】
+
+---
+
+## 2. Credentials & Dashboard Configuration
+
+All credentials live in the **Accept Dashboard → Settings** (for keys) and **Developers → Payment Integrations** (for Integration IDs and callback URLs).【turn10fetch1】
+
+| Credential | Where to find | Used for | Test vs Live |
+|---|---|---|---|
+| **API Key** | Settings → API Key → View | Generating auth tokens (`/api/auth/tokens`) | Same key for both modes【turn10fetch1】 |
+| **Secret Key** | Settings → Secret Key → View (mode toggle) | `Authorization: Token {secret_key}` header on all server-side calls | Separate `sk_test_…` / `sk_live_…`【turn10fetch1】 |
+| **Public Key** | Settings → Public Key → View (mode toggle) | Unified Checkout URL & Pixel init | Separate `pk_test_…` / `pk_live_…`【turn10fetch1】 |
+| **HMAC Secret** | Settings → HMAC | Verifying webhook signatures (SHA‑512) | Separate per mode【turn10fetch1】 |
+| **Integration ID(s)** | Developers → Payment Integrations (per method: card, wallet, kiosk, BNPL…) | Passed in `payment_methods` array when creating an intention | Separate test/live IDs【turn10fetch1】 |
+| **Profile ID** | Dashboard | Identifies your merchant profile (returned in callbacks) | Per account |
+
+**Base URLs by region** (Egypt shown first — that's the one relevant to you):【turn4click1】
+
+```
+EGY: https://accept.paymob.com/
+OMN: https://oman.paymob.com
+KSA: https://ksa.paymob.com
+UAE: https://uae.paymob.com
+```
+
+**Configuring callback URLs per Integration ID** (critical and often missed): go to Developers → Payment Integrations → select the Integration ID → Edit → fill in the two URLs → Submit.【turn10fetch1】
+
+- **Transaction Processed Callback URL** — server-side `POST` with JSON body (source of truth for status).
+- **Transaction Response Callback URL** — client-side `GET` redirect with query params (UX only).【turn4click2】
+
+You can also override these **per intention** using `notification_url` and `redirection_url` in the Create Intention body — useful for multi-tenant routing (see §7).【turn6fetch0】
+
+---
+
+## 3. The Payment Flow (Intention-Based API)
+
+The modern Paymob flow is intention-first. The high-level sequence is:【turn1fetch1】
+
+```mermaid
+flowchart LR
+    subgraph YourBackend["Your Backend"]
+      A[Create Intention<br/>POST /v1/intention/<br/>Authorization: Token secret_key] --> B[Receive client_secret<br/>+ intention_order_id]
+    end
+    B --> C[Your Frontend<br/>redirect to /unifiedcheckout/<br/>?publicKey=...&clientSecret=...]
+    C --> D[Customer pays<br/>3D Secure / OTP]
+    D --> E[Paymob processes<br/>transaction]
+    E --> F[POST Processed Callback<br/>to notification_url JSON]
+    E --> G[GET Response Callback<br/>redirect to redirection_url]
+    F --> H[Verify HMAC SHA-512<br/>with HMAC secret]
+    H --> I[Update order<br/>fulfill / notify]
+```
+
+### Step 1 — Generate Auth Token (only for some legacy/subscription/QuickLink APIs)
+
+The Intention API itself uses the **secret key** directly in the header. The auth-token endpoint (`POST /api/auth/tokens` with `{"api_key": "..."}`) is needed for subscription, QuickLink, and a few other endpoints.【turn4click1】
+
+```bash
+curl --location 'https://accept.paymob.com/api/auth/tokens' \
+  --data '{"api_key": "ZXlKaGJHY2lPaUpJVXpVexxxxxxxx"}'
+```
+
+Response includes `profile.token` you reuse as a Bearer-style token.【turn4click1】
+
+### Step 2 — Create Intention (the core call)
+
+`POST /v1/intention/` with header `Authorization: Token {secret_key}`. Key body fields:【turn6fetch0】
+
+| Field | Required | Notes |
+|---|---|---|
+| `amount` | ✅ | Total in **cents** (e.g., 2000 = 20.00 EGP) |
+| `currency` | ✅ | Must match the Integration ID currency (e.g., `EGP`) |
+| `payment_methods` | ✅ | Array of Integration IDs (integers) or names (`"card"`) — status (test/live) must match the secret key used |
+| `items` | — | Array of `{name, amount, description, quantity}` (name + amount required per item) |
+| `billing_data` | — | `phone_number` required; rest (first_name, email, apartment, street, city, country, state, floor, building) recommended |
+| `extras` | — | Custom merchant params returned in callbacks under `payment_key_claims` |
+| `special_reference` | — | Your internal order ref; returned in callback as `merchant_order_id` |
+| `expiration` | — | Intention TTL in seconds |
+| `notification_url` | — | Per-intention override of Processed Callback URL |
+| `redirection_url` | — | Per-intention override of Response Callback URL (card & wallet only) |
+
+cURL example from the docs:【turn6fetch0】
+
+```bash
+curl --location 'https://accept.paymob.com/v1/intention/' \
+  --header 'Authorization: Token sk_test_626xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' \
+  --header 'Content-Type: application/json' \
+  --data-raw '{
+    "amount": 2000,
+    "currency": "EGP",
+    "payment_methods": [158],
+    "items": [{"name": "Item name", "amount": 2000, "description": "Item description", "quantity": 1}],
+    "billing_data": {
+      "apartment": "dumy", "first_name": "ala", "last_name": "zain",
+      "street": "dumy", "building": "dumy", "phone_number": "+92345xxxxxxxx",
+      "city": "dumy", "country": "dumy", "email": "ali@gmail.com",
+      "floor": "dumy", "state": "dumy"
+    },
+    "extras": {"ee": 22},
+    "special_reference": "phe4sjw11q-1xxxxxxxxx",
+    "expiration": 3600,
+    "notification_url": "https://webhook.site/dabe4968-5xxx",
+    "redirection_url": "https://www.google.com/"
+  }'
+```
+
+**Response (201)** returns the values you actually need:【turn6fetch0】
+
+- `intention_order_id` — Paymob order ID, used to correlate callbacks → your order.
+- `id` — intention ID (alternative correlation key).
+- `client_secret` — pass to the frontend to launch checkout.
+- `payment_keys[].key` — payment key per integration.
+
+**Node.js example (server):**
+
+```js
+const res = await fetch('https://accept.paymob.com/v1/intention/', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Token ${process.env.PAYMOB_SECRET_KEY}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    amount: Math.round(order.total * 100),     // cents
+    currency: 'EGP',
+    payment_methods: [ Number(process.env.PAYMOB_CARD_INTG_ID) ],
+    items: order.items.map(i => ({ name: i.name, amount: Math.round(i.price*100), quantity: i.qty })),
+    billing_data: { phone_number: order.phone, first_name: order.first, last_name: order.last, email: order.email },
+    special_reference: order.id,
+    expiration: 3600,
+    notification_url: 'https://api.yoursite.com/webhooks/paymob',
+    redirection_url: `https://yoursite.com/orders/${order.id}/return`,
+  }),
+});
+const { client_secret, intention_order_id } = await res.json();
+// persist intention_order_id on the order, return client_secret to client
+```
+
+**Python (FastAPI) example:**
+
+```python
+import httpx, os
+
+async def create_intention(order):
+    async with httpx.AsyncClient() as c:
+        r = await c.post(
+            "https://accept.paymob.com/v1/intention/",
+            headers={"Authorization": f"Token {os.environ['PAYMOB_SECRET_KEY']}"},
+            json={
+                "amount": round(order.total * 100),
+                "currency": "EGP",
+                "payment_methods": [int(os.environ["PAYMOB_CARD_INTG_ID"])],
+                "billing_data": {"phone_number": order.phone, "first_name": order.first, "email": order.email},
+                "special_reference": str(order.id),
+                "notification_url": "https://api.yoursite.com/webhooks/paymob",
+                "redirection_url": f"https://yoursite.com/orders/{order.id}/return",
+            },
+        )
+        r.raise_for_status()
+        return r.json()  # {client_secret, intention_order_id, ...}
+```
+
+### Step 3 — Launch the Checkout (client side)
+
+**Unified Checkout (redirect)** — fastest path:【turn5click2】
+
+```
+GET https://accept.paymob.com/unifiedcheckout/?publicKey={your_public_key}&clientSecret={the_client_secret}
+```
+
+**Pixel (embedded)** — keeps the customer on your domain while Paymob still handles sensitive card data:【turn11fetch1】
+
+```html
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/paymob-pixel@latest/styles.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/paymob-pixel@latest/main.css">
+<script src="https://cdn.jsdelivr.net/npm/paymob-pixel@latest/main.js" type="module"></script>
+
+<script type="module">
+  new Pixel({
+    publicKey: 'egy_pk_live_XXXX',
+    clientSecret: 'egy_csk_live_XXXX',          // the client_secret from Step 2
+    paymentMethods: ['card','google-pay','apple-pay'],
+    elementId: 'paymob-elements',
+    disablePay: false,
+    showSaveCard: true,
+    beforePaymentComplete: async (pm) => { return true; },
+    afterPaymentComplete: async (resp) => { /* redirect / poll backend */ },
+    onPaymentCancel: () => { /* handle cancel */ },
+    customStyle: { Font_Family: 'Gotham', Color_Container: '#FFF' /* ... */ }
+  });
+</script>
+```
+
+### Step 4 — Receive & Verify the Webhook (source of truth)
+
+Paymob fires **two** callbacks per transaction. The Processed Callback (POST JSON) is the authoritative status; the Response Callback (GET query params) is purely for redirecting the user to a thank-you page.【turn4click2】
+
+Key fields in the Processed Callback:【turn4click2】
+
+| Field | Meaning |
+|---|---|
+| `id` | Paymob transaction ID |
+| `success` | true/false — the **status** you trust |
+| `obj.order.id` | Paymob order ID (= intention_order_id) — correlate to your order |
+| `is_refunded` / `refunded_amount_cents` | Refund state |
+| `is_voided` / `is_captured` / `captured_amount` | Auth/Cap & void state |
+| `merchant_order_id` | The `special_reference` you set |
+| `source_data.type` / `sub_type` / `pan` | card / MasterCard / last 4 |
+
+**HMAC verification** — 4 steps:【turn5click1】【turn6fetch1】
+
+1. Extract these values from the callback in **lexicographical key order**:
+   `amount_cents, created_at, currency, error_occured, has_parent_transaction, obj.id (POST) | id (GET), integration_id, is_3d_secure, is_auth, is_capture, is_refunded, is_standalone_payment, is_voided, order.id (POST) | order_id (GET), owner, pending, source_data.pan, source_data.sub_type, source_data.type, success`
+2. **Concatenate** the values (no separators) into one string.
+3. **HMAC‑SHA512** of that string using your **HMAC secret**.
+4. **Compare** the result with the `hmac` value Paymob sent (in the GET query string for the Response Callback; Paymob also signs the POST — compare against the same computed hash).
+
+Node.js verifier:
+
+```js
+const crypto = require('crypto');
+
+const HMAC_KEYS = [
+  'amount_cents','created_at','currency','error_occured','has_parent_transaction',
+  'obj.id','integration_id','is_3d_secure','is_auth','is_capture','is_refunded',
+  'is_standalone_payment','is_voided','order.id','owner','pending',
+  'source_data.pan','source_data.sub_type','source_data.type','success',
+];
+
+function pick(obj, path) {
+  return path.split('.').reduce((o,k)=> (o==null?undefined:o[k]), obj);
+}
+
+function verifyHmac(payload, receivedHmac) {
+  const concat = HMAC_KEYS
+    .map(k => String(pick(payload, k) ?? ''))
+    .join('');
+  const calc = crypto
+    .createHmac('sha512', process.env.PAYMOB_HMAC_SECRET)
+    .update(concat)
+    .digest('hex');
+  // constant-time compare
+  return crypto.timingSafeEqual(Buffer.from(calc), Buffer.from(receivedHmac));
+}
+```
+
+Python verifier:
+
+```python
+import hmac, hashlib
+
+HMAC_KEYS = ["amount_cents","created_at","currency","error_occured","has_parent_transaction",
+             "obj.id","integration_id","is_3d_secure","is_auth","is_capture","is_refunded",
+             "is_standalone_payment","is_voided","order.id","owner","pending",
+             "source_data.pan","source_data.sub_type","source_data.type","success"]
+
+def _get(obj, path):
+    for p in path.split("."):
+        obj = obj.get(p) if isinstance(obj, dict) else None
+    return obj
+
+def verify_hmac(payload: dict, received: str, secret: str) -> bool:
+    concat = "".join(str(_get(payload, k) or "") for k in HMAC_KEYS)
+    calc = hmac.new(secret.encode(), concat.encode(), hashlib.sha512).hexdigest()
+    return hmac.compare_digest(calc, received)
+```
+
+> Common pitfalls:
+> - For **POST** callbacks use `obj.id` and `order.id`; for **GET** redirects use `id` and `order_id`. Mixing them up is the #1 HMAC bug.【turn5click1】
+> - Boolean values must be stringified as `true`/`false` (lowercase), not `True`/`False`.【turn5click1】
+> - `error_occured` is spelled with one `r` (Paymob's spelling) — preserve it exactly.【turn5click1】
+> - Always compare in **constant time** to avoid timing attacks.
+> - Treat the webhook as the source of truth — never mark an order paid based only on the redirect's query params.
+
+### Step 5 — Manage Payments (Refund / Void / Capture)
+
+All use `Authorization: Token {secret_key}` and the Egypt base URL.【turn1fetch1】
+
+**Refund** — `POST /api/acceptance/void_refund/refund` with `{transaction_id, amount_cents}`. Amount must be ≤ original. Refunds trigger callbacks on the parent transaction with `is_refunded: true`.【turn1fetch1】
+
+```bash
+curl --location 'https://accept.paymob.com/api/acceptance/void_refund/refund' \
+  --header 'Authorization: Token sk_live_xxxx' \
+  --data '{"transaction_id": "399618139", "amount_cents": "500"}'
+```
+
+**Void** (cancel before capture) and **Capture** (collect an Auth-only hold) have analogous endpoints under `/api/acceptance/…` and the same auth pattern. Use Auth/Cap when you need to reserve funds first (e.g., on order placement) and capture later on shipment.【turn3click0】
+
+---
+
+## 4. Testing (Sandbox)
+
+Testing uses the **Test mode** of your dashboard, your **test** secret/public keys, and **test Integration IDs**. The base URL stays `https://accept.paymob.com/` — only credentials and integration IDs differ.【turn7search2】【turn10fetch1】
+
+**Test cards** (from the official Test Credentials page):【turn10fetch0】
+
+| Method | Card / Number | Expiry | CVV | Notes |
+|---|---|---|---|---|
+| Mastercard | `5123456789012346` | 01/39 | 123 | Success |
+| Mastercard | `5123450000000008` | 01/39 | 123 | Success |
+| Visa | `4111111111111111` | 01/39 | 123 | Success |
+| Mobile Wallet | `01010101010` | MPin `123456` | OTP `123456` | Vodafone/Orange/e&/We |
+
+Cardholder name can be anything (e.g., "Test Account"). 3D Secure OTPs in test are predictable; follow the on-screen prompts.【turn10fetch0】
+
+**Webhook testing workflow:**
+
+1. Your local server isn't publicly reachable, so expose it with a tunnel. Paymob's own docs recommend **ngrok** — run `ngrok http 3000` and use the resulting `https://<id>.ngrok.app` URL as the Processed/Response callback URLs (either in the Integration ID config or per-intention via `notification_url`/`redirection_url`).【turn4click2】
+2. Alternatively, use **Paymob's Webhook Testing Tool** in the dashboard — it generates a temporary endpoint, captures incoming webhooks, and lets you inspect payloads/headers for succeeded/failed/Refund/Void/Capture events without deploying anything.【turn0search14】
+3. Use **webhook.site** as a throwaway sink for the `notification_url` when you just want to see the raw payload shape during development.【turn6fetch0】
+
+**A full end-to-end test checklist:**
+
+- ✅ Create intention with test secret key + test Integration ID → expect `201` with `client_secret`.
+- ✅ Open the Unified Checkout URL with test public key + client_secret.
+- ✅ Pay with `5123456789012346` → 3DS → expect success.
+- ✅ Receive POST Processed Callback → verify HMAC → assert `success: true` and `obj.order.id` matches your order.
+- ✅ Receive GET Response Callback redirect → verify HMAC → confirm query params parse.
+- ✅ Pay with a wallet (01010101010) → MPin → OTP 123456 → success callback.
+- ✅ Trigger a Refund via API → expect parent callback with `is_refunded: true`.
+- ✅ Trigger a Void / Capture where applicable.
+- ✅ Test a failed/declined path (use a card that 3DS-fails or insufficient-funds) → confirm `success: false` reaches your webhook and your order stays in `pending`/`failed`.
+- ✅ Test idempotency: replay the same webhook (Paymob retries) → ensure you don't double-fulfill. Key your order updates on `obj.order.id` / `special_reference` and check current state before acting.
+
+---
+
+## 5. Production Go-Live Checklist
+
+Technical readiness is necessary but **not sufficient** — the Commercial Phase is mandatory before live transactions work.【turn1fetch0】
+
+| Step | Action | Owner |
+|---|---|---|
+| Commercial | Business activity approval, contract signing, data verification, bank clearances | Paymob account manager + you |
+| Dashboard | Switch mode toggle from **Test** to **Live** in top-left of dashboard | You |
+| Credentials | Rotate to `sk_live_…`, `pk_live_…`, live HMAC secret, **live Integration IDs** | You |
+| Callbacks | Set live Processed & Response URLs on each live Integration ID (no more ngrok) | You |
+| Webhooks | Deploy to a public HTTPS endpoint; ensure 200 response within a few seconds; handle retries idempotently | You |
+| Security | Verify HMAC on **every** callback; never log full card data; store keys in a secrets manager, not env files in repo | You |
+| 3DS | Confirm 3D Secure is enforced on card Integration ID (liability shift) | You + Paymob |
+| Apple Pay / Google Pay | Complete Apple Pay domain verification & certificate creation if used | You |
+| Monitoring | Alert on webhook verification failures, high decline rates, settlement gaps | You |
+| Reconciliation | Cross-check daily settlement reports from dashboard vs. your internal ledger | You |
+
+Once live credentials are issued and the dashboard is in Live mode with live Integration IDs in your config, real transactions will process.【turn3click1】【turn1fetch0】
+
+---
+
+## 6. White-Label / Multi-Tenant Platform (Shopify-style)
+
+This is the architectural core of your question: a platform where each "owner" (store/merchant on your SaaS) has their own payment setup, and **their** customers pay **them** — while you (the platform) control the integration and may take a commission.
+
+There are **three viable models**, with very different trade-offs:
+
+```mermaid
+flowchart LR
+    subgraph ModelA["Model A: Per-Merchant Paymob Accounts (Shopify-like)"]
+      A1[Platform DB stores each merchant's<br/>secret/public/HMAC + Integration IDs] --> A2[Create intention with<br/>that merchant's secret key]
+      A2 --> A3[Funds settle to<br/>merchant's own bank account]
+    end
+    subgraph ModelB["Model B: Single Platform Account + Split Amounts"]
+      B1[One Paymob account = platform] --> B2[Create intention with platform secret key<br/>+ split_amounts to connected MIDs]
+      B2 --> B3[Paymob splits & settles<br/>to each sub-merchant MID]
+    end
+    subgraph ModelC["Model C: Marketplace by Paymob"]
+      C1[Platform + Paymob Marketplace product] --> C2[Accept payment +<br/>automatic payouts to vendors]
+      C2 --> C3[Paymob handles KYC,<br/>payouts, money movement]
+    end
+```
+
+### Model A — Each owner has their own Paymob account (truest Shopify model)
+
+Each merchant/owner signs up with Paymob directly, completes their own KYC, and obtains their own `secret_key`, `public_key`, `HMAC secret`, and Integration IDs. Your platform stores these per-tenant (encrypted at rest) and uses them when creating intentions on that tenant's behalf.【turn10fetch1】
+
+**Data model:**
+
+```
+tenants
+  id, name, domain
+tenant_payment_configs
+  tenant_id, paymob_secret_key (enc), paymob_public_key (enc),
+  paymob_hmac_secret (enc), card_integration_id, wallet_integration_id,
+  processed_callback_url, response_callback_url, mode (test/live), status
+```
+
+**Flow:** when a customer checks out on `tenant-42.shop.yoursaas.com`, your backend loads tenant 42's credentials, calls `POST /v1/intention/` with `Authorization: Token {tenant_42_secret}`, sets `notification_url` to `https://api.yoursaas.com/webhooks/paymob/{tenant_id}` so your single webhook router knows which tenant's HMAC secret to verify with, and returns the `client_secret`. Funds settle directly to tenant 42's bank account — money never touches your account. You bill the tenant separately for your platform fee (subscription or convenience fee).【turn6fetch0】【turn10fetch1】
+
+| Pros | Cons |
+|---|---|
+| Funds go directly to each merchant — lowest platform financial liability | Each merchant must pass Paymob KYC individually (can take days) |
+| Cleanest legal/compliance separation; each merchant is the merchant of record | You must securely store & rotate per-tenant secrets (encryption, KMS) |
+| Merchant can use their own dashboard for refunds/reports | Refunds must be initiated with that tenant's secret key — your platform must proxy them |
+| Scales to unlimited merchants with no special Paymob enablement | Onboarding UX is split (your app + Paymob's KYC flow) |
+
+### Model B — Single platform account + Paymob Split Features
+
+You operate **one** Paymob merchant account (the platform's). Sub-merchants are onboarded as **connected MIDs** under your account. At intention creation you pass `split_amounts` to route parts of each payment to each connected MID — this is Paymob's native split payment feature, configured at the intention level.【turn10fetch2】
+
+```json
+"split_amounts": [
+  { "mid": "{{connected_MID1}}", "amount_cents": 8500, "description": "Seller payout" },
+  { "mid": "{{platform_MID}}",   "amount_cents": 1500, "description": "Platform commission" }
+]
+```
+
+There's also **Split Payment** (`split_payment_methods`: array of auth Integration IDs) for splitting by payment method rather than by amount — each sub-payment returns two transactions (Auth + Capture) in the callback.【turn10fetch2】
+
+| Pros | Cons |
+|---|---|
+| Single integration, single KYC (yours) — sub-merchants onboard faster as connected MIDs | Requires Paymob to enable Split on your account (contact support@paymob.com) |
+| Platform controls all funds flow & can take commission at the transaction level | Funds land in your account first (or are split by Paymob) — greater financial/regulatory responsibility |
+| Centralized refund/void with one secret key | Connected MIDs still require Paymob-side onboarding/KYC |
+| Excellent for marketplaces with many small vendors | Settlement & reconciliation more complex (track sub-merchant payouts) |
+
+### Model C — Marketplace by Paymob (turnkey)
+
+Paymob markets a dedicated **Marketplace** product that combines acceptance + automatic payouts to sub-merchants with onboarding controls and integrated reporting — essentially Model B operated as a packaged product. It's PCI-certified and built for e-commerce marketplaces, booking/ticketing, and similar platforms.【turn8fetch0】
+
+This is the fastest route if you don't want to build the split/payout plumbing yourself; you negotiate terms with Paymob sales and they configure sub-merchant onboarding, payout timing, and money movement.【turn8fetch0】
+
+### Decision matrix
+
+| If your platform… | Recommended model |
+|---|---|
+| Wants each merchant to be the merchant of record with their own KYC and direct settlement (classic SaaS e-com like Shopify) | **Model A** |
+| Is a marketplace where you aggregate vendors, take a commission at checkout, and want one integration | **Model B** (Split Features) |
+| Wants Paymob to operate the marketplace payout rails end-to-end with minimal build | **Model C** (Marketplace product) |
+| Mixes both — some enterprise merchants bring their own accounts, small vendors use your split | Hybrid: Model A for large tenants, Model B/C for the long tail |
+
+### White-label implementation specifics
+
+**Credential storage & isolation**
+- Store per-tenant credentials encrypted (AES-256 with a KMS-managed key), never in plaintext or env vars. Never log secret keys or HMAC secrets. Rotate via Paymob dashboard "Recreate" if compromised.【turn0search6】
+- Use a per-tenant wrapper around your Paymob client: `paymob.forTenant(tenantId).createIntention(...)`. The wrapper resolves keys from your vault at call time, not from a global config.
+
+**Webhook routing (single endpoint, multi-tenant)**
+- Use one public webhook URL: `POST /webhooks/paymob/:tenant_id` (or route by a header / the `special_reference` you set on the intention).
+- Look up the tenant's HMAC secret, verify the signature, then dispatch. If verification fails, **reject and log** — do not process.
+- Set `notification_url` per intention to include the tenant identifier so you always know whose secret to use.【turn6fetch0】
+
+**Refunds & money movement**
+- Model A: refunds must be initiated with the tenant's secret key — proxy the request through your backend after authorization checks.
+- Model B/C: refunds with the platform secret key; Paymob handles reverse-split per the original split configuration. Coordinate with Paymob on how refunds deduct from sub-merchant balances.【turn1fetch1】
+
+**Platform commission**
+- Model A: charge a **Convenience Fee** via Paymob's feature, or bill the tenant separately (subscription / invoice). Convenience fee is configured per payment method and added on top of the base price.【turn9search10】
+- Model B/C: bake commission into `split_amounts` — the platform MID receives its slice at the same time as the seller MID.【turn10fetch2】
+
+**KYC & onboarding UX**
+- Model A: build a UI that collects the same business documents Paymob needs (commercial register, tax ID, bank account, owner IDs), submits them to Paymob, and surfaces approval status. Until approved, the tenant stays in test mode.【turn0search2】
+- Model B/C: coordinate with Paymob on their connected-MID / Marketplace onboarding flow — sometimes hosted by Paymob, sometimes API-driven depending on your agreement.
+
+**Testing the multi-tenant setup**
+- Create two test tenants with separate test Paymob accounts (or two connected MIDs in test mode) and verify funds routing / HMAC isolation between them.
+- Verify a webhook from tenant A cannot be verified with tenant B's HMAC secret (negative test).
+- Confirm `notification_url` per-intention routing works end-to-end through ngrok.【turn4click2】
+
+---
+
+## 7. Reference Endpoints (Egypt)
+
+| Purpose | Method & Path |
+|---|---|
+| Auth token | `POST https://accept.paymob.com/api/auth/tokens` |
+| Create Intention | `POST https://accept.paymob.com/v1/intention/` |
+| Update Intention | `PUT https://accept.paymob.com/v1/intention/{id}` |
+| Unified Checkout | `GET https://accept.paymob.com/unifiedcheckout/?publicKey=…&clientSecret=…` |
+| Refund | `POST https://accept.paymob.com/api/acceptance/void_refund/refund` |
+| Void / Capture | `POST https://accept.paymob.com/api/acceptance/void_refund/void` (and capture analogue) |
+| Transaction Inquiry | `GET /api/transaction/{id}` · `POST /api/transaction/inquiry` (by order/ref) |
+| Pixel SDK | `https://cdn.jsdelivr.net/npm/paymob-pixel@latest/main.js` |
+
+All server-side calls require `Authorization: Token {secret_key}`; the Intention body uses `Content-Type: application/json`.【turn4click1】【turn5click0】【turn5click2】【turn2find0】
+
+For the canonical Postman collection across EGY/KSA/UAE/OMN, Paymob maintains an official repo at `github.com/PaymobAccept/API-Postman-Collections` covering Intention APIs, callbacks, refunds, voids, and capture — useful as a reference while building.【turn12search8】
+
+---
+
+### Final notes on production readiness
+
+Treat the **Processed Callback (POST) + HMAC verification** as the only source of truth for order status, make every webhook handler idempotent on `order.id`, isolate per-tenant credentials in a vault with audit logging, and complete the Commercial Phase with your Paymob account manager before expecting live transactions to settle — that combination is what separates a working sandbox demo from a reliable production payment integration.【turn1fetch1】【turn1fetch0】

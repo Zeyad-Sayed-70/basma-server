@@ -7,7 +7,50 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Server is healthy and database is connected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "database": {
+                      "type": "string",
+                      "example": "connected"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "example": "2026-06-25T00:00:00.000Z"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database is disconnected or server is unhealthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "error"
+                    },
+                    "database": {
+                      "type": "string",
+                      "example": "disconnected"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "example": "2026-06-25T00:00:00.000Z"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "summary": "Check server and database health",
@@ -160,7 +203,7 @@
     },
     "/api/auth/student/signup": {
       "post": {
-        "description": "Allows a student to join a group and get a JWT. If the code is a valid group ID and the group is in OPEN mode, the student joins directly. If the code is an invitation code (from a CLOSED group), the student joins via invitation. If the student email already exists, a new JWT is returned (idempotent re-auth). Returns access and refresh JWT tokens for student API access.",
+        "description": "Allows a student to join a group and get a JWT. If the code is a valid group ID and the group is in OPEN mode, the student joins directly. If the code is an invitation code (from a CLOSED group), the student joins via invitation. If the student email already exists, a new JWT is returned (idempotent re-auth). An optional password can be set during signup to enable future email+password login. Returns access and refresh JWT tokens for student API access.",
         "operationId": "AuthController_studentSignup",
         "parameters": [],
         "requestBody": {
@@ -192,6 +235,73 @@
           }
         },
         "summary": "Student signup via invitation code or open group",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/api/auth/student/login": {
+      "post": {
+        "description": "Authenticates a student using their email and password. The student must have set a password during signup. Returns access and refresh JWT tokens upon successful authentication. Use this endpoint to sign in from another device after initial signup.",
+        "operationId": "AuthController_studentLogin",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StudentLoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentAuthResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid email or password, or no password set for this account"
+          }
+        },
+        "summary": "Student login with email and password",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/api/auth/student/me": {
+      "get": {
+        "description": "Returns the authenticated student's profile including group info. Requires a valid student JWT token in the Authorization header.",
+        "operationId": "AuthController_studentMe",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Student profile retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentMeResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — invalid or missing token"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get current student profile",
         "tags": [
           "Authentication"
         ]
@@ -2815,7 +2925,10 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "Notification created successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
           }
         },
         "security": [
@@ -2835,7 +2948,14 @@
             "name": "type",
             "required": false,
             "in": "query",
+            "description": "Filter by notification type",
             "schema": {
+              "enum": [
+                "SESSION_REMINDER",
+                "QUIZ_GRADED",
+                "ASSIGNMENT_DUE",
+                "CUSTOM"
+              ],
               "type": "string"
             }
           },
@@ -2843,6 +2963,7 @@
             "name": "status",
             "required": false,
             "in": "query",
+            "description": "Filter by delivery status",
             "schema": {
               "type": "string"
             }
@@ -2851,7 +2972,9 @@
             "name": "page",
             "required": false,
             "in": "query",
+            "description": "Page number (1-indexed)",
             "schema": {
+              "example": "1",
               "type": "string"
             }
           },
@@ -2859,14 +2982,19 @@
             "name": "limit",
             "required": false,
             "in": "query",
+            "description": "Items per page (max 100)",
             "schema": {
+              "example": "50",
               "type": "string"
             }
           }
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Notifications retrieved successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
           }
         },
         "security": [
@@ -2886,7 +3014,10 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Notification delivery statistics"
+          },
+          "401": {
+            "description": "Unauthorized"
           }
         },
         "security": [
@@ -2906,7 +3037,10 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Notification preferences retrieved successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
           }
         },
         "security": [
@@ -2928,7 +3062,14 @@
             "name": "type",
             "required": true,
             "in": "path",
+            "description": "Notification type to update preference for",
             "schema": {
+              "enum": [
+                "SESSION_REMINDER",
+                "QUIZ_GRADED",
+                "ASSIGNMENT_DUE",
+                "CUSTOM"
+              ],
               "type": "string"
             }
           }
@@ -2945,7 +3086,10 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "Notification preference updated successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
           }
         },
         "security": [
@@ -2975,7 +3119,10 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "Announcement sent successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
           }
         },
         "security": [
@@ -2991,6 +3138,7 @@
     },
     "/api/notifications/whatsapp/connect": {
       "post": {
+        "description": "Initiates a WhatsApp WebJS connection. Use method=qr to get a QR code (scan with WhatsApp mobile app). Use method=pairing with a phone number for code-based pairing. After connecting, check GET /whatsapp/status for connection state.",
         "operationId": "NotificationsController_connectWhatsApp",
         "parameters": [],
         "requestBody": {
@@ -3004,15 +3152,14 @@
           }
         },
         "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
+          "200": {
+            "description": "WhatsApp connection initiated"
+          },
+          "400": {
+            "description": "Invalid method or missing phone number"
+          },
+          "401": {
+            "description": "Unauthorized"
           }
         },
         "security": [
@@ -3032,14 +3179,10 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
+            "description": "WhatsApp connection status retrieved successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
           }
         },
         "security": [
@@ -3059,14 +3202,10 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
+            "description": "QR code data URL (null if not available)"
+          },
+          "401": {
+            "description": "Unauthorized"
           }
         },
         "security": [
@@ -3086,7 +3225,10 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "WhatsApp disconnected successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
           }
         },
         "security": [
@@ -3108,6 +3250,7 @@
             "name": "id",
             "required": true,
             "in": "path",
+            "description": "Notification ID",
             "schema": {
               "type": "string"
             }
@@ -3115,7 +3258,13 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Notification details retrieved successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Notification not found"
           }
         },
         "security": [
@@ -3126,6 +3275,530 @@
         "summary": "Get notification details",
         "tags": [
           "Notifications"
+        ]
+      }
+    },
+    "/api/payments/paymob/configure": {
+      "post": {
+        "description": "Saves the teacher's Paymob credentials (Model A — per-teacher Paymob account). The secret key and HMAC secret are AES-256-GCM encrypted at rest before storage. Call this once after the teacher creates their Paymob account and obtains their test/live credentials. Use PUT semantics — calling again overwrites the existing configuration.",
+        "operationId": "PaymentsController_configurePaymob",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigurePaymobDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Paymob configuration saved successfully. Secret keys returned masked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymobConfigResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed (invalid fields)"
+          },
+          "401": {
+            "description": "Invalid or missing JWT token"
+          },
+          "403": {
+            "description": "User is not a teacher or tenant context not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Configure Paymob credentials for this instance",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/api/payments/paymob/config": {
+      "get": {
+        "description": "Returns the current Paymob configuration for this instance. Secret keys are masked for security (only first 4 + last 4 chars visible). Returns isConfigured: false if no configuration exists yet.",
+        "operationId": "PaymentsController_getPaymobConfig",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Paymob configuration (keys masked). If unconfigured, returns { isConfigured: false }.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymobConfigResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing JWT token"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get Paymob configuration (masked keys)",
+        "tags": [
+          "Payments"
+        ]
+      },
+      "delete": {
+        "description": "Deletes the Paymob credentials for this instance. After removal, students will not be able to initiate new payments until Paymob is re-configured. Existing payment records are preserved.",
+        "operationId": "PaymentsController_removePaymobConfig",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Configuration removed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing JWT token"
+          },
+          "404": {
+            "description": "No Paymob configuration exists"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove Paymob configuration",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/api/payments/pay": {
+      "post": {
+        "description": "Creates a Paymob payment intention and returns a checkout URL. The student must be enrolled in the course, and the course must have price > 0. Only one pending payment per student per course is allowed at a time. The returned checkoutUrl should be opened in a browser to redirect to Paymob Unified Checkout. The webhook will update the payment status automatically when the student completes or fails payment.",
+        "operationId": "PaymentsController_initiatePayment",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePaymentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Payment intention created. Redirect student to checkoutUrl.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentPaymentInitiationResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Free course, duplicate pending payment, or Paymob not configured"
+          },
+          "401": {
+            "description": "Invalid or missing JWT token"
+          },
+          "403": {
+            "description": "Student is not enrolled in this course"
+          },
+          "404": {
+            "description": "Course not found or student not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Initiate payment for a course (student)",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/api/payments": {
+      "post": {
+        "description": "Records a payment that was collected outside Paymob (cash, bank transfer, etc.). This creates a Payment record with status = PAID directly — no Paymob intention is created. Use this for offline payments your teacher collects manually from students.",
+        "operationId": "PaymentsController_createManual",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualPaymentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Manual payment recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing JWT token"
+          },
+          "403": {
+            "description": "User is not a teacher or tenant context not found"
+          },
+          "404": {
+            "description": "Student not found in this instance"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a manual payment record (offline/cash)",
+        "tags": [
+          "Payments"
+        ]
+      },
+      "get": {
+        "description": "Returns paginated list of payments for this instance. Filterable by student, course, and payment status. Payments are ordered by creation date (newest first).",
+        "operationId": "PaymentsController_findAll",
+        "parameters": [
+          {
+            "name": "studentId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by student ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "courseId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by course ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Filter by payment status",
+            "schema": {
+              "enum": [
+                "PENDING",
+                "PROCESSING",
+                "PAID",
+                "FAILED",
+                "REFUNDED",
+                "PARTIALLY_REFUNDED",
+                "VOIDED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number (1-indexed)",
+            "schema": {
+              "example": "1",
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Items per page (max 100)",
+            "schema": {
+              "example": "50",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of payments",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentListResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing JWT token"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List payments",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/api/payments/stats": {
+      "get": {
+        "description": "Returns aggregate payment statistics for this instance: counts of paid/pending/refunded payments and total revenue.",
+        "operationId": "PaymentsController_getStats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Payment statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentStatsResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing JWT token"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get payment statistics",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/api/payments/{id}": {
+      "get": {
+        "description": "Returns full details for a single payment, including student info, course info, all Paymob correlation IDs, and the checkout URL (if applicable).",
+        "operationId": "PaymentsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Payment record ID",
+            "schema": {
+              "example": "clxq8a2b30001jf08m3n4o5p6",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Full payment details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing JWT token"
+          },
+          "404": {
+            "description": "Payment not found in this instance"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get payment details",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/api/payments/{id}/refund": {
+      "post": {
+        "description": "Initiates a refund for a paid payment through Paymob. The payment must have status = PAID and a Paymob transaction ID. Partial refunds are supported by specifying amountCents less than the original amount. The final refund status (REFUNDED / PARTIALLY_REFUNDED) is updated via webhook callback.",
+        "operationId": "PaymentsController_refund",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Payment record ID to refund",
+            "schema": {
+              "example": "clxq8a2b30001jf08m3n4o5p6",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefundDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Refund initiated — status will update after webhook confirmation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Refund initiated"
+                    },
+                    "result": {
+                      "type": "object",
+                      "description": "Raw Paymob refund response"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payment is not PAID, has no transaction ID, or refund failed"
+          },
+          "401": {
+            "description": "Invalid or missing JWT token"
+          },
+          "404": {
+            "description": "Payment not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Refund a payment via Paymob",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/api/payments/webhook/paymob/{instanceId}": {
+      "post": {
+        "description": "**This is the source of truth for payment status.**\n\nPaymob calls this endpoint after a transaction completes (success, failure, refund, void). The request body is HMAC-SHA512 signed using the instance's HMAC secret.\n\n**Security:**\n- The endpoint is public (no JWT) — security relies entirely on HMAC verification\n- If HMAC is invalid, the request is rejected with 401\n- The webhook is idempotent — replaying the same payload does not double-process\n\n**How to test:**\n1. Expose your local server via ngrok: `ngrok http 3000`\n2. Set `PAYMOB_WEBHOOK_BASE_URL` to your ngrok URL\n3. Configure the instance's `notification_url` per-intention (done automatically)\n4. Complete a test payment — Paymob will POST to this endpoint\n\nAlternatively, use Paymob's Webhook Testing Tool in the dashboard to simulate callbacks.",
+        "operationId": "PaymentsPublicController_handlePaymobWebhook",
+        "parameters": [
+          {
+            "name": "instanceId",
+            "required": true,
+            "in": "path",
+            "description": "Instance ID — used to look up the correct HMAC secret for verification. Extracted from the JWT claim when the intention was created.",
+            "schema": {
+              "example": "clxq8a2b30001jf08m3n4o5p6",
+              "type": "string"
+            }
+          },
+          {
+            "name": "hmac",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Paymob callback JSON payload. The `hmac` field is the HMAC-SHA512 signature to verify.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymobWebhookDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Webhook received and processed. Always returns 200 to acknowledge receipt (even if HMAC fails — in that case an exception is thrown).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HMAC verification failed — signature does not match the instance's HMAC secret."
+          }
+        },
+        "summary": "Paymob processed callback webhook (signed, HMAC-verified)",
+        "tags": [
+          "Payments — Public (Webhook & Redirect)"
+        ]
+      }
+    },
+    "/api/payments/return": {
+      "get": {
+        "description": "Paymob redirects the student's browser here after the checkout flow completes. **This is NOT the source of truth for payment status.**\n\nThe redirect contains query params (paymentId, success) that are purely for UX. The actual payment status is confirmed via the POST webhook at /payments/webhook/paymob/:instanceId.\n\nThe student is redirected to the frontend with the status in the URL.",
+        "operationId": "PaymentsPublicController_handleReturn",
+        "parameters": [
+          {
+            "name": "paymentId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "success",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirects to frontend: {FRONTEND_BASE_URL}/payments/{paymentId}/result?status={success|pending}"
+          }
+        },
+        "summary": "Redirect URL after Paymob checkout (UX only)",
+        "tags": [
+          "Payments — Public (Webhook & Redirect)"
         ]
       }
     }
@@ -3347,6 +4020,12 @@
             "example": "+201234567890",
             "description": "Student phone number"
           },
+          "password": {
+            "type": "string",
+            "minLength": 4,
+            "example": "1234",
+            "description": "Account password (min 4 characters). If set, enables email+password login on other devices. Recommended if email is provided."
+          },
           "code": {
             "type": "string",
             "example": "INV234",
@@ -3412,6 +4091,84 @@
           "accessToken",
           "refreshToken",
           "student"
+        ]
+      },
+      "StudentLoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "minLength": 2,
+            "example": "ali@example.com",
+            "description": "Student email"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 4,
+            "example": "1234",
+            "description": "Student password or PIN"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "StudentMeResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "name": {
+            "type": "string",
+            "example": "علي أحمد"
+          },
+          "email": {
+            "type": "string",
+            "example": "ali@example.com"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+201234567890"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "INACTIVE"
+            ],
+            "example": "ACTIVE"
+          },
+          "groupId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Group ID"
+          },
+          "instanceId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Instance ID"
+          },
+          "groupName": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Group name"
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "status",
+          "groupId",
+          "instanceId",
+          "groupName",
+          "createdAt"
         ]
       },
       "CreateGroupDto": {
@@ -4564,6 +5321,65 @@
           "total"
         ]
       },
+      "QuestionResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "text": {
+            "type": "string",
+            "example": "ما ناتج (x+2)(x-2)؟"
+          },
+          "type": {
+            "enum": [
+              "MCQ",
+              "THEORY"
+            ],
+            "type": "string",
+            "example": "MCQ"
+          },
+          "options": {
+            "example": [
+              "x²-4",
+              "x²+4",
+              "x²-4x+4",
+              "x²+4x+4"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "correctAnswer": {
+            "type": "string",
+            "example": "x²-4",
+            "description": "Correct answer (hidden from students in responses)"
+          },
+          "marks": {
+            "type": "number",
+            "example": 5
+          },
+          "quizId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Quiz ID"
+          },
+          "instanceId": {
+            "type": "string",
+            "example": "clx..."
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "type",
+          "marks",
+          "quizId",
+          "instanceId"
+        ]
+      },
       "QuizDetailResponseDto": {
         "type": "object",
         "properties": {
@@ -4612,7 +5428,7 @@
             "description": "List of questions in the quiz",
             "type": "array",
             "items": {
-              "type": "object"
+              "$ref": "#/components/schemas/QuestionResponseDto"
             }
           }
         },
@@ -4698,65 +5514,6 @@
           "marks"
         ]
       },
-      "QuestionResponseDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "example": "clx..."
-          },
-          "text": {
-            "type": "string",
-            "example": "ما ناتج (x+2)(x-2)؟"
-          },
-          "type": {
-            "enum": [
-              "MCQ",
-              "THEORY"
-            ],
-            "type": "string",
-            "example": "MCQ"
-          },
-          "options": {
-            "example": [
-              "x²-4",
-              "x²+4",
-              "x²-4x+4",
-              "x²+4x+4"
-            ],
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "correctAnswer": {
-            "type": "string",
-            "example": "x²-4",
-            "description": "Correct answer (hidden from students in responses)"
-          },
-          "marks": {
-            "type": "number",
-            "example": 5
-          },
-          "quizId": {
-            "type": "string",
-            "example": "clx...",
-            "description": "Quiz ID"
-          },
-          "instanceId": {
-            "type": "string",
-            "example": "clx..."
-          }
-        },
-        "required": [
-          "id",
-          "text",
-          "type",
-          "marks",
-          "quizId",
-          "instanceId"
-        ]
-      },
       "QuestionListResponseDto": {
         "type": "object",
         "properties": {
@@ -4820,6 +5577,25 @@
           }
         }
       },
+      "AnswerEntry": {
+        "type": "object",
+        "properties": {
+          "questionId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Question ID"
+          },
+          "answer": {
+            "type": "string",
+            "example": "x²-4",
+            "description": "Student's answer"
+          }
+        },
+        "required": [
+          "questionId",
+          "answer"
+        ]
+      },
       "SubmitQuizAttemptDto": {
         "type": "object",
         "properties": {
@@ -4834,7 +5610,7 @@
             "description": "Array of questionId-answer pairs",
             "type": "array",
             "items": {
-              "type": "object"
+              "$ref": "#/components/schemas/AnswerEntry"
             }
           }
         },
@@ -5428,6 +6204,616 @@
         },
         "required": [
           "method"
+        ]
+      },
+      "ConfigurePaymobDto": {
+        "type": "object",
+        "properties": {
+          "secretKey": {
+            "type": "string",
+            "description": "Paymob Secret Key — found in Dashboard → Settings → Secret Key. Use sk_test_... for test mode, sk_live_... for live.",
+            "example": "sk_test_626c1e1a6b8d4f9a2c3e5f7a8b0c1d2e3f4a5b6c"
+          },
+          "publicKey": {
+            "type": "string",
+            "description": "Paymob Public Key — found in Dashboard → Settings → Public Key. Use pk_test_... for test mode, pk_live_... for live.",
+            "example": "pk_test_9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b"
+          },
+          "hmacSecret": {
+            "type": "string",
+            "description": "Paymob HMAC Secret — found in Dashboard → Settings → HMAC. Used to verify webhook signatures (SHA-512).",
+            "example": "6a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d"
+          },
+          "cardIntegrationId": {
+            "type": "number",
+            "description": "Card Integration ID — found in Developers → Payment Integrations → Card. The numeric ID for your card payment integration (e.g. Visa/Mastercard, 3D Secure).",
+            "example": 158
+          },
+          "walletIntegrationId": {
+            "type": "number",
+            "description": "Wallet/Mobile Integration ID — found in Developers → Payment Integrations → Wallet. The numeric ID for mobile wallet payments (e.g. Vodafone Cash, Orange Money). Optional — only needed if you accept wallet payments.",
+            "example": 475
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "test",
+              "live"
+            ],
+            "description": "Operation mode — \"test\" for sandbox (test credentials), \"live\" for production (real money). Must match the key prefix (sk_test_ / sk_live_).",
+            "default": "test",
+            "example": "test"
+          }
+        },
+        "required": [
+          "secretKey",
+          "publicKey",
+          "hmacSecret",
+          "cardIntegrationId"
+        ]
+      },
+      "PaymobConfigResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Configuration record ID"
+          },
+          "isConfigured": {
+            "type": "boolean",
+            "description": "Whether Paymob has been fully configured and is ready to accept payments"
+          },
+          "secretKey": {
+            "type": "string",
+            "description": "Secret Key (masked) — only first 4 and last 4 characters are shown for security",
+            "example": "sk_t****xxxx"
+          },
+          "publicKey": {
+            "type": "string",
+            "description": "Public Key (masked) — only first 4 and last 4 characters are shown for security",
+            "example": "pk_t****xxxx"
+          },
+          "cardIntegrationId": {
+            "type": "number",
+            "nullable": true,
+            "description": "Card Integration ID — numeric ID for card payment processing",
+            "example": 158
+          },
+          "walletIntegrationId": {
+            "type": "number",
+            "nullable": true,
+            "description": "Wallet/Mobile Integration ID — numeric ID for wallet payment processing",
+            "example": 475
+          },
+          "mode": {
+            "type": "string",
+            "description": "Operation mode",
+            "enum": [
+              "test",
+              "live"
+            ],
+            "example": "test"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Configuration creation timestamp",
+            "example": "2026-06-25T20:00:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "Configuration last update timestamp",
+            "example": "2026-06-25T20:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "isConfigured",
+          "secretKey",
+          "publicKey",
+          "mode",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "MessageResponseDto": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Human-readable status message",
+            "example": "Paymob configuration removed"
+          }
+        },
+        "required": [
+          "message"
+        ]
+      },
+      "CreatePaymentDto": {
+        "type": "object",
+        "properties": {
+          "courseId": {
+            "type": "string",
+            "description": "ID of the course the student wants to pay for. Must be a course the student is enrolled in with a price > 0.",
+            "example": "clxq8a2b30001jf08m3n4o5p6"
+          },
+          "metadata": {
+            "type": "string",
+            "description": "Additional metadata as JSON string — will be passed to Paymob extras field and returned in webhook callbacks.",
+            "example": "{\"source\": \"mobile_app\", \"discount_code\": \"WELCOME10\"}"
+          }
+        },
+        "required": [
+          "courseId"
+        ]
+      },
+      "StudentPaymentInitiationResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Payment record ID"
+          },
+          "amountCents": {
+            "type": "number",
+            "description": "Amount in cents",
+            "example": 2000
+          },
+          "amountFormatted": {
+            "type": "string",
+            "description": "Human-readable amount",
+            "example": "20.00 EGP"
+          },
+          "currency": {
+            "type": "string",
+            "description": "Currency",
+            "example": "EGP"
+          },
+          "status": {
+            "type": "string",
+            "description": "Payment status — will be PROCESSING once intention is created",
+            "example": "PROCESSING"
+          },
+          "clientSecret": {
+            "type": "string",
+            "description": "Client secret — pass this to Paymob Unified Checkout"
+          },
+          "checkoutUrl": {
+            "type": "string",
+            "description": "Full Unified Checkout URL — redirect the student to this URL to complete payment"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Payment creation timestamp",
+            "example": "2026-06-25T20:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "amountCents",
+          "amountFormatted",
+          "currency",
+          "status",
+          "clientSecret",
+          "checkoutUrl",
+          "createdAt"
+        ]
+      },
+      "ManualPaymentDto": {
+        "type": "object",
+        "properties": {
+          "studentId": {
+            "type": "string",
+            "description": "Student ID to record payment for"
+          },
+          "courseId": {
+            "type": "string",
+            "description": "Course ID this payment is for"
+          },
+          "amountCents": {
+            "type": "number",
+            "minimum": 1,
+            "description": "Amount in cents (e.g. 2000 = 20.00 EGP)",
+            "example": 2000
+          },
+          "currency": {
+            "type": "string",
+            "description": "Currency code",
+            "default": "EGP",
+            "example": "EGP"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Optional notes about this payment"
+          }
+        },
+        "required": [
+          "studentId",
+          "amountCents"
+        ]
+      },
+      "PaymentStudentDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Student ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "Student name"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true,
+            "description": "Student email"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "PaymentCourseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Course ID"
+          },
+          "title": {
+            "type": "string",
+            "description": "Course title"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ]
+      },
+      "PaymentResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Payment record ID"
+          },
+          "studentId": {
+            "type": "string",
+            "description": "Student ID who made the payment"
+          },
+          "student": {
+            "description": "Student details (included in single payment view)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentStudentDto"
+              }
+            ]
+          },
+          "courseId": {
+            "type": "string",
+            "description": "Course ID this payment is for"
+          },
+          "course": {
+            "description": "Course details (included in single payment view)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentCourseDto"
+              }
+            ]
+          },
+          "amountCents": {
+            "type": "number",
+            "description": "Amount in cents (e.g. 2000 = 20.00 EGP)",
+            "example": 2000
+          },
+          "amountFormatted": {
+            "type": "string",
+            "description": "Human-readable amount with currency",
+            "example": "20.00 EGP"
+          },
+          "currency": {
+            "type": "string",
+            "description": "Currency code",
+            "example": "EGP"
+          },
+          "status": {
+            "type": "string",
+            "description": "Payment status",
+            "enum": [
+              "PENDING",
+              "PROCESSING",
+              "PAID",
+              "FAILED",
+              "REFUNDED",
+              "PARTIALLY_REFUNDED",
+              "VOIDED"
+            ],
+            "example": "PAID"
+          },
+          "paymobIntentionId": {
+            "type": "string",
+            "description": "Paymob intention ID — returned when creating the intention"
+          },
+          "paymobOrderId": {
+            "type": "string",
+            "description": "Paymob order ID (= intention_order_id) — used to correlate webhooks to payments"
+          },
+          "paymobTransactionId": {
+            "type": "string",
+            "description": "Paymob transaction ID — populated after successful payment via webhook"
+          },
+          "clientSecret": {
+            "type": "string",
+            "description": "Client secret — used to launch Paymob Unified Checkout on the frontend"
+          },
+          "checkoutUrl": {
+            "type": "string",
+            "description": "Paymob Unified Checkout URL — redirect the student here to complete payment",
+            "example": "https://accept.paymob.com/unifiedcheckout/?publicKey=pk_test_...&clientSecret=egy_csk_test_..."
+          },
+          "notes": {
+            "type": "string",
+            "description": "Optional notes about the payment"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Additional metadata stored with the payment",
+            "example": {
+              "source": "mobile_app",
+              "discount_code": "WELCOME10"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Payment creation timestamp",
+            "example": "2026-06-25T20:00:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "Payment last update timestamp",
+            "example": "2026-06-25T20:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "studentId",
+          "amountCents",
+          "amountFormatted",
+          "currency",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "PaymentListResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "description": "Array of payment records",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentResponseDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "Total number of payments matching the filter (not just the current page)",
+            "example": 42
+          }
+        },
+        "required": [
+          "data",
+          "total"
+        ]
+      },
+      "PaymentStatsResponseDto": {
+        "type": "object",
+        "properties": {
+          "totalPaid": {
+            "type": "number",
+            "description": "Number of successfully paid payments",
+            "example": 15
+          },
+          "totalPending": {
+            "type": "number",
+            "description": "Number of payments in PENDING or PROCESSING state",
+            "example": 3
+          },
+          "totalRefunded": {
+            "type": "number",
+            "description": "Number of refunded or partially refunded payments",
+            "example": 1
+          },
+          "revenueCents": {
+            "type": "number",
+            "description": "Sum of all paid amounts in cents",
+            "example": 300000
+          },
+          "revenueFormatted": {
+            "type": "string",
+            "description": "Human-readable total revenue",
+            "example": "3000.00 EGP"
+          }
+        },
+        "required": [
+          "totalPaid",
+          "totalPending",
+          "totalRefunded",
+          "revenueCents",
+          "revenueFormatted"
+        ]
+      },
+      "RefundDto": {
+        "type": "object",
+        "properties": {
+          "amountCents": {
+            "type": "number",
+            "minimum": 1,
+            "description": "Amount in cents to refund. Defaults to the full payment amount. Partial refunds are supported (set to less than the original amount).",
+            "example": 500
+          }
+        }
+      },
+      "SourceDataDto": {
+        "type": "object",
+        "properties": {
+          "pan": {
+            "type": "string",
+            "description": "Card PAN (last 4 digits)"
+          },
+          "sub_type": {
+            "type": "string",
+            "description": "Card sub type (e.g. Gold, Classic)"
+          },
+          "type": {
+            "type": "string",
+            "description": "Source type (e.g. card, wallet)"
+          }
+        }
+      },
+      "OrderDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Paymob order ID (= intention_order_id)"
+          }
+        }
+      },
+      "ObjDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Transaction ID"
+          },
+          "order": {
+            "$ref": "#/components/schemas/OrderDto"
+          }
+        }
+      },
+      "PaymobWebhookDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Paymob transaction ID"
+          },
+          "success": {
+            "description": "Transaction success status — this is the authoritative field (true/false)",
+            "oneOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "amount_cents": {
+            "type": "number",
+            "description": "Transaction amount in cents"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "Transaction creation timestamp"
+          },
+          "currency": {
+            "type": "string",
+            "description": "Transaction currency (e.g. EGP)"
+          },
+          "error_occured": {
+            "type": "string",
+            "description": "Whether an error occurred (Paymob spelling: one r)"
+          },
+          "has_parent_transaction": {
+            "type": "string",
+            "description": "Whether this transaction has a parent (e.g. refund)"
+          },
+          "integration_id": {
+            "type": "string",
+            "description": "Integration ID used for this transaction"
+          },
+          "is_3d_secure": {
+            "type": "string",
+            "description": "Whether 3D Secure was used"
+          },
+          "is_auth": {
+            "type": "string",
+            "description": "Whether this is an Auth transaction"
+          },
+          "is_capture": {
+            "type": "string",
+            "description": "Whether this is a Capture transaction"
+          },
+          "is_refunded": {
+            "type": "string",
+            "description": "Whether this transaction is refunded"
+          },
+          "is_standalone_payment": {
+            "type": "string",
+            "description": "Whether this is a standalone payment"
+          },
+          "is_voided": {
+            "type": "string",
+            "description": "Whether this transaction is voided"
+          },
+          "is_refund": {
+            "type": "string",
+            "description": "Whether this is a refund transaction"
+          },
+          "owner": {
+            "type": "string",
+            "description": "Merchant ID that owns this transaction"
+          },
+          "pending": {
+            "type": "string",
+            "description": "Whether the transaction is pending"
+          },
+          "source_data": {
+            "$ref": "#/components/schemas/SourceDataDto"
+          },
+          "obj": {
+            "description": "Top-level object containing transaction + order info",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ObjDto"
+              }
+            ]
+          },
+          "order": {
+            "description": "Order info (used in GET callbacks)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrderDto"
+              }
+            ]
+          },
+          "order_id": {
+            "type": "string",
+            "description": "Order ID (used in GET callbacks — alternative to obj.order.id)"
+          },
+          "merchant_order_id": {
+            "type": "string",
+            "description": "The special_reference / merchant order ID you set when creating the intention"
+          },
+          "hmac": {
+            "type": "string",
+            "description": "HMAC signature — must be verified against your HMAC secret"
+          }
+        }
+      },
+      "WebhookResponseDto": {
+        "type": "object",
+        "properties": {
+          "received": {
+            "type": "boolean",
+            "description": "Whether the webhook was received and processed",
+            "example": true
+          }
+        },
+        "required": [
+          "received"
         ]
       }
     }

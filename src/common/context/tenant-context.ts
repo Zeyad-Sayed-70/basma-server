@@ -4,6 +4,7 @@ export interface TenantData {
   instanceId: string;
   teacherId?: string;
   role?: string;
+  subdomain?: string;
 }
 
 export class TenantContext {

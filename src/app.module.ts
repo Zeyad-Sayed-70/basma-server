@@ -15,6 +15,7 @@ import { QuizzesModule } from './quizzes/quizzes.module';
 import { AssignmentsModule } from './assignments/assignments.module';
 import { GradebookModule } from './gradebook/gradebook.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { PaymentsModule } from './payments/payments.module';
 import { TenantMiddleware } from './common/context/tenant.middleware';
 
 @Module({
@@ -35,10 +36,14 @@ import { TenantMiddleware } from './common/context/tenant.middleware';
     AssignmentsModule,
     GradebookModule,
     NotificationsModule,
+    PaymentsModule,
   ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(TenantMiddleware).forRoutes('*');
+    consumer
+      .apply(TenantMiddleware)
+      .exclude('payments/webhook/paymob/:instanceId')
+      .forRoutes('*');
   }
 }
