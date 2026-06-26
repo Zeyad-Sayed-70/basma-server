@@ -106,7 +106,8 @@ model Instance {
   paymobConfig  PaymobConfig?
   payments      Payment[]
   questions     QuestionBank[]
-  chatMessages  ChatMessage[]
+  chatMessages    ChatMessage[]
+  chatReadMarkers ChatReadMarker[]
 
   whatsappSession         WhatsAppSession?
   notificationPreferences NotificationPreference[]
@@ -185,7 +186,8 @@ model Group {
 
   students     Student[]
   courses      Course[]
-  chatMessages ChatMessage[]
+  chatMessages    ChatMessage[]
+  chatReadMarkers ChatReadMarker[]
 
   @@unique([instanceId, name])
   @@index([instanceId])
@@ -480,4 +482,18 @@ model ChatMessage {
   @@index([groupId])
   @@index([instanceId])
   @@map("chat_messages")
+}
+
+model ChatReadMarker {
+  id         String   @id @default(cuid())
+  userId     String
+  groupId    String
+  group      Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  lastReadAt DateTime
+  instanceId String
+  instance   Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId])
+  @@index([instanceId])
+  @@map("chat_read_markers")
 }

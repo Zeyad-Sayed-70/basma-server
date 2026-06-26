@@ -12,7 +12,9 @@ class SourceDataDto {
 }
 
 class OrderDto {
-  @ApiPropertyOptional({ description: 'Paymob order ID (= intention_order_id)' })
+  @ApiPropertyOptional({
+    description: 'Paymob order ID (= intention_order_id)',
+  })
   id?: string;
 }
 
@@ -29,7 +31,8 @@ export class PaymobWebhookDto {
   id?: string;
 
   @ApiPropertyOptional({
-    description: 'Transaction success status — this is the authoritative field (true/false)',
+    description:
+      'Transaction success status — this is the authoritative field (true/false)',
     oneOf: [{ type: 'boolean' }, { type: 'string' }],
   })
   success?: string | boolean;
@@ -43,13 +46,19 @@ export class PaymobWebhookDto {
   @ApiPropertyOptional({ description: 'Transaction currency (e.g. EGP)' })
   currency?: string;
 
-  @ApiPropertyOptional({ description: 'Whether an error occurred (Paymob spelling: one r)' })
+  @ApiPropertyOptional({
+    description: 'Whether an error occurred (Paymob spelling: one r)',
+  })
   error_occured?: string;
 
-  @ApiPropertyOptional({ description: 'Whether this transaction has a parent (e.g. refund)' })
+  @ApiPropertyOptional({
+    description: 'Whether this transaction has a parent (e.g. refund)',
+  })
   has_parent_transaction?: string;
 
-  @ApiPropertyOptional({ description: 'Integration ID used for this transaction' })
+  @ApiPropertyOptional({
+    description: 'Integration ID used for this transaction',
+  })
   integration_id?: string;
 
   @ApiPropertyOptional({ description: 'Whether 3D Secure was used' })
@@ -73,7 +82,9 @@ export class PaymobWebhookDto {
   @ApiPropertyOptional({ description: 'Whether this is a refund transaction' })
   is_refund?: string;
 
-  @ApiPropertyOptional({ description: 'Merchant ID that owns this transaction' })
+  @ApiPropertyOptional({
+    description: 'Merchant ID that owns this transaction',
+  })
   owner?: string;
 
   @ApiPropertyOptional({ description: 'Whether the transaction is pending' })
@@ -82,18 +93,29 @@ export class PaymobWebhookDto {
   @ApiPropertyOptional({ type: SourceDataDto })
   source_data?: SourceDataDto;
 
-  @ApiPropertyOptional({ type: ObjDto, description: 'Top-level object containing transaction + order info' })
+  @ApiPropertyOptional({
+    type: ObjDto,
+    description: 'Top-level object containing transaction + order info',
+  })
   obj?: ObjDto;
 
   @ApiPropertyOptional({ description: 'Order info (used in GET callbacks)' })
   order?: OrderDto;
 
-  @ApiPropertyOptional({ description: 'Order ID (used in GET callbacks — alternative to obj.order.id)' })
+  @ApiPropertyOptional({
+    description:
+      'Order ID (used in GET callbacks — alternative to obj.order.id)',
+  })
   order_id?: string;
 
-  @ApiPropertyOptional({ description: 'The special_reference / merchant order ID you set when creating the intention' })
+  @ApiPropertyOptional({
+    description:
+      'The special_reference / merchant order ID you set when creating the intention',
+  })
   merchant_order_id?: string;
 
-  @ApiPropertyOptional({ description: 'HMAC signature — must be verified against your HMAC secret' })
+  @ApiPropertyOptional({
+    description: 'HMAC signature — must be verified against your HMAC secret',
+  })
   hmac?: string;
 }

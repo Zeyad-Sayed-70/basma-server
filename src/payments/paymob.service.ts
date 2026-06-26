@@ -17,7 +17,12 @@ interface CreateIntentionParams {
     city?: string;
     country?: string;
   };
-  items: Array<{ name: string; amount: number; quantity: number; description?: string }>;
+  items: Array<{
+    name: string;
+    amount: number;
+    quantity: number;
+    description?: string;
+  }>;
   extras?: Record<string, unknown>;
   expiration?: number;
 }
@@ -119,12 +124,8 @@ export class PaymobService {
 
     if (!res.ok) {
       const errorText = await res.text();
-      this.logger.error(
-        `Paymob refund failed (${res.status}): ${errorText}`,
-      );
-      throw new BadRequestException(
-        `Refund failed: ${res.statusText}`,
-      );
+      this.logger.error(`Paymob refund failed (${res.status}): ${errorText}`);
+      throw new BadRequestException(`Refund failed: ${res.statusText}`);
     }
 
     return res.json() as Promise<Record<string, unknown>>;

@@ -181,7 +181,10 @@ export class NotificationsController {
     status: 200,
     description: 'WhatsApp connection initiated',
   })
-  @ApiResponse({ status: 400, description: 'Invalid method or missing phone number' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid method or missing phone number',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async connectWhatsApp(
     @Body() dto: ConnectWhatsAppDto,

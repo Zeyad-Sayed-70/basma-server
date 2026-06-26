@@ -51,7 +51,7 @@ export class PaymentsController {
   @ApiOperation({
     summary: 'Configure Paymob credentials for this instance',
     description:
-      'Saves the teacher\'s Paymob credentials (Model A — per-teacher Paymob account). ' +
+      "Saves the teacher's Paymob credentials (Model A — per-teacher Paymob account). " +
       'The secret key and HMAC secret are AES-256-GCM encrypted at rest before storage. ' +
       'Call this once after the teacher creates their Paymob account and obtains their test/live credentials. ' +
       'Use PUT semantics — calling again overwrites the existing configuration.',
@@ -59,12 +59,22 @@ export class PaymentsController {
   @ApiBody({ type: ConfigurePaymobDto })
   @ApiResponse({
     status: HttpStatus.CREATED,
-    description: 'Paymob configuration saved successfully. Secret keys returned masked.',
+    description:
+      'Paymob configuration saved successfully. Secret keys returned masked.',
     type: PaymobConfigResponseDto,
   })
-  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Invalid or missing JWT token' })
-  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'User is not a teacher or tenant context not found' })
-  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Validation failed (invalid fields)' })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Invalid or missing JWT token',
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'User is not a teacher or tenant context not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Validation failed (invalid fields)',
+  })
   configurePaymob(@Body() dto: ConfigurePaymobDto) {
     return this.paymentsService.configurePaymob(dto);
   }
@@ -80,10 +90,14 @@ export class PaymentsController {
   })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Paymob configuration (keys masked). If unconfigured, returns { isConfigured: false }.',
+    description:
+      'Paymob configuration (keys masked). If unconfigured, returns { isConfigured: false }.',
     type: PaymobConfigResponseDto,
   })
-  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Invalid or missing JWT token' })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Invalid or missing JWT token',
+  })
   getPaymobConfig() {
     return this.paymentsService.getPaymobConfig();
   }
@@ -102,8 +116,14 @@ export class PaymentsController {
     description: 'Configuration removed successfully',
     type: MessageResponseDto,
   })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'No Paymob configuration exists' })
-  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Invalid or missing JWT token' })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'No Paymob configuration exists',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Invalid or missing JWT token',
+  })
   removePaymobConfig() {
     return this.paymentsService.removePaymobConfig();
   }
@@ -127,10 +147,23 @@ export class PaymentsController {
     description: 'Payment intention created. Redirect student to checkoutUrl.',
     type: StudentPaymentInitiationResponseDto,
   })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Course not found or student not found' })
-  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Student is not enrolled in this course' })
-  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Free course, duplicate pending payment, or Paymob not configured' })
-  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Invalid or missing JWT token' })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Course not found or student not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Student is not enrolled in this course',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description:
+      'Free course, duplicate pending payment, or Paymob not configured',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Invalid or missing JWT token',
+  })
   initiatePayment(
     @Body() dto: CreatePaymentDto,
     @CurrentUser() user: { id: string; instanceId: string },
@@ -155,9 +188,18 @@ export class PaymentsController {
     description: 'Manual payment recorded',
     type: PaymentResponseDto,
   })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Student not found in this instance' })
-  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Invalid or missing JWT token' })
-  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'User is not a teacher or tenant context not found' })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Student not found in this instance',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Invalid or missing JWT token',
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'User is not a teacher or tenant context not found',
+  })
   createManual(@Body() dto: ManualPaymentDto) {
     return this.paymentsService.createManualPayment(dto);
   }
@@ -171,22 +213,51 @@ export class PaymentsController {
       'Filterable by student, course, and payment status. ' +
       'Payments are ordered by creation date (newest first).',
   })
-  @ApiQuery({ name: 'studentId', required: false, description: 'Filter by student ID' })
-  @ApiQuery({ name: 'courseId', required: false, description: 'Filter by course ID' })
+  @ApiQuery({
+    name: 'studentId',
+    required: false,
+    description: 'Filter by student ID',
+  })
+  @ApiQuery({
+    name: 'courseId',
+    required: false,
+    description: 'Filter by course ID',
+  })
   @ApiQuery({
     name: 'status',
     required: false,
     description: 'Filter by payment status',
-    enum: ['PENDING', 'PROCESSING', 'PAID', 'FAILED', 'REFUNDED', 'PARTIALLY_REFUNDED', 'VOIDED'],
+    enum: [
+      'PENDING',
+      'PROCESSING',
+      'PAID',
+      'FAILED',
+      'REFUNDED',
+      'PARTIALLY_REFUNDED',
+      'VOIDED',
+    ],
   })
-  @ApiQuery({ name: 'page', required: false, description: 'Page number (1-indexed)', example: '1' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Items per page (max 100)', example: '50' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number (1-indexed)',
+    example: '1',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Items per page (max 100)',
+    example: '50',
+  })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Paginated list of payments',
     type: PaymentListResponseDto,
   })
-  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Invalid or missing JWT token' })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Invalid or missing JWT token',
+  })
   findAll(
     @Query('studentId') studentId?: string,
     @Query('courseId') courseId?: string,
@@ -216,7 +287,10 @@ export class PaymentsController {
     description: 'Payment statistics',
     type: PaymentStatsResponseDto,
   })
-  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Invalid or missing JWT token' })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Invalid or missing JWT token',
+  })
   getStats() {
     return this.paymentsService.getStats();
   }
@@ -229,14 +303,24 @@ export class PaymentsController {
       'Returns full details for a single payment, including student info, course info, ' +
       'all Paymob correlation IDs, and the checkout URL (if applicable).',
   })
-  @ApiParam({ name: 'id', description: 'Payment record ID', example: 'clxq8a2b30001jf08m3n4o5p6' })
+  @ApiParam({
+    name: 'id',
+    description: 'Payment record ID',
+    example: 'clxq8a2b30001jf08m3n4o5p6',
+  })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Full payment details',
     type: PaymentResponseDto,
   })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Payment not found in this instance' })
-  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Invalid or missing JWT token' })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Payment not found in this instance',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Invalid or missing JWT token',
+  })
   findOne(@Param('id') id: string) {
     return this.paymentsService.findOne(id);
   }
@@ -251,11 +335,16 @@ export class PaymentsController {
       'Partial refunds are supported by specifying amountCents less than the original amount. ' +
       'The final refund status (REFUNDED / PARTIALLY_REFUNDED) is updated via webhook callback.',
   })
-  @ApiParam({ name: 'id', description: 'Payment record ID to refund', example: 'clxq8a2b30001jf08m3n4o5p6' })
+  @ApiParam({
+    name: 'id',
+    description: 'Payment record ID to refund',
+    example: 'clxq8a2b30001jf08m3n4o5p6',
+  })
   @ApiBody({ type: RefundDto })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Refund initiated — status will update after webhook confirmation',
+    description:
+      'Refund initiated — status will update after webhook confirmation',
     schema: {
       type: 'object',
       properties: {
@@ -264,9 +353,18 @@ export class PaymentsController {
       },
     },
   })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Payment not found' })
-  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Payment is not PAID, has no transaction ID, or refund failed' })
-  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Invalid or missing JWT token' })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Payment not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Payment is not PAID, has no transaction ID, or refund failed',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Invalid or missing JWT token',
+  })
   refund(@Param('id') id: string, @Body() dto: RefundDto) {
     return this.paymentsService.refund(id, dto);
   }

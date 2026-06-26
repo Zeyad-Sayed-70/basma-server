@@ -179,7 +179,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Get current student profile',
     description:
-      'Returns the authenticated student\'s profile including group info. ' +
+      "Returns the authenticated student's profile including group info. " +
       'Requires a valid student JWT token in the Authorization header.',
   })
   @ApiResponse({

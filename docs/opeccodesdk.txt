@@ -1,0 +1,679 @@
+Here’s a structured deep dive into the OpenCode SDK: what it is, what you need, and how to use it well.
+
+---
+
+## 1. What is the OpenCode SDK?
+
+**Short definition**
+
+- The OpenCode SDK is a type‑safe client library for the OpenCode server (the open‑source AI coding agent).  
+- It lets you control OpenCode **programmatically**: create sessions, send prompts, run tools, read/write files, listen to events, etc., from JS/TS or Python code.【turn1fetch0】【turn7fetch0】【turn6fetch1】  
+- The server is the same one that powers the TUI and IDE extensions; the SDK is just another client talking to the same HTTP API.【turn15fetch0】
+
+**Ecosystem view**
+
+```mermaid
+flowchart LR
+  subgraph Server
+    S[OpenCode HTTP Server - opencode serve]
+  end
+
+  subgraph Clients
+    C1[OpenCode TUI]
+    C2[IDE Plugins]
+    C3[CLI - opencode run]
+    C4[JS/TS SDK - at opencode-ai/sdk]
+    C5[Python SDK - opencode-ai]
+  end
+
+  C1 --> S
+  C2 --> S
+  C3 --> S
+  C4 --> S
+  C5 --> S
+
+  subgraph LLMs
+    P1[Anthropic]
+    P2[OpenAI]
+    P3[Google]
+    P4[75+ providers via Models.dev]
+  end
+
+  S --> P1
+  S --> P2
+  S --> P3
+  S --> P4
+```
+
+---
+
+## 2. SDK variants & maturity
+
+| SDK                 | Package / install                            | Status / maturity                                  | Main use cases |
+|---------------------|----------------------------------------------|----------------------------------------------------|----------------|
+| **JS/TS SDK**       | `npm install @opencode-ai/sdk`【turn1fetch0】【turn7fetch0】 | Actively developed (v1.17.x, “Code Beta” on npm)【turn13fetch0】 | Node/Bun backends, automation scripts, CLIs, integrations |
+| **Python SDK**      | `pip install --pre opencode-ai`【turn6fetch1】【turn13fetch1】 | Pre‑release 0.1.x (alpha)【turn4fetch1】【turn13fetch1】 | Python services, ML pipelines, automation |
+| **AI SDK provider** | `npm install ai-sdk-provider-opencode-sdk ai`【turn16fetch0】 | Community provider for Vercel AI SDK              | If you’re already using AI SDK and want OpenCode as one “model provider” |
+
+The JS and Python SDKs are auto‑generated from the OpenAPI spec and wrap the same REST API. The AI SDK provider is a higher‑level integration that lets you treat OpenCode as just another provider in the Vercel AI SDK ecosystem.【turn15fetch0】【turn16fetch0】
+
+---
+
+## 3. Architecture you should understand
+
+### 3.1 OpenCode server + clients
+
+- When you run `opencode` (TUI), it starts **both** a TUI client and an HTTP server. The TUI is just a client of the server.【turn15fetch0】  
+- `opencode serve` starts a **headless HTTP server** (no TUI) with an OpenAPI 3.1 spec at `/doc`. This is the intended way to use OpenCode programmatically.【turn15fetch0】  
+- The SDK is a thin client over that HTTP API. All “real” logic (agents, tools, LLM calls) lives in the server.
+
+**Key implications:**
+
+- You always need an OpenCode server running somewhere (local or remote).
+- You can either:
+  - Let the SDK start a server for you (`createOpencode()`), or
+  - Connect to an already‑running server (`createOpencodeClient({ baseUrl })`).【turn1fetch0】
+
+### 3.2 Where credentials live
+
+- LLM provider API keys are stored in `~/.local/share/opencode/auth.json` when you use `/connect` or `opencode auth login` in the TUI/CLI.【turn10fetch0】【turn10fetch1】  
+- The server loads these credentials at startup; the SDK does **not** manage them directly except via `client.auth.set(...)`, which writes into the same auth store.【turn12fetch0】【turn10fetch0】
+- For providers like Amazon Bedrock, auth can also come from environment variables or AWS profiles, configured via `opencode.json`.【turn10fetch0】
+
+---
+
+## 4. What you need before using the SDK
+
+### 4.1 Install OpenCode itself
+
+You need the OpenCode binary on the machine where the server will run.
+
+Typical options (from the official docs):【turn8fetch0】
+
+- Install script (recommended):
+  - `curl -fsSL https://opencode.ai/install | bash`
+- Node package managers:
+  - `npm install -g opencode-ai`
+  - `bun install -g opencode-ai`, etc.【turn8fetch0】
+- Homebrew (macOS/Linux):
+  - `brew install anomalyco/tap/opencode`【turn8fetch0】
+- Windows: WSL + any of the above, or `choco install opencode` / `scoop install opencode`.【turn8fetch0】
+
+### 4.2 Configure at least one LLM provider
+
+Without a provider, OpenCode has no model to call.
+
+Basic flow in TUI/CLI:【turn8fetch0】【turn10fetch0】
+
+1. Run `/connect` or `opencode auth login`.
+2. Choose a provider (e.g. “OpenCode Zen” or Anthropic/OpenAI/Bedrock).
+3. Follow the prompts to sign in and paste an API key.
+4. Keys are stored in `~/.local/share/opencode/auth.json`.
+
+For headless/CI, you can instead set environment variables or configure providers in `opencode.json` (e.g. for Bedrock).【turn10fetch0】
+
+### 4.3 Decide: embedded server vs external server
+
+You have two modes:
+
+1. **Let the SDK start the server** (simple for scripts/tools):
+
+   ```ts
+   import { createOpencode } from "@opencode-ai/sdk"
+   const { client, server } = await createOpencode()
+   // server is running at server.url; you can use client immediately
+   ```
+
+2. **Connect to an existing server** (better for long‑running services or shared instances):
+
+   ```ts
+   import { createOpencodeClient } from "@opencode-ai/sdk"
+   const client = createOpencodeClient({ baseUrl: "http://localhost:4096" })
+   ```
+
+In production, you’ll usually run `opencode serve` as a separate service and connect the SDK to it.
+
+---
+
+## 5. JS/TS SDK: core usage patterns
+
+### 5.1 Installation
+
+```bash
+npm install @opencode-ai/sdk
+# or
+yarn add @opencode-ai/sdk
+pnpm add @opencode-ai/sdk
+bun add @opencode-ai/sdk
+```
+
+### 5.2 Basic client creation
+
+1) Start a server + client:
+
+```ts
+import { createOpencode } from "@opencode-ai/sdk"
+
+const { client, server } = await createOpencode({
+  hostname: "127.0.0.1",
+  port: 4096,
+  config: {
+    model: "anthropic/claude-3-5-sonnet-20241022",
+  },
+})
+
+console.log("Server running at", server.url)
+// Use client...
+// Later: server.close()
+```
+
+Options (summarized):
+
+- `hostname`, `port` – server host/port (default `127.0.0.1:4096`).【turn1fetch0】
+- `signal` – `AbortSignal` to cancel server startup.
+- `timeout` – timeout for server start (ms).【turn1fetch0】
+- `config` – override `opencode.json` fields (e.g. model, providers).【turn1fetch0】
+
+2) Connect to an already running server:
+
+```ts
+import { createOpencodeClient } from "@opencode-ai/sdk"
+
+const client = createOpencodeClient({
+  baseUrl: "http://localhost:4096",
+  // Optional:
+  // fetch: customFetch,
+  // parseAs: "auto",
+  // responseStyle: "data" | "fields",
+  // throwOnError: true,
+})
+```
+
+### 5.3 Health & config
+
+```ts
+// Health/version
+const health = await client.global.health()
+console.log(health.data.version)
+
+// Config & providers
+const config = await client.config.get()
+const { providers, default: defaults } = await client.config.providers()
+```
+
+### 5.4 Projects & paths
+
+```ts
+const projects = await client.project.list()
+const current = await client.project.current()
+const pathInfo = await client.path.get()
+```
+
+### 5.5 Sessions (the main way to drive the agent)
+
+Sessions are where you converse with the AI, run tools, etc.
+
+```ts
+// Create a session
+const session = await client.session.create({
+  body: { title: "My integration session" },
+})
+
+// List sessions
+const sessions = await client.session.list()
+
+// Prompt the AI
+const result = await client.session.prompt({
+  path: { id: session.id },
+  body: {
+    model: {
+      providerID: "anthropic",
+      modelID: "claude-3-5-sonnet-20241022",
+    },
+    parts: [{ type: "text", text: "Refactor this module to use async/await" }],
+  },
+})
+
+// Inject context only (no AI reply)
+await client.session.prompt({
+  path: { id: session.id },
+  body: {
+    noReply: true,
+    parts: [{ type: "text", text: "You are a senior Go engineer." }],
+  },
+})
+```
+
+Other session operations:
+
+- `session.get`, `session.children`, `session.delete`, `session.update`
+- `session.init` – analyze app and create `AGENTS.md`
+- `session.abort` – abort a running session
+- `session.share`, `session.unshare`, `session.summarize`
+- `session.messages` / `session.message` – list/get messages
+- `session.command` – run a command in the session
+- `session.shell` – run a shell command
+- `session.revert` / `session.unrevert` – undo/redo changes
+
+### 5.6 Files & search
+
+```ts
+// Text search
+const textResults = await client.find.text({
+  query: { pattern: "function.*opencode" },
+})
+
+// Find files
+const files = await client.find.files({
+  query: { query: "*.ts", type: "file" },
+})
+
+// Find symbols
+const symbols = await client.find.symbols({ query: "MyClass" })
+
+// Read a file
+const content = await client.file.read({
+  query: { path: "src/index.ts" },
+})
+
+// File status
+const status = await client.file.status()
+```
+
+### 5.7 TUI control (useful for IDE plugins / automating the TUI)
+
+```ts
+await client.tui.appendPrompt({ body: { text: "Add this to prompt" } })
+await client.tui.submitPrompt()
+await client.tui.showToast({ body: { message: "Done", variant: "success" } })
+await client.tui.openModels()
+await client.tui.executeCommand({ body: { command: "/models" } })
+```
+
+### 5.8 Auth & credentials (programmatic)
+
+```ts
+await client.auth.set({
+  path: { id: "anthropic" }, // provider id
+  body: { type: "api", key: "your-api-key" },
+})
+```
+
+### 5.9 Events (real‑time stream)
+
+```ts
+const events = await client.event.subscribe()
+
+for await (const event of events.stream) {
+  console.log("Event:", event.type, event.properties)
+}
+```
+
+### 5.10 Streaming responses (SSE)
+
+The JS SDK supports SSE for streaming:
+
+```ts
+const stream = await client.event.list()
+for await (const eventListResponse of stream) {
+  console.log(eventListResponse)
+}
+// Cancel if needed: break or stream.controller.abort()
+```
+
+### 5.11 Structured output (JSON schema)
+
+The SDK supports **structured output** via JSON Schema:
+
+```ts
+const result = await client.session.prompt({
+  path: { id: session.id },
+  body: {
+    model: { providerID: "anthropic", modelID: "claude-3-5-sonnet-20241022" },
+    parts: [{ type: "text", text: "Extract the following fields..." }],
+    outputFormat: {
+      type: "json_schema",
+      schema: {
+        // your JSON schema here
+      },
+      retryCount: 2, // optional
+    },
+  },
+})
+```
+
+If the model fails to produce valid structured output after retries, `result.data.info.error?.name === "StructuredOutputError"` will be set.
+
+**Official best practices for structured output (from the SDK docs):**
+
+1. Provide **clear descriptions** in schema properties so the model understands what to extract.
+2. Use **`required`** to specify which fields must be present.
+3. **Keep schemas focused** – complex nested schemas are harder for the model to fill correctly.
+4. Set **appropriate `retryCount`** – higher for complex schemas, lower for simple ones.
+
+### 5.12 Error handling & retries (JS)
+
+Errors are subclasses of `APIError`:
+
+- `BadRequestError` (400)
+- `AuthenticationError` (401)
+- `PermissionDeniedError` (403)
+- `NotFoundError` (404)
+- `UnprocessableEntityError` (422)
+- `RateLimitError` (429)
+- `InternalServerError` (5xx)
+- `APIConnectionError` / `APIConnectionTimeoutError`
+
+Default behavior:
+
+- Certain errors (connection, 408, 409, 429, 5xx) are **retried 2 times** with exponential backoff.
+- You can configure `maxRetries` globally or per request.
+
+```ts
+const client = new Opencode({ maxRetries: 0 }) // disable retries
+await client.session.list({ maxRetries: 5 })   // override per request
+```
+
+Default timeout is **1 minute**; configurable via `timeout` option.
+
+### 5.13 Logging
+
+Control SDK log verbosity via `OPENCODE_LOG` env var or `logLevel` client option:
+
+```ts
+const client = new Opencode({ logLevel: "debug" })
+```
+
+Levels: `debug` > `info` > `warn` (default) > `error`.
+
+---
+
+## 6. Python SDK: core usage patterns
+
+### 6.1 Installation
+
+```bash
+pip install --pre opencode-ai
+# or with aiohttp support
+pip install --pre opencode-ai[aiohttp]
+```
+
+### 6.2 Basic sync client
+
+```python
+from opencode_ai import Opencode
+
+client = Opencode()  # uses same auth/config as CLI
+sessions = client.session.list()
+```
+
+### 6.3 Async client
+
+```python
+import asyncio
+from opencode_ai import AsyncOpencode
+
+client = AsyncOpencode()
+
+async def main():
+    sessions = await client.session.list()
+    # ...
+
+asyncio.run(main())
+```
+
+You can also use `aiohttp` as HTTP backend for better concurrency.
+
+### 6.4 Streaming (SSE)
+
+```python
+from opencode_ai import Opencode
+
+client = Opencode()
+stream = client.event.list()
+for events in stream:
+    print(events)
+```
+
+Async variant:
+
+```python
+from opencode_ai import AsyncOpencode
+
+client = AsyncOpencode()
+stream = await client.event.list()
+async for events in stream:
+    print(events)
+```
+
+### 6.5 Types & validation
+
+- Request params: `TypedDict`s.
+- Responses: Pydantic models with helpers like `model.to_json()`, `model.to_dict()`.
+
+### 6.6 Error handling & retries (Python)
+
+- Errors inherit from `opencode_ai.APIError`.
+- `APIConnectionError` – network issues.
+- `APIStatusError` – non‑2xx responses; includes `status_code` and `response`.
+- `RateLimitError` (429), `AuthenticationError` (401), etc.
+
+Same default retry behavior as JS: connection errors / 408 / 409 / 429 / 5xx retried 2x by default; configurable via `max_retries` globally or per‑request via `with_options(max_retries=5)`.
+
+Timeout default is 60s; configurable via `timeout` (float or `httpx.Timeout`).
+
+---
+
+## 7. Security, permissions, and configuration best practices
+
+### 7.1 Auth & secrets management
+
+- **Prefer the official auth flow**: use `opencode auth login` or `/connect` to store keys in `~/.local/share/opencode/auth.json` instead of hard‑coding them.
+- In CI or headless environments:
+  - Use environment variables where supported (e.g. `AWS_PROFILE`, `AWS_ACCESS_KEY_ID` for Bedrock).
+  - Or mount `auth.json` / `opencode.json` as secure files.
+- The SDK’s `client.auth.set(...)` is convenient for scripting, but avoid committing API keys into source control. Consider:
+  - Reading keys from a secret manager (Vault, AWS SM, etc.).
+  - Using environment variables in the calling environment only.
+
+### 7.2 Server authentication
+
+When running `opencode serve`:
+
+- Set `OPENCODE_SERVER_PASSWORD` (and optionally `OPENCODE_SERVER_USERNAME`) to enable HTTP Basic Auth.
+- In SDK, configure `baseUrl` and custom `fetch` to include the required `Authorization` header if you’re not using the default `opencode` username.
+
+### 7.3 Tool permissions & safety
+
+Tools (bash, edit, write, webfetch, etc.) are **enabled by default**. You control them via permissions in `opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "edit": "deny",
+    "bash": "ask",
+    "webfetch": "allow"
+  }
+}
+```
+
+You can also use wildcards, e.g. `"mymcp_*": "ask"`.
+
+**Best practices:**
+
+- In **automation** where you don’t want the AI to take dangerous actions:
+  - Set `edit`, `bash` to `"deny"` unless truly needed.
+  - Use `"ask"` for risky operations and programmatically approve/decline via `postSessionByIdPermissionsByPermissionId`.
+- In **CI/CD**:
+  - Restrict to read‑only tools (`read`, `grep`, `glob`) if you only want analysis.
+  - Never allow `bash` or `edit` on untrusted repos without strict sandboxing.
+
+### 7.4 MCP servers
+
+- MCP servers add external tools but also increase context and attack surface.
+- Be cautious adding MCP servers, especially ones like GitHub that can add many tokens.
+- Prefer minimal, trusted MCP servers and review what tools they expose.
+
+### 7.5 Network & deployment
+
+- For local dev, default `127.0.0.1:4096` is fine.
+- For remote or multi‑user setups:
+  - Bind to a restricted hostname / use a reverse proxy.
+  - Enable `OPENCODE_SERVER_PASSWORD` and TLS.
+  - Use `--cors` to restrict browser origins if you expose the server to frontends.
+- In containers:
+  - Run `opencode serve` as a non‑root user.
+  - Be aware that on Linux it may extract a native TUI shared library into `/tmp`; monitor disk in long‑running setups.
+
+---
+
+## 8. Integration patterns & when to use what
+
+### 8.1 CLI vs TUI vs SDK
+
+- **TUI / CLI**: best for interactive, human‑driven use.
+- **SDK**: best for automation, pipelines, bots, and integrations where you want full control over the agent.
+
+Pattern: run `opencode serve` as a long‑running process, then have your service use the JS or Python SDK to talk to it.
+
+### 8.2 Using the AI SDK provider
+
+If you’re already using Vercel AI SDK:
+
+- Install `ai-sdk-provider-opencode-sdk` and `ai`.
+- Register OpenCode as a provider; then you can call `generateText` / `streamText` etc. with OpenCode as the “model provider”.
+
+This is useful if you want to switch between multiple AI providers without rewriting your app; but if you need fine‑grained control over sessions, tools, and permissions, the low‑level SDK is more powerful.
+
+---
+
+## 9. Best practices summary
+
+### 9.1 Setup & configuration
+
+- Install OpenCode via the recommended install script or package manager; keep it updated.
+- Always configure at least one LLM provider via `opencode auth login` or `/connect`, and store keys in `auth.json` rather than hard‑coding.
+- Use `opencode.json` for project‑wide defaults (models, providers, permissions).
+- In CI, use environment variables or mounted config files; avoid committing secrets.
+
+### 9.2 Server usage
+
+- For automation, run `opencode serve` as a **separate service**; connect the SDK to it via `createOpencodeClient({ baseUrl })`.
+- Set `OPENCODE_SERVER_PASSWORD` for any non‑local server.
+- Use `--hostname` and `--port` flags or config to make the address predictable.
+- Consider health checks (`client.global.health()`) before running critical workflows.
+
+### 9.3 SDK usage patterns
+
+- Prefer **reusing a single client** per server instead of creating new clients for every request.
+- Use **sessions** to scope conversations and tools:
+  - Create a session per logical task or per user.
+  - Use `session.prompt` with structured output for reliable parsing.
+  - Use `session.init` to bootstrap `AGENTS.md` and project context when needed.
+- Use `find.text` / `find.files` / `find.symbols` to pre‑filter context before prompting the AI.
+- Use `tui.*` methods only when you actually want to drive the TUI (e.g. IDE plugins), not for headless automation.
+
+### 9.4 Structured output
+
+- Design **minimal, flat schemas** first; only nest when necessary.
+- Add **clear descriptions** to each property.
+- Mark fields as `required` where appropriate.
+- Start with a low `retryCount` (1–2) and increase only if you see persistent validation failures.
+
+### 9.5 Error handling & resilience
+
+- Always handle `APIError` and its subclasses (auth, rate limit, connection, etc.).
+- For automation, implement **retries with backoff** on top of the SDK’s built‑in retries, especially for 429 and 5xx.
+- Set **reasonable timeouts** (e.g. 10–30s) for most calls; longer for heavy operations.
+- Log request ids and error details for debugging.
+
+### 9.6 Security & safety
+
+- Restrict tools via `permission` in `opencode.json`:
+  - `bash`, `edit`, `write`, `webfetch` → `"ask"` or `"deny"` unless needed.
+- Use MCP servers sparingly and audit their tools.
+- Never expose the OpenCode server to the public internet without auth and TLS.
+- In multi‑tenant setups, consider separate servers or separate `auth.json` per tenant.
+
+### 9.7 Observability
+
+- Use the SDK’s logging (`logLevel`) during development; avoid `debug` in production due to verbosity.
+- Use `event.subscribe` to monitor session lifecycle and tool calls.
+- Integrate with your observability stack (logs, metrics) by wrapping SDK calls.
+
+---
+
+## 10. Practical “starter template” (JS)
+
+Here’s a minimal Node example that:
+
+- Starts a server
+- Creates a session
+- Runs a prompt
+- Prints structured output
+
+```ts
+import { createOpencode } from "@opencode-ai/sdk"
+
+async function main() {
+  const { client, server } = await createOpencode({
+    config: {
+      model: "anthropic/claude-3-5-sonnet-20241022",
+      permission: { bash: "ask", edit: "deny" }, // safe defaults
+    },
+  })
+
+  try {
+    const health = await client.global.health()
+    console.log("OpenCode server healthy:", health.data.version)
+
+    const session = await client.session.create({
+      body: { title: "SDK demo session" },
+    })
+
+    const result = await client.session.prompt({
+      path: { id: session.id },
+      body: {
+        parts: [
+          {
+            type: "text",
+            text: "List the top 3 risks of using AI coding agents in production, as JSON.",
+          },
+        ],
+        outputFormat: {
+          type: "json_schema",
+          schema: {
+            type: "object",
+            properties: {
+              risks: {
+                type: "array",
+                items: { type: "string" },
+                description: "Top 3 production risks",
+              },
+            },
+            required: ["risks"],
+          },
+          retryCount: 2,
+        },
+      },
+    })
+
+    if (result.data.info.error?.name === "StructuredOutputError") {
+      console.error("Failed to produce structured output:", result.data.info.error.message)
+    } else {
+      console.log("Structured output:", result.data.output)
+    }
+  } finally {
+    server.close()
+  }
+}
+
+main().catch(console.error)
+```
+
+You can adapt the same ideas to Python, swapping in `Opencode`/`AsyncOpencode` and the corresponding APIs.
+
+---
+
+If you tell me your exact stack (Node vs Python, local vs CI, cloud provider), I can sketch a more concrete setup and SDK usage pattern tailored to your environment.

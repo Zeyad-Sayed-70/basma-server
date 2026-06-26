@@ -1,4 +1,9 @@
-import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'crypto';
+import {
+  createCipheriv,
+  createDecipheriv,
+  randomBytes,
+  createHash,
+} from 'crypto';
 
 const ALGORITHM = 'aes-256-gcm';
 

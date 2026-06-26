@@ -35,10 +35,16 @@ export class PaymentsService {
     private readonly paymobService: PaymobService,
     configService: ConfigService,
   ) {
-    this.encryptionKey = configService.get<string>('PAYMOB_ENCRYPTION_KEY') ?? '';
-    this.baseUrl = configService.get<string>('PAYMOB_BASE_URL') ?? 'https://accept.paymob.com';
-    this.webhookBaseUrl = configService.get<string>('PAYMOB_WEBHOOK_BASE_URL') ?? 'http://localhost:3000';
-    this.frontendBaseUrl = configService.get<string>('FRONTEND_BASE_URL') ?? 'http://localhost:3000';
+    this.encryptionKey =
+      configService.get<string>('PAYMOB_ENCRYPTION_KEY') ?? '';
+    this.baseUrl =
+      configService.get<string>('PAYMOB_BASE_URL') ??
+      'https://accept.paymob.com';
+    this.webhookBaseUrl =
+      configService.get<string>('PAYMOB_WEBHOOK_BASE_URL') ??
+      'http://localhost:3000';
+    this.frontendBaseUrl =
+      configService.get<string>('FRONTEND_BASE_URL') ?? 'http://localhost:3000';
   }
 
   private getInstanceId(): string {
@@ -114,7 +120,9 @@ export class PaymentsService {
     return {
       id: config.id,
       isConfigured: config.isConfigured,
-      secretKey: config.isConfigured ? maskKey(decrypt(config.secretKey, this.encryptionKey)) : '****',
+      secretKey: config.isConfigured
+        ? maskKey(decrypt(config.secretKey, this.encryptionKey))
+        : '****',
       publicKey: config.isConfigured ? maskKey(config.publicKey) : '****',
       cardIntegrationId: config.cardIntegrationId,
       walletIntegrationId: config.walletIntegrationId,
@@ -136,7 +144,10 @@ export class PaymentsService {
 
   // ─── Student Payment Initiation ─────────────────────
 
-  async initiateStudentPayment(dto: CreatePaymentDto, studentUser: { id: string; instanceId: string }) {
+  async initiateStudentPayment(
+    dto: CreatePaymentDto,
+    studentUser: { id: string; instanceId: string },
+  ) {
     const studentId = studentUser.id;
     const instanceId = studentUser.instanceId;
 
@@ -146,7 +157,9 @@ export class PaymentsService {
     if (!course) throw new NotFoundException('Course not found');
 
     if (!course.price || course.price <= 0) {
-      throw new BadRequestException('This course is free. No payment required.');
+      throw new BadRequestException(
+        'This course is free. No payment required.',
+      );
     }
 
     const enrollment = await this.prisma.courseEnrollment.findUnique({
@@ -209,7 +222,9 @@ export class PaymentsService {
         redirectionUrl,
         billingData: {
           firstName: student.name,
-          lastName: student.name.includes(' ') ? student.name.split(' ').slice(1).join(' ') : 'N/A',
+          lastName: student.name.includes(' ')
+            ? student.name.split(' ').slice(1).join(' ')
+            : 'N/A',
           email: student.email ?? `${student.id}@placeholder.com`,
           phoneNumber: student.phone ?? '01000000000',
         },
@@ -278,7 +293,13 @@ export class PaymentsService {
     });
   }
 
-  async findAll(filters: { studentId?: string; courseId?: string; status?: string; page?: number; limit?: number }) {
+  async findAll(filters: {
+    studentId?: string;
+    courseId?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }) {
     const instanceId = this.getInstanceId();
     const where: Record<string, unknown> = { instanceId };
 
@@ -387,7 +408,10 @@ export class PaymentsService {
     await this.prisma.payment.update({
       where: { id: paymentId },
       data: {
-        status: amountCents >= payment.amountCents ? 'REFUNDED' : 'PARTIALLY_REFUNDED',
+        status:
+          amountCents >= payment.amountCents
+            ? 'REFUNDED'
+            : 'PARTIALLY_REFUNDED',
         notes: `Refund initiated: ${(amountCents / 100).toFixed(2)} ${payment.currency}`,
       },
     });
@@ -403,8 +427,12 @@ export class PaymentsService {
     });
 
     const totalPaid = payments.filter((p) => p.status === 'PAID').length;
-    const totalPending = payments.filter((p) => p.status === 'PENDING' || p.status === 'PROCESSING').length;
-    const totalRefunded = payments.filter((p) => p.status === 'REFUNDED' || p.status === 'PARTIALLY_REFUNDED').length;
+    const totalPending = payments.filter(
+      (p) => p.status === 'PENDING' || p.status === 'PROCESSING',
+    ).length;
+    const totalRefunded = payments.filter(
+      (p) => p.status === 'REFUNDED' || p.status === 'PARTIALLY_REFUNDED',
+    ).length;
     const revenueCents = payments
       .filter((p) => p.status === 'PAID')
       .reduce((sum, p) => sum + p.amountCents, 0);
@@ -420,20 +448,29 @@ export class PaymentsService {
 
   // ─── Webhook Handling ───────────────────────────────
 
-  async handleWebhook(instanceId: string, body: Record<string, unknown>, queryHmac?: string): Promise<{ received: boolean }> {
+  async handleWebhook(
+    instanceId: string,
+    body: Record<string, unknown>,
+    queryHmac?: string,
+  ): Promise<{ received: boolean }> {
     const config = await this.prisma.paymobConfig.findUnique({
       where: { instanceId },
     });
     if (!config || !config.isConfigured) {
-      this.logger.warn(`Webhook received for unknown/unconfigured instance: ${instanceId}`);
+      this.logger.warn(
+        `Webhook received for unknown/unconfigured instance: ${instanceId}`,
+      );
       return { received: true };
     }
 
     const obj = body['obj'] as Record<string, unknown> | undefined;
-    const bodyHmac = queryHmac || String(body['hmac'] ?? body['hmac_header'] ?? '');
+    const bodyHmac =
+      queryHmac || String(body['hmac'] ?? body['hmac_header'] ?? '');
 
     if (!bodyHmac) {
-      this.logger.warn(`Webhook without HMAC rejected for instance ${instanceId}`);
+      this.logger.warn(
+        `Webhook without HMAC rejected for instance ${instanceId}`,
+      );
       throw new UnauthorizedException('Missing webhook signature');
     }
 
@@ -448,7 +485,9 @@ export class PaymentsService {
       throw new UnauthorizedException('Invalid webhook signature');
     }
 
-    const rawOrderId = (obj['order'] as Record<string, unknown> | undefined)?.['id'];
+    const rawOrderId = (obj['order'] as Record<string, unknown> | undefined)?.[
+      'id'
+    ];
     const paymobOrderId = rawOrderId != null ? String(rawOrderId) : undefined;
     if (!paymobOrderId) {
       this.logger.warn('Webhook received without order.id field');
@@ -459,18 +498,22 @@ export class PaymentsService {
       where: { paymobOrderId, instanceId },
     });
     if (!payment) {
-      this.logger.warn(`Webhook for unknown order ${paymobOrderId} in instance ${instanceId}`);
+      this.logger.warn(
+        `Webhook for unknown order ${paymobOrderId} in instance ${instanceId}`,
+      );
       return { received: true };
     }
 
     const success = obj['success'] === true || obj['success'] === 'true';
-    const isRefunded = obj['is_refunded'] === true || obj['is_refunded'] === 'true';
+    const isRefunded =
+      obj['is_refunded'] === true || obj['is_refunded'] === 'true';
     const isVoided = obj['is_voided'] === true || obj['is_voided'] === 'true';
 
     let newStatus: string;
     if (isRefunded) {
       const refundAmount = Number(obj['amount_cents'] ?? 0);
-      newStatus = refundAmount >= payment.amountCents ? 'REFUNDED' : 'PARTIALLY_REFUNDED';
+      newStatus =
+        refundAmount >= payment.amountCents ? 'REFUNDED' : 'PARTIALLY_REFUNDED';
     } else if (isVoided) {
       newStatus = 'VOIDED';
     } else if (success) {
@@ -488,11 +531,16 @@ export class PaymentsService {
       where: { id: payment.id },
       data: {
         status: newStatus as never,
-        paymobTransactionId: transactionId != null ? String(transactionId) : (payment.paymobTransactionId ?? undefined),
+        paymobTransactionId:
+          transactionId != null
+            ? String(transactionId)
+            : (payment.paymobTransactionId ?? undefined),
       } as never,
     });
 
-    this.logger.log(`Payment ${payment.id} updated: ${payment.status} → ${newStatus}`);
+    this.logger.log(
+      `Payment ${payment.id} updated: ${payment.status} → ${newStatus}`,
+    );
     return { received: true };
   }
 }

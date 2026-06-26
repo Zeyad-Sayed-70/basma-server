@@ -23,6 +23,7 @@ const TENANT_MODELS = new Set([
   'Payment',
   'QuestionBank',
   'ChatMessage',
+  'ChatReadMarker',
 ]);
 
 const SCOPE_ACTIONS = new Set([

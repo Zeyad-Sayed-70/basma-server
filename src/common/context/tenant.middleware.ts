@@ -53,7 +53,12 @@ export class TenantMiddleware implements NestMiddleware {
     if (headerSubdomain) return headerSubdomain;
 
     const host = req.hostname;
-    if (host && host !== 'localhost' && !host.startsWith('192.') && !host.startsWith('10.')) {
+    if (
+      host &&
+      host !== 'localhost' &&
+      !host.startsWith('192.') &&
+      !host.startsWith('10.')
+    ) {
       const parts = host.split('.');
       if (parts.length >= 3) {
         return parts[0];

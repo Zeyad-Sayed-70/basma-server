@@ -16,6 +16,7 @@ import { AssignmentsModule } from './assignments/assignments.module';
 import { GradebookModule } from './gradebook/gradebook.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PaymentsModule } from './payments/payments.module';
+import { ChatModule } from './chat/chat.module';
 import { TenantMiddleware } from './common/context/tenant.middleware';
 
 @Module({
@@ -37,6 +38,7 @@ import { TenantMiddleware } from './common/context/tenant.middleware';
     GradebookModule,
     NotificationsModule,
     PaymentsModule,
+    ChatModule,
   ],
 })
 export class AppModule implements NestModule {
