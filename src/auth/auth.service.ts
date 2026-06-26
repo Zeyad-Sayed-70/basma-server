@@ -335,12 +335,11 @@ export class AuthService {
       }
     }
 
-    const student = await this.prisma.student.findFirst({
-      where: {
-        email: dto.email,
-        instanceId,
-      },
-    });
+    const where: any = { email: dto.email };
+    if (instanceId) {
+      where.instanceId = instanceId;
+    }
+    const student = await this.prisma.student.findFirst({ where });
     if (!student) {
       throw new UnauthorizedException('Invalid email or password');
     }

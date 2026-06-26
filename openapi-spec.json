@@ -4601,7 +4601,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SendMessageDto"
+                "$ref": "#/components/schemas/AiSendMessageDto"
               }
             }
           }
@@ -4709,7 +4709,7 @@
   },
   "info": {
     "title": "Basma API",
-    "description": "Educational platform backend — multi-tenant, white-labeled",
+    "description": "Educational platform backend — multi-tenant, white-labeled\n\n---\n\n### WebSocket Chat (`/chat` namespace)\n\n**Protocol**: socket.io | **Auth**: JWT via `socket.handshake.auth.token`\n\n**Client → Server** (ack responses):\n| Event | Payload | Ack |\n|---|---|---|\n| `joinGroup` | `JoinGroupDto` | `{ event: \"joined\", data: { groupId } }` |\n| `leaveGroup` | `JoinGroupDto` | `{ event: \"left\", data: { groupId } }` |\n| `sendMessage` | `SendMessageDto` | `{ event: \"messageSent\", data: Message }` |\n| `typing` | `TypingDto` | `{ event: \"typingAck\", data: { groupId, isTyping } }` |\n\n**Server → Client** (broadcast to `group:{groupId}`):\n| Event | Payload | Description |\n|---|---|---|\n| `newMessage` | `MessageResponseDto` | New message in group |\n| `typingIndicator` | `{ senderId, senderName, senderRole, groupId, isTyping }` | Typing status (excludes sender) |\n| `error` | `{ message: string }` | Error notification |\n\n**Test page**: [`/api/ws-test`](/api/ws-test)",
     "version": "1.0",
     "contact": {}
   },
@@ -7897,7 +7897,7 @@
           }
         }
       },
-      "SendMessageDto": {
+      "AiSendMessageDto": {
         "type": "object",
         "properties": {
           "conversationId": {
@@ -7911,6 +7911,52 @@
         },
         "required": [
           "content"
+        ]
+      },
+      "JoinGroupDto": {
+        "type": "object",
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "description": "Group ID to join or leave"
+          }
+        },
+        "required": [
+          "groupId"
+        ]
+      },
+      "SendMessageDto": {
+        "type": "object",
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "description": "Group ID to send message to"
+          },
+          "content": {
+            "type": "string",
+            "description": "Message content"
+          }
+        },
+        "required": [
+          "groupId",
+          "content"
+        ]
+      },
+      "TypingDto": {
+        "type": "object",
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "description": "Group ID"
+          },
+          "isTyping": {
+            "type": "boolean",
+            "description": "Whether the user is typing"
+          }
+        },
+        "required": [
+          "groupId",
+          "isTyping"
         ]
       }
     }

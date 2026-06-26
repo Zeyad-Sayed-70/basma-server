@@ -1,7 +1,7 @@
 import { IsString, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
-export class SendMessageDto {
+export class AiSendMessageDto {
   @ApiProperty({ description: 'Conversation ID (omit to create new)' })
   @IsOptional()
   @IsString()

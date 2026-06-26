@@ -24,7 +24,7 @@ import {
 } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { AiAgentService } from './ai-agent.service';
-import { SendMessageDto, CreateConversationDto } from './dto/chat.dto';
+import { AiSendMessageDto, CreateConversationDto } from './dto/chat.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -124,7 +124,7 @@ export class AiAgentController {
   @ApiOperation({ summary: 'Send message to AI agent (SSE streamed response)' })
   async sendMessage(
     @Param('id') conversationId: string,
-    @Body() dto: SendMessageDto,
+    @Body() dto: AiSendMessageDto,
     @CurrentUser() user: { id: string; instanceId: string },
     @Res() res: Response,
   ) {
@@ -146,7 +146,7 @@ export class AiAgentController {
       );
 
       res.write(
-        `data: ${JSON.stringify({ type: 'agent_reply', content: result.agentReply, toolCalls: result.toolCalls, fallbackUsed: result.fallbackUsed })}\n\n`,
+        `data: ${JSON.stringify({ type: 'agent_reply', content: result.agentReply })}\n\n`,
       );
 
       res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);

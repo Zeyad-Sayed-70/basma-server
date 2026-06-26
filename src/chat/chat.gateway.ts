@@ -14,6 +14,8 @@ import { WsJwtGuard } from './guards/ws-jwt.guard';
 import { ChatService } from './chat.service';
 import { TenantContext } from '../common/context/tenant-context';
 import { TypingDto } from './dto/typing.dto';
+import { JoinGroupDto } from './dto/join-group.dto';
+import { SendMessageDto } from './dto/send-message.dto';
 
 interface AuthenticatedSocket extends Socket {
   data: {
@@ -50,7 +52,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @UseGuards(WsJwtGuard)
   async handleJoinGroup(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { groupId: string },
+    @MessageBody() data: JoinGroupDto,
   ) {
     const { instanceId, id, role } = client.data.user;
 
@@ -77,7 +79,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @UseGuards(WsJwtGuard)
   async handleLeaveGroup(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { groupId: string },
+    @MessageBody() data: JoinGroupDto,
   ) {
     await client.leave(`group:${data.groupId}`);
     return { event: 'left', data: { groupId: data.groupId } };
@@ -87,7 +89,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @UseGuards(WsJwtGuard)
   async handleMessage(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { groupId: string; content: string },
+    @MessageBody() data: SendMessageDto,
   ) {
     const { instanceId, id, role } = client.data.user;
 

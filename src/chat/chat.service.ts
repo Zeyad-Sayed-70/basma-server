@@ -30,7 +30,9 @@ export class ChatService {
   ): Promise<boolean> {
     const instanceId = this.getInstanceId();
 
-    if (role === 'teacher') {
+    const normalizedRole = role.toLowerCase();
+
+    if (normalizedRole === 'teacher') {
       const group = await this.prisma.group.findFirst({
         where: { id: groupId, instanceId },
       });
@@ -38,7 +40,7 @@ export class ChatService {
       return true;
     }
 
-    if (role === 'student') {
+    if (normalizedRole === 'student') {
       const student = await this.prisma.student.findFirst({
         where: { id: userId, groupId, instanceId },
       });
@@ -52,7 +54,7 @@ export class ChatService {
   async getSenderName(userId: string, role: string): Promise<string> {
     const instanceId = this.getInstanceId();
 
-    if (role === 'teacher') {
+    if (role.toLowerCase() === 'teacher') {
       const teacher = await this.prisma.teacher.findFirst({
         where: { id: userId, instanceId },
       });
@@ -77,7 +79,7 @@ export class ChatService {
       data: {
         content,
         senderId,
-        senderRole: senderRole as 'TEACHER' | 'STUDENT',
+        senderRole: senderRole.toUpperCase() as 'TEACHER' | 'STUDENT',
         groupId,
         instanceId,
       },
@@ -114,7 +116,7 @@ export class ChatService {
       data: {
         content: file.originalname,
         senderId,
-        senderRole: senderRole as 'TEACHER' | 'STUDENT',
+        senderRole: senderRole.toUpperCase() as 'TEACHER' | 'STUDENT',
         fileUrl,
         groupId,
         instanceId,

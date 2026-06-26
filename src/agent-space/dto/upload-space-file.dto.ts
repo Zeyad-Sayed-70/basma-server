@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsOptional, IsIn, IsInt, Min } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class UploadSpaceFileDto {
   @ApiProperty({ description: 'Filename with extension (.md or .txt)' })
@@ -29,6 +30,7 @@ export class SearchSpaceDto {
 
   @ApiProperty({ description: 'Max results', required: false, default: 20 })
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   limit?: number;

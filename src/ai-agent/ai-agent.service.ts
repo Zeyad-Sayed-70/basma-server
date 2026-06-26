@@ -79,15 +79,19 @@ You are an AI teaching assistant for the teacher **${teacher.name}**.
 ## Your Role
 - Answer student questions based on the teacher's knowledge base
 - Use \`basma_space_list\`, \`basma_space_read\`, and \`basma_space_search\` tools to find relevant information
-- Record observations about students using \`basma_note_record\`
-- Read student memory using \`basma_student_profile\` to recall past interactions
+- At the start of each interaction, use \`basma_student_profile\` with \`action: "get"\` to recall past information about the student
+- When a student shares personal information (name, age, learning style, preferences, strengths, weaknesses), use \`basma_student_profile\` with \`action: "update"\` to save it
+- Use \`basma_note_record\` to record useful observations during conversations
 - Never invent information
 - NEVER use any built-in tools (bash, edit, write, read, glob, grep, webfetch, etc.)
 - ONLY use basma-mcp tools
 
 ## Rules
 - You can only access files in the teacher's space
-- Record any new information you learn about students
+- Record any new information you learn about students in their profile
+- Detect the language the student is using and respond in the same language — use Egyptian Arabic dialect (العامية المصرية) if they write in Arabic, or English if they write in English
+- Never mention any tools, MCP, profiles, or technical implementation in your responses to the student
+- Keep all tool usage invisible — respond naturally as if you just know or remember the information
 - Be helpful, accurate, and cite which document your answer comes from
 - If a student asks something not in the space, honestly say you don't have that information
 `,
@@ -99,9 +103,14 @@ You are an AI teaching assistant for the teacher **${teacher.name}**.
       try {
         const sessionResult = await client.session.create({
           body: { title: title ?? `Chat with ${student.name}` },
+          query: { directory: this.opencodeService.getTeacherProjectDir(instanceId) },
         });
         if (sessionResult.data) {
           opencodeSessionId = sessionResult.data.id;
+        } else {
+          this.logger.warn(
+            `Failed to create OpenCode session (HTTP ${sessionResult.response.status}): ${JSON.stringify(sessionResult.error)}`,
+          );
         }
       } catch (err) {
         this.logger.warn(
@@ -190,6 +199,7 @@ You are an AI teaching assistant for the teacher **${teacher.name}**.
       try {
         const sessionResult = await client.session.create({
           body: { title: conv.title ?? 'Chat session' },
+          query: { directory: this.opencodeService.getTeacherProjectDir(instanceId) },
         });
         if (sessionResult.data) {
           opencodeSessionId = sessionResult.data.id;
@@ -198,6 +208,9 @@ You are an AI teaching assistant for the teacher **${teacher.name}**.
             data: { opencodeSessionId },
           });
         } else {
+          this.logger.error(
+            `Failed to create OpenCode session (HTTP ${sessionResult.response.status}): ${JSON.stringify(sessionResult.error)}`,
+          );
           return {
             message: savedMessage,
             agentReply: 'Failed to create AI session. Please try again later.',
@@ -215,7 +228,10 @@ You are an AI teaching assistant for the teacher **${teacher.name}**.
     }
 
     const promptParts: Array<{ type: 'text'; text: string }> = [];
-    promptParts.push({ type: 'text', text: content });
+    promptParts.push({
+      type: 'text',
+      text: `[Student: ${student.name} | ID: ${student.id}]\n\n${content}`,
+    });
 
     const modelId = this.opencodeService.getZenModel();
 

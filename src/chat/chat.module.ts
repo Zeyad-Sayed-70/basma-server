@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ChatGateway } from './chat.gateway';
 import { ChatController } from './chat.controller';
+import { WsTestController } from './ws-test.controller';
 import { ChatService } from './chat.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { MinioModule } from '../minio/minio.module';
@@ -18,12 +19,13 @@ import { MinioModule } from '../minio/minio.module';
       useFactory: (configService: ConfigService) => ({
         secret: configService.getOrThrow<string>('JWT_SECRET'),
         signOptions: {
-          expiresIn: (configService.get<string>('JWT_EXPIRATION') ?? '7d') as unknown as never,
+          expiresIn: (configService.get<string>('JWT_EXPIRATION') ??
+            '7d') as unknown as never,
         },
       }),
     }),
   ],
-  controllers: [ChatController],
+  controllers: [ChatController, WsTestController],
   providers: [ChatGateway, ChatService],
   exports: [ChatService],
 })
