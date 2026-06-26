@@ -3801,6 +3801,910 @@
           "Payments — Public (Webhook & Redirect)"
         ]
       }
+    },
+    "/api/chat/groups/{groupId}/messages": {
+      "get": {
+        "description": "Returns paginated chat messages. Use cursor for infinite scroll.",
+        "operationId": "ChatController_getMessages",
+        "parameters": [
+          {
+            "name": "groupId",
+            "required": true,
+            "in": "path",
+            "description": "Group ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Cursor for pagination (message ID)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Messages per page (default 50)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Messages retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageListResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get message history for a group",
+        "tags": [
+          "Chat"
+        ]
+      }
+    },
+    "/api/chat/groups/{groupId}/files": {
+      "post": {
+        "description": "Uploads a file and creates a chat message with file URL. Max 10MB.",
+        "operationId": "ChatController_uploadFile",
+        "parameters": [
+          {
+            "name": "groupId",
+            "required": true,
+            "in": "path",
+            "description": "Group ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "File to upload (max 10MB)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "File uploaded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Upload a file to chat",
+        "tags": [
+          "Chat"
+        ]
+      }
+    },
+    "/api/chat/messages/{id}": {
+      "delete": {
+        "description": "Teacher can delete any message in their instance. This is for moderation.",
+        "operationId": "ChatController_deleteMessage",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Message ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Message deleted"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Message not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a message (teacher only)",
+        "tags": [
+          "Chat"
+        ]
+      }
+    },
+    "/api/chat/unread": {
+      "get": {
+        "description": "Returns unread message count per group for the current user.",
+        "operationId": "ChatController_getUnreadCounts",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Unread counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadCountListDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get unread message counts",
+        "tags": [
+          "Chat"
+        ]
+      }
+    },
+    "/api/chat/groups/{groupId}/read": {
+      "patch": {
+        "description": "Updates the last-read timestamp for the user in this group.",
+        "operationId": "ChatController_markRead",
+        "parameters": [
+          {
+            "name": "groupId",
+            "required": true,
+            "in": "path",
+            "description": "Group ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Marked as read"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Mark group chat as read",
+        "tags": [
+          "Chat"
+        ]
+      }
+    },
+    "/api/agent-space/files": {
+      "get": {
+        "operationId": "AgentSpaceController_listFiles",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List files in teacher agent space",
+        "tags": [
+          "Agent Space"
+        ]
+      },
+      "post": {
+        "operationId": "AgentSpaceController_uploadFile",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadSpaceFileDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Upload a .md or .txt file to space",
+        "tags": [
+          "Agent Space"
+        ]
+      }
+    },
+    "/api/agent-space/files/{id}": {
+      "get": {
+        "operationId": "AgentSpaceController_getFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get a space file with content",
+        "tags": [
+          "Agent Space"
+        ]
+      },
+      "patch": {
+        "operationId": "AgentSpaceController_updateFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSpaceFileDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update file content",
+        "tags": [
+          "Agent Space"
+        ]
+      },
+      "delete": {
+        "operationId": "AgentSpaceController_deleteFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a space file",
+        "tags": [
+          "Agent Space"
+        ]
+      }
+    },
+    "/api/agent-space/search": {
+      "get": {
+        "operationId": "AgentSpaceController_searchContent",
+        "parameters": [
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "description": "Search query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Max results",
+            "schema": {
+              "minimum": 1,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Full-text search across space files",
+        "tags": [
+          "Agent Space"
+        ]
+      }
+    },
+    "/api/agent-student-data/{studentId}/notes": {
+      "get": {
+        "operationId": "AgentStudentDataController_getNotes",
+        "parameters": [
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get agent notes for a student",
+        "tags": [
+          "Agent Student Data"
+        ]
+      }
+    },
+    "/api/agent-student-data/notes": {
+      "post": {
+        "operationId": "AgentStudentDataController_addNote",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateNoteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add an agent note about a student",
+        "tags": [
+          "Agent Student Data"
+        ]
+      }
+    },
+    "/api/agent-student-data/{studentId}/profile": {
+      "get": {
+        "operationId": "AgentStudentDataController_getProfile",
+        "parameters": [
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get synthesized agent profile for student",
+        "tags": [
+          "Agent Student Data"
+        ]
+      },
+      "patch": {
+        "operationId": "AgentStudentDataController_updateProfile",
+        "parameters": [
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update synthesized agent profile for student",
+        "tags": [
+          "Agent Student Data"
+        ]
+      }
+    },
+    "/api/agent-student-data/{studentId}/memory": {
+      "get": {
+        "operationId": "AgentStudentDataController_getStudentMemory",
+        "parameters": [
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get student memory (profile + recent notes)",
+        "tags": [
+          "Agent Student Data"
+        ]
+      }
+    },
+    "/api/ai-agent/conversations": {
+      "get": {
+        "operationId": "AiAgentController_listConversations",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List student conversations with AI agent",
+        "tags": [
+          "AI Agent"
+        ]
+      },
+      "post": {
+        "operationId": "AiAgentController_createConversation",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateConversationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new conversation with AI agent",
+        "tags": [
+          "AI Agent"
+        ]
+      }
+    },
+    "/api/ai-agent/conversations/{id}": {
+      "get": {
+        "operationId": "AiAgentController_getConversation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get conversation details",
+        "tags": [
+          "AI Agent"
+        ]
+      },
+      "patch": {
+        "operationId": "AiAgentController_updateConversation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateConversationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update conversation title",
+        "tags": [
+          "AI Agent"
+        ]
+      },
+      "delete": {
+        "operationId": "AiAgentController_archiveConversation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Archive a conversation",
+        "tags": [
+          "AI Agent"
+        ]
+      }
+    },
+    "/api/ai-agent/conversations/{id}/messages": {
+      "get": {
+        "operationId": "AiAgentController_getMessages",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get conversation messages",
+        "tags": [
+          "AI Agent"
+        ]
+      },
+      "post": {
+        "operationId": "AiAgentController_sendMessage",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendMessageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Send message to AI agent (SSE streamed response)",
+        "tags": [
+          "AI Agent"
+        ]
+      }
+    },
+    "/api/ai-agent/agent.md": {
+      "get": {
+        "operationId": "AiAgentController_getAgentMd",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get teacher agent.md configuration",
+        "tags": [
+          "AI Agent"
+        ]
+      },
+      "put": {
+        "operationId": "AiAgentController_updateAgentMd",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update teacher agent.md configuration",
+        "tags": [
+          "AI Agent"
+        ]
+      }
+    },
+    "/api/ai-agent/teacher/conversations": {
+      "get": {
+        "operationId": "AiAgentController_teacherListConversations",
+        "parameters": [
+          {
+            "name": "studentId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Teacher views all student conversations",
+        "tags": [
+          "AI Agent"
+        ]
+      }
     }
   },
   "info": {
@@ -6318,14 +7222,43 @@
       "MessageResponseDto": {
         "type": "object",
         "properties": {
-          "message": {
-            "type": "string",
-            "description": "Human-readable status message",
-            "example": "Paymob configuration removed"
+          "id": {
+            "type": "string"
+          },
+          "senderId": {
+            "type": "string"
+          },
+          "senderName": {
+            "type": "string"
+          },
+          "senderRole": {
+            "enum": [
+              "TEACHER",
+              "STUDENT"
+            ],
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "fileUrl": {
+            "type": "string"
+          },
+          "groupId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
           }
         },
         "required": [
-          "message"
+          "id",
+          "senderId",
+          "senderName",
+          "senderRole",
+          "content",
+          "groupId",
+          "createdAt"
         ]
       },
       "CreatePaymentDto": {
@@ -6814,6 +7747,170 @@
         },
         "required": [
           "received"
+        ]
+      },
+      "MessageListResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MessageResponseDto"
+            }
+          },
+          "total": {
+            "type": "number"
+          },
+          "nextCursor": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "data",
+          "total"
+        ]
+      },
+      "UnreadCountDto": {
+        "type": "object",
+        "properties": {
+          "groupId": {
+            "type": "string"
+          },
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "groupId",
+          "count"
+        ]
+      },
+      "UnreadCountListDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnreadCountDto"
+            }
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "UploadSpaceFileDto": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string",
+            "description": "Filename with extension (.md or .txt)"
+          },
+          "content": {
+            "type": "string",
+            "description": "File content"
+          },
+          "fileType": {
+            "type": "string",
+            "enum": [
+              "md",
+              "txt"
+            ],
+            "description": "File type",
+            "default": "md"
+          }
+        },
+        "required": [
+          "filename",
+          "content"
+        ]
+      },
+      "UpdateSpaceFileDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "Updated file content"
+          }
+        },
+        "required": [
+          "content"
+        ]
+      },
+      "CreateNoteDto": {
+        "type": "object",
+        "properties": {
+          "studentId": {
+            "type": "string",
+            "description": "Student ID"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "learning_style",
+              "weakness",
+              "strength",
+              "preference",
+              "progress",
+              "general"
+            ],
+            "description": "Note category",
+            "default": "general"
+          },
+          "content": {
+            "type": "string",
+            "description": "Note content / observation text"
+          },
+          "source": {
+            "type": "string",
+            "description": "Source of the note",
+            "default": "agent"
+          },
+          "sessionId": {
+            "type": "string",
+            "description": "OpenCode session ID"
+          }
+        },
+        "required": [
+          "studentId",
+          "content"
+        ]
+      },
+      "UpdateProfileDto": {
+        "type": "object",
+        "properties": {
+          "profile": {
+            "type": "object",
+            "description": "Synthesized agent profile JSON"
+          }
+        },
+        "required": [
+          "profile"
+        ]
+      },
+      "CreateConversationDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Conversation title"
+          }
+        }
+      },
+      "SendMessageDto": {
+        "type": "object",
+        "properties": {
+          "conversationId": {
+            "type": "string",
+            "description": "Conversation ID (omit to create new)"
+          },
+          "content": {
+            "type": "string",
+            "description": "Message content"
+          }
+        },
+        "required": [
+          "content"
         ]
       }
     }

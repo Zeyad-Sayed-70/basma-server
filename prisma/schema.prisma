@@ -106,8 +106,12 @@ model Instance {
   paymobConfig  PaymobConfig?
   payments      Payment[]
   questions     QuestionBank[]
-  chatMessages    ChatMessage[]
-  chatReadMarkers ChatReadMarker[]
+  chatMessages      ChatMessage[]
+  chatReadMarkers   ChatReadMarker[]
+  agentSpaceFiles   AgentSpaceFile[]
+  agentStudentNotes AgentStudentNote[]
+  agentConversations AgentConversation[]
+  agentMessages      AgentMessage[]
 
   whatsappSession         WhatsAppSession?
   notificationPreferences NotificationPreference[]
@@ -207,6 +211,10 @@ model Student {
   instance   Instance      @relation(fields: [instanceId], references: [id], onDelete: Cascade)
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
+
+  agentProfile          Json                  @default("{}")
+  agentConversations    AgentConversation[]
+  agentNotes            AgentStudentNote[]
 
   enrollments           CourseEnrollment[]
   quizAttempts          StudentQuizAttempt[]
@@ -496,4 +504,74 @@ model ChatReadMarker {
   @@unique([userId, groupId])
   @@index([instanceId])
   @@map("chat_read_markers")
+}
+
+model AgentSpaceFile {
+  id         String   @id @default(cuid())
+  filename   String
+  content    String
+  fileType   String   @default("md")
+  fileSize   Int      @default(0)
+  instanceId String
+  instance   Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([instanceId, filename])
+  @@index([instanceId])
+  @@map("agent_space_files")
+}
+
+model AgentStudentNote {
+  id         String   @id @default(cuid())
+  studentId  String
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  instanceId String
+  instance   Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  category   String   @default("general")
+  content    String
+  source     String   @default("agent")
+  sessionId  String?
+  createdAt  DateTime @default(now())
+
+  @@index([studentId])
+  @@index([instanceId])
+  @@index([category])
+  @@map("agent_student_notes")
+}
+
+model AgentConversation {
+  id                String   @id @default(cuid())
+  studentId         String
+  student           Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  instanceId        String
+  instance          Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  opencodeSessionId String?
+  title             String?
+  status            String   @default("active")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  messages AgentMessage[]
+
+  @@index([studentId])
+  @@index([instanceId])
+  @@map("agent_conversations")
+}
+
+model AgentMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  conversation   AgentConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String
+  content        String
+  toolCalls      Json?
+  model          String?
+  instanceId     String
+  instance       Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+
+  @@index([conversationId])
+  @@index([instanceId])
+  @@map("agent_messages")
 }

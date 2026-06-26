@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@hapi/boom": "^10.0.1",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.1",
@@ -39,6 +40,7 @@
     "@nestjs/swagger": "^11.4.4",
     "@nestjs/terminus": "^11.1.1",
     "@nestjs/websockets": "^11.1.27",
+    "@opencode-ai/sdk": "^1.17.11",
     "@prisma/client": "^6.19.3",
     "baileys": "^7.0.0-rc13",
     "bcrypt": "^6.0.0",
@@ -55,7 +57,8 @@
     "qrcode": "^1.5.4",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
