@@ -5,6 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { CoursesService } from '../courses/courses.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContext } from '../common/context/tenant-context';
 import { CreateQuizDto } from './dto/create-quiz.dto';
@@ -17,6 +18,7 @@ import { SubmitQuizAttemptDto } from './dto/submit-quiz-attempt.dto';
 export class QuizzesService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly coursesService: CoursesService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -45,16 +47,25 @@ export class QuizzesService {
     });
   }
 
-  async findAll(courseId?: string) {
+  async findAll(courseId?: string, user?: { id: string; role: string }) {
     const instanceId = this.getInstanceId();
 
     const where: Record<string, unknown> = { instanceId };
     if (courseId) {
+      if (user?.role === 'student') {
+        await this.coursesService.assertStudentEnrolled(courseId, user.id);
+      }
       const course = await this.prisma.course.findFirst({
         where: { id: courseId, instanceId },
       });
       if (!course) throw new NotFoundException('Course not found');
       where.courseId = courseId;
+    } else if (user?.role === 'student') {
+      const enrollments = await this.prisma.courseEnrollment.findMany({
+        where: { studentId: user.id, instanceId },
+        select: { courseId: true },
+      });
+      where.courseId = { in: enrollments.map((e) => e.courseId) };
     }
 
     const quizzes = await this.prisma.quiz.findMany({
@@ -80,7 +91,7 @@ export class QuizzesService {
     return { data, total: quizzes.length };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, user?: { id: string; role: string }) {
     const instanceId = this.getInstanceId();
     const quiz = await this.prisma.quiz.findFirst({
       where: { id, instanceId },
@@ -91,6 +102,18 @@ export class QuizzesService {
     });
     if (!quiz) throw new NotFoundException('Quiz not found');
 
+    if (user?.role === 'student') {
+      await this.coursesService.assertStudentEnrolled(quiz.courseId, user.id);
+    }
+
+    const isTeacher = user?.role === 'teacher';
+    const questions = isTeacher
+      ? quiz.questions
+      : quiz.questions.map((q) => {
+          const { correctAnswer, ...rest } = q;
+          return rest;
+        });
+
     return {
       id: quiz.id,
       title: quiz.title,
@@ -99,7 +122,7 @@ export class QuizzesService {
       courseId: quiz.courseId,
       instanceId: quiz.instanceId,
       questionCount: { questions: quiz._count.questions },
-      questions: quiz.questions,
+      questions,
       createdAt: quiz.createdAt.toISOString(),
       updatedAt: quiz.updatedAt.toISOString(),
     };
@@ -231,6 +254,8 @@ export class QuizzesService {
       include: { questions: true },
     });
     if (!quiz) throw new NotFoundException('Quiz not found');
+
+    await this.coursesService.assertStudentEnrolled(quiz.courseId, studentId);
 
     const existing = await this.prisma.studentQuizAttempt.findUnique({
       where: { studentId_quizId: { studentId, quizId } },

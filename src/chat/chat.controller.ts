@@ -129,19 +129,23 @@ export class ChatController {
   }
 
   @Delete('messages/:id')
-  @Roles('teacher')
+  @Roles('teacher', 'student')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
-    summary: 'Delete a message (teacher only)',
+    summary: 'Delete a message',
     description:
-      'Teacher can delete any message in their instance. This is for moderation.',
+      'Teachers can delete any message. Students can delete their own messages.',
   })
   @ApiParam({ name: 'id', description: 'Message ID' })
   @ApiResponse({ status: 204, description: 'Message deleted' })
   @ApiResponse({ status: 404, description: 'Message not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async deleteMessage(@Param('id') id: string) {
-    await this.chatService.deleteMessage(id);
+  @ApiResponse({ status: 403, description: 'Forbidden — not your message' })
+  async deleteMessage(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    await this.chatService.deleteMessage(id, user.id, user.role);
   }
 
   @Get('unread')

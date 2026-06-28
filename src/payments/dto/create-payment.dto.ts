@@ -4,7 +4,7 @@ import { IsString, IsOptional } from 'class-validator';
 export class CreatePaymentDto {
   @ApiProperty({
     description:
-      'ID of the course the student wants to pay for. Must be a course the student is enrolled in with a price > 0.',
+      'ID of the course the student wants to pay for in order to get enrolled. The course must have a price > 0 and the student must not already be enrolled.',
     example: 'clxq8a2b30001jf08m3n4o5p6',
   })
   @IsString()

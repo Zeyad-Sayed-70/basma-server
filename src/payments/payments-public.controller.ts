@@ -21,6 +21,7 @@ import {
   ApiExcludeEndpoint,
 } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
+import { ConfigService } from '@nestjs/config';
 import { PaymentsService } from './payments.service';
 import { PaymobWebhookDto } from './dto/paymob-webhook.dto';
 import { WebhookResponseDto } from './dto/payment-response.dto';
@@ -29,8 +30,15 @@ import { WebhookResponseDto } from './dto/payment-response.dto';
 @Controller('payments')
 export class PaymentsPublicController {
   private readonly logger = new Logger(PaymentsPublicController.name);
+  private readonly frontendBaseUrl: string;
 
-  constructor(private readonly paymentsService: PaymentsService) {}
+  constructor(
+    private readonly paymentsService: PaymentsService,
+    configService: ConfigService,
+  ) {
+    this.frontendBaseUrl =
+      configService.get<string>('FRONTEND_BASE_URL') ?? 'http://localhost:3000';
+  }
 
   @Post('webhook/paymob/:instanceId')
   @HttpCode(200)
@@ -106,10 +114,8 @@ export class PaymentsPublicController {
     @Query('success') success: string,
     @Res() res: Response,
   ) {
-    const frontendUrl =
-      process.env.FRONTEND_BASE_URL ?? 'http://localhost:3000';
     const status = success === 'true' ? 'success' : 'pending';
-    const redirectUrl = `${frontendUrl}/payments/${paymentId}/result?status=${status}`;
+    const redirectUrl = `${this.frontendBaseUrl}/payments/${paymentId}/result?status=${status}`;
     return res.redirect(redirectUrl);
   }
 }

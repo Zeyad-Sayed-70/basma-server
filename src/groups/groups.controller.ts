@@ -32,12 +32,12 @@ import {
 @ApiTags('Groups')
 @ApiBearerAuth()
 @UseGuards(AuthGuard('jwt'), RolesGuard)
-@Roles('teacher')
 @Controller('groups')
 export class GroupsController {
   constructor(private readonly groupsService: GroupsService) {}
 
   @Post()
+  @Roles('teacher')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Create a new group',
@@ -60,6 +60,7 @@ export class GroupsController {
   }
 
   @Get()
+  @Roles('teacher')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'List all groups',
@@ -78,6 +79,7 @@ export class GroupsController {
   }
 
   @Get(':id')
+  @Roles('teacher', 'student')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get group by ID',
@@ -96,6 +98,7 @@ export class GroupsController {
   }
 
   @Patch(':id')
+  @Roles('teacher')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Update group',
@@ -118,6 +121,7 @@ export class GroupsController {
   }
 
   @Delete(':id')
+  @Roles('teacher')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Delete group',
@@ -134,6 +138,7 @@ export class GroupsController {
   }
 
   @Post(':id/invitation-code')
+  @Roles('teacher')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Generate invitation code',
@@ -162,6 +167,7 @@ export class GroupsController {
   }
 
   @Delete(':id/invitation-code')
+  @Roles('teacher')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Revoke invitation code',

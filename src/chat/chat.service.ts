@@ -188,13 +188,19 @@ export class ChatService {
     };
   }
 
-  async deleteMessage(messageId: string) {
+  async deleteMessage(messageId: string, userId: string, userRole: string) {
     const instanceId = this.getInstanceId();
 
     const message = await this.prisma.chatMessage.findFirst({
       where: { id: messageId, instanceId },
     });
     if (!message) throw new NotFoundException('Message not found');
+
+    const isTeacher = userRole.toLowerCase() === 'teacher';
+    const isOwner = message.senderId === userId;
+    if (!isTeacher && !isOwner) {
+      throw new ForbiddenException('You can only delete your own messages');
+    }
 
     if (message.fileUrl) {
       const urlParts = message.fileUrl.split('/');

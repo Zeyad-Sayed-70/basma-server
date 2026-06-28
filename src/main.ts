@@ -12,7 +12,13 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const logger = new Logger('Bootstrap');
 
-  app.enableCors();
+  const corsOrigins = process.env.CORS_ORIGINS?.split(',') ?? [
+    'http://localhost:3001',
+  ];
+  app.enableCors({
+    origin: corsOrigins,
+    credentials: true,
+  });
   app.setGlobalPrefix('api');
 
   app.useGlobalPipes(
@@ -46,6 +52,9 @@ async function bootstrap() {
     '**Test page**: [`/api/ws-test`](/api/ws-test)',
   ].join('\n');
 
+  const port = process.env.PORT ?? 3000;
+  const serverUrl = process.env.API_SERVER_URL ?? `http://localhost:${port}`;
+
   const config = new DocumentBuilder()
     .setTitle('Basma API')
     .setDescription(
@@ -53,6 +62,7 @@ async function bootstrap() {
         wsDescription,
     )
     .setVersion('1.0')
+    .addServer(serverUrl)
     .addBearerAuth()
     .build();
 
@@ -66,7 +76,6 @@ async function bootstrap() {
   writeFileSync(specPath, JSON.stringify(document, null, 2));
   logger.log(`OpenAPI spec written to ${specPath}`);
 
-  const port = process.env.PORT ?? 3000;
   await app.listen(port);
   logger.log(`Server running on http://localhost:${port}`);
   logger.log(`Swagger docs at http://localhost:${port}/api/docs`);

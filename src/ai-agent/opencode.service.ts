@@ -7,11 +7,27 @@ import * as os from 'os';
 interface OpencodeClient {
   session: {
     list: () => Promise<unknown>;
-    create: (params: { body: unknown; query?: { directory?: string } }) => Promise<
-      { data: { id: string }; error?: undefined; response: Response } | { data?: undefined; error: unknown; response: Response }
+    create: (params: {
+      body: unknown;
+      query?: { directory?: string };
+    }) => Promise<
+      | { data: { id: string }; error?: undefined; response: Response }
+      | { data?: undefined; error: unknown; response: Response }
     >;
     prompt: (params: { path: { id: string }; body: unknown }) => Promise<
-      { data: { parts: { type: string; text?: string; tool?: string; state?: string; callID?: string }[] }; error?: undefined; response: Response }
+      | {
+          data: {
+            parts: {
+              type: string;
+              text?: string;
+              tool?: string;
+              state?: string;
+              callID?: string;
+            }[];
+          };
+          error?: undefined;
+          response: Response;
+        }
       | { data?: undefined; error: unknown; response: Response }
     >;
   };
@@ -33,7 +49,10 @@ export class OpencodeService implements OnModuleDestroy {
 
   constructor(private readonly configService: ConfigService) {
     this.baseUrl = `http://${configService.get('OPENCODE_SERVER_HOSTNAME', '127.0.0.1')}:${configService.get('OPENCODE_SERVER_PORT', '4096')}`;
-    this.serverUsername = configService.get('OPENCODE_SERVER_USERNAME', 'opencode');
+    this.serverUsername = configService.get(
+      'OPENCODE_SERVER_USERNAME',
+      'opencode',
+    );
     this.serverPassword = configService.get('OPENCODE_SERVER_PASSWORD', '');
     this.zenModel = configService.get(
       'OPENCODE_ZEN_MODEL',
@@ -52,10 +71,19 @@ export class OpencodeService implements OnModuleDestroy {
   async onModuleInit() {
     try {
       const { createOpencodeClient } = (await import('@opencode-ai/sdk')) as {
-        createOpencodeClient: (opts: { baseUrl: string; headers?: Record<string, string> }) => OpencodeClient;
+        createOpencodeClient: (opts: {
+          baseUrl: string;
+          headers?: Record<string, string>;
+        }) => OpencodeClient;
       };
       const headers: Record<string, string> | undefined = this.serverPassword
-        ? { 'Authorization': 'Basic ' + Buffer.from(`${this.serverUsername}:${this.serverPassword}`).toString('base64') }
+        ? {
+            Authorization:
+              'Basic ' +
+              Buffer.from(
+                `${this.serverUsername}:${this.serverPassword}`,
+              ).toString('base64'),
+          }
         : undefined;
       this.client = createOpencodeClient({ baseUrl: this.baseUrl, headers });
       try {

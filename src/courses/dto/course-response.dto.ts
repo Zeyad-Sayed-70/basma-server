@@ -33,6 +33,12 @@ export class CourseResponseDto {
   @ApiProperty({ example: '2025-01-01T00:00:00.000Z' })
   createdAt: string;
 
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Whether the current student is enrolled',
+  })
+  isEnrolled?: boolean;
+
   @ApiProperty({ example: '2025-01-01T00:00:00.000Z' })
   updatedAt: string;
 }

@@ -31,6 +31,8 @@ async function generate() {
     '| `error` | `{ message: string }` | Error notification |',
   ].join('\n');
 
+  const serverUrl = process.env.API_SERVER_URL ?? 'http://localhost:3000';
+
   const config = new DocumentBuilder()
     .setTitle('Basma API')
     .setDescription(
@@ -38,6 +40,7 @@ async function generate() {
         wsDescription,
     )
     .setVersion('1.0')
+    .addServer(serverUrl)
     .addBearerAuth()
     .build();
 

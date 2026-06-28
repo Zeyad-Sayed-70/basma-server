@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContext } from '../common/context/tenant-context';
 import { CreateCourseDto } from './dto/create-course.dto';
@@ -39,10 +40,19 @@ export class CoursesService {
     });
   }
 
-  async findAll(groupId?: string) {
+  async assertStudentEnrolled(courseId: string, studentId: string) {
+    const instanceId = this.getInstanceId();
+    const enrollment = await this.prisma.courseEnrollment.findFirst({
+      where: { courseId, studentId, instanceId },
+    });
+    if (!enrollment)
+      throw new ForbiddenException('You are not enrolled in this course');
+  }
+
+  async findAll(groupId?: string, user?: { id: string; role: string }) {
     const instanceId = this.getInstanceId();
 
-    const where: Record<string, unknown> = { instanceId };
+    const where: Prisma.CourseWhereInput = { instanceId };
     if (groupId) {
       const group = await this.prisma.group.findFirst({
         where: { id: groupId, instanceId },
@@ -59,6 +69,15 @@ export class CoursesService {
       orderBy: { createdAt: 'desc' },
     });
 
+    let enrolledCourseIds: Set<string> | undefined;
+    if (user?.role === 'student') {
+      const enrollments = await this.prisma.courseEnrollment.findMany({
+        where: { studentId: user.id, instanceId },
+        select: { courseId: true },
+      });
+      enrolledCourseIds = new Set(enrollments.map((e) => e.courseId));
+    }
+
     const data = courses.map((c) => ({
       id: c.id,
       title: c.title,
@@ -67,6 +86,7 @@ export class CoursesService {
       groupId: c.groupId,
       instanceId: c.instanceId,
       studentCount: { total: c._count.enrollments },
+      isEnrolled: enrolledCourseIds?.has(c.id) ?? false,
       createdAt: c.createdAt.toISOString(),
       updatedAt: c.updatedAt.toISOString(),
     }));
@@ -74,7 +94,7 @@ export class CoursesService {
     return { data, total: courses.length };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, user?: { id: string; role: string }) {
     const instanceId = this.getInstanceId();
     const course = await this.prisma.course.findFirst({
       where: { id, instanceId },
@@ -84,6 +104,10 @@ export class CoursesService {
     });
     if (!course) throw new NotFoundException('Course not found');
 
+    if (user?.role === 'student') {
+      await this.assertStudentEnrolled(id, user.id);
+    }
+
     return {
       id: course.id,
       title: course.title,
@@ -92,6 +116,7 @@ export class CoursesService {
       groupId: course.groupId,
       instanceId: course.instanceId,
       studentCount: { total: course._count.enrollments },
+      isEnrolled: user?.role === 'student' ? true : undefined,
       createdAt: course.createdAt.toISOString(),
       updatedAt: course.updatedAt.toISOString(),
     };

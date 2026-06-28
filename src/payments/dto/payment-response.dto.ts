@@ -214,7 +214,7 @@ export class PaymobConfigStatusDto {
   isConfigured: boolean;
 }
 
-export class MessageResponseDto {
+export class PaymobMessageDto {
   @ApiProperty({
     description: 'Human-readable status message',
     example: 'Paymob configuration removed',

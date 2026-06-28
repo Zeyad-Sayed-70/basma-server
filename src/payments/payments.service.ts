@@ -162,11 +162,20 @@ export class PaymentsService {
       );
     }
 
-    const enrollment = await this.prisma.courseEnrollment.findUnique({
-      where: { studentId_courseId: { studentId, courseId: dto.courseId } },
+    const student = await this.prisma.student.findUnique({
+      where: { id: studentId },
     });
-    if (!enrollment) {
-      throw new ForbiddenException('You are not enrolled in this course');
+    if (!student) throw new NotFoundException('Student not found');
+
+    if (student.groupId !== course.groupId) {
+      throw new ForbiddenException('You do not have access to this course');
+    }
+
+    const existingEnrollment = await this.prisma.courseEnrollment.findFirst({
+      where: { courseId: dto.courseId, studentId, instanceId },
+    });
+    if (existingEnrollment) {
+      throw new BadRequestException('You are already enrolled in this course');
     }
 
     const existingPending = await this.prisma.payment.findFirst({
@@ -178,19 +187,28 @@ export class PaymentsService {
       },
     });
     if (existingPending) {
+      if (existingPending.clientSecret) {
+        const paymobConfig = await this.getPaymobConfigForInstance(instanceId);
+        const checkoutUrl = `${this.baseUrl}/unifiedcheckout/?publicKey=${paymobConfig.publicKey}&clientSecret=${existingPending.clientSecret}`;
+        return {
+          id: existingPending.id,
+          amountCents: existingPending.amountCents,
+          amountFormatted: `${(existingPending.amountCents / 100).toFixed(2)} ${existingPending.currency}`,
+          currency: existingPending.currency,
+          status: existingPending.status,
+          clientSecret: existingPending.clientSecret,
+          checkoutUrl,
+          createdAt: existingPending.createdAt.toISOString(),
+        };
+      }
       throw new BadRequestException(
-        'A pending payment already exists for this course. Complete or cancel it first.',
+        'A pending payment already exists but has expired. Cancel it first.',
       );
     }
 
     const paymobConfig = await this.getPaymobConfigForInstance(instanceId);
     const secretKey = decrypt(paymobConfig.secretKey, this.encryptionKey);
     const amountCents = Math.round(course.price * 100);
-
-    const student = await this.prisma.student.findUnique({
-      where: { id: studentId },
-    });
-    if (!student) throw new NotFoundException('Student not found');
 
     const payment = await this.prisma.payment.create({
       data: {
@@ -220,6 +238,7 @@ export class PaymentsService {
         specialReference: payment.specialReference!,
         notificationUrl,
         redirectionUrl,
+        expiration: 600,
         billingData: {
           firstName: student.name,
           lastName: student.name.includes(' ')
@@ -293,17 +312,24 @@ export class PaymentsService {
     });
   }
 
-  async findAll(filters: {
-    studentId?: string;
-    courseId?: string;
-    status?: string;
-    page?: number;
-    limit?: number;
-  }) {
+  async findAll(
+    filters: {
+      studentId?: string;
+      courseId?: string;
+      status?: string;
+      page?: number;
+      limit?: number;
+    },
+    user?: { id: string; role: string },
+  ) {
     const instanceId = this.getInstanceId();
     const where: Record<string, unknown> = { instanceId };
 
-    if (filters.studentId) where.studentId = filters.studentId;
+    if (user?.role === 'student') {
+      where.studentId = user.id;
+    } else if (filters.studentId) {
+      where.studentId = filters.studentId;
+    }
     if (filters.courseId) where.courseId = filters.courseId;
     if (filters.status) where.status = filters.status;
 
@@ -342,7 +368,7 @@ export class PaymentsService {
     return { data, total };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, user?: { id: string; role: string }) {
     const instanceId = this.getInstanceId();
     const payment = await this.prisma.payment.findFirst({
       where: { id, instanceId },
@@ -352,6 +378,10 @@ export class PaymentsService {
       },
     });
     if (!payment) throw new NotFoundException('Payment not found');
+
+    if (user?.role === 'student' && payment.studentId !== user.id) {
+      throw new ForbiddenException('You can only access your own payments');
+    }
 
     return {
       id: payment.id,
@@ -375,6 +405,49 @@ export class PaymentsService {
       createdAt: payment.createdAt.toISOString(),
       updatedAt: payment.updatedAt.toISOString(),
     };
+  }
+
+  async cancelExpiredPayments(): Promise<number> {
+    const cutoff = new Date(Date.now() - 10 * 60 * 1000);
+    const result = await this.prisma.payment.updateMany({
+      where: {
+        status: { in: ['PENDING', 'PROCESSING'] },
+        createdAt: { lt: cutoff },
+      },
+      data: { status: 'CANCELLED' },
+    });
+    if (result.count > 0) {
+      this.logger.log(`Auto-cancelled ${result.count} expired payment(s)`);
+    }
+    return result.count;
+  }
+
+  async cancelPayment(
+    id: string,
+    user: { id: string; role: string; instanceId: string },
+  ) {
+    const { instanceId } = user;
+    const payment = await this.prisma.payment.findFirst({
+      where: { id, instanceId },
+    });
+    if (!payment) throw new NotFoundException('Payment not found');
+
+    if (user.role === 'student' && payment.studentId !== user.id) {
+      throw new ForbiddenException('You can only cancel your own payments');
+    }
+
+    if (!['PENDING', 'PROCESSING'].includes(payment.status)) {
+      throw new BadRequestException(
+        `Cannot cancel payment with status "${payment.status}". Only PENDING or PROCESSING payments can be cancelled.`,
+      );
+    }
+
+    await this.prisma.payment.update({
+      where: { id },
+      data: { status: 'CANCELLED' },
+    });
+
+    return { message: 'Payment cancelled', id: payment.id };
   }
 
   async refund(paymentId: string, dto: RefundDto) {
@@ -465,7 +538,8 @@ export class PaymentsService {
 
     const obj = body['obj'] as Record<string, unknown> | undefined;
     const bodyHmac =
-      queryHmac || String(body['hmac'] ?? body['hmac_header'] ?? '');
+      queryHmac ||
+      String(body['hmac'] ?? body['hmac_header'] ?? (obj ? obj['hmac'] : '') ?? '');
 
     if (!bodyHmac) {
       this.logger.warn(
@@ -489,17 +563,23 @@ export class PaymentsService {
       'id'
     ];
     const paymobOrderId = rawOrderId != null ? String(rawOrderId) : undefined;
-    if (!paymobOrderId) {
-      this.logger.warn('Webhook received without order.id field');
-      return { received: true };
-    }
 
-    const payment = await this.prisma.payment.findFirst({
-      where: { paymobOrderId, instanceId },
-    });
+    const merchantOrderId = obj['merchant_order_id'] as string | undefined;
+
+    let payment = null;
+    if (paymobOrderId) {
+      payment = await this.prisma.payment.findFirst({
+        where: { paymobOrderId, instanceId },
+      });
+    }
+    if (!payment && merchantOrderId) {
+      payment = await this.prisma.payment.findFirst({
+        where: { specialReference: merchantOrderId, instanceId },
+      });
+    }
     if (!payment) {
       this.logger.warn(
-        `Webhook for unknown order ${paymobOrderId} in instance ${instanceId}`,
+        `Webhook for unknown order (orderId=${paymobOrderId}, merchantOrderId=${merchantOrderId}) in instance ${instanceId}`,
       );
       return { received: true };
     }
@@ -541,6 +621,33 @@ export class PaymentsService {
     this.logger.log(
       `Payment ${payment.id} updated: ${payment.status} → ${newStatus}`,
     );
+
+    if (newStatus === 'PAID' && payment.courseId) {
+      try {
+        await this.prisma.courseEnrollment.upsert({
+          where: {
+            studentId_courseId: {
+              studentId: payment.studentId,
+              courseId: payment.courseId,
+            },
+          },
+          update: {},
+          create: {
+            studentId: payment.studentId,
+            courseId: payment.courseId,
+            instanceId,
+          },
+        });
+        this.logger.log(
+          `Enrollment auto-created for student ${payment.studentId} in course ${payment.courseId}`,
+        );
+      } catch (err) {
+        this.logger.error(
+          `Failed to auto-create enrollment: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+
     return { received: true };
   }
 }

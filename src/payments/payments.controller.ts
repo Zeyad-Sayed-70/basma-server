@@ -30,7 +30,7 @@ import { ManualPaymentDto } from './dto/manual-payment.dto';
 import {
   PaymentResponseDto,
   PaymobConfigStatusDto,
-  MessageResponseDto,
+  PaymobMessageDto,
   PaymentListResponseDto,
   PaymentStatsResponseDto,
   StudentPaymentInitiationResponseDto,
@@ -114,7 +114,7 @@ export class PaymentsController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Configuration removed successfully',
-    type: MessageResponseDto,
+    type: PaymobMessageDto,
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -136,10 +136,11 @@ export class PaymentsController {
     summary: 'Initiate payment for a course (student)',
     description:
       'Creates a Paymob payment intention and returns a checkout URL. ' +
-      'The student must be enrolled in the course, and the course must have price > 0. ' +
-      'Only one pending payment per student per course is allowed at a time. ' +
+      'The student must NOT already be enrolled in the course, and the course must have price > 0. ' +
+      'If a pending payment already exists with a valid clientSecret, the existing checkout URL is returned instead of creating a new intention. ' +
+      'Only one pending payment per student per course is allowed at a time — cancel the old one first via POST /payments/:id/cancel. ' +
       'The returned checkoutUrl should be opened in a browser to redirect to Paymob Unified Checkout. ' +
-      'The webhook will update the payment status automatically when the student completes or fails payment.',
+      'The webhook will update the payment status and auto-enroll the student when payment succeeds.',
   })
   @ApiBody({ type: CreatePaymentDto })
   @ApiResponse({
@@ -153,12 +154,12 @@ export class PaymentsController {
   })
   @ApiResponse({
     status: HttpStatus.FORBIDDEN,
-    description: 'Student is not enrolled in this course',
+    description: 'Student does not have access to this course',
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
     description:
-      'Free course, duplicate pending payment, or Paymob not configured',
+      'Free course, already enrolled, expired pending payment, or Paymob not configured',
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,
@@ -205,12 +206,13 @@ export class PaymentsController {
   }
 
   @Get()
-  @Roles('teacher')
+  @Roles('teacher', 'student')
   @ApiOperation({
     summary: 'List payments',
     description:
       'Returns paginated list of payments for this instance. ' +
       'Filterable by student, course, and payment status. ' +
+      'Students can only see their own payments. ' +
       'Payments are ordered by creation date (newest first).',
   })
   @ApiQuery({
@@ -235,6 +237,7 @@ export class PaymentsController {
       'REFUNDED',
       'PARTIALLY_REFUNDED',
       'VOIDED',
+      'CANCELLED',
     ],
   })
   @ApiQuery({
@@ -264,14 +267,18 @@ export class PaymentsController {
     @Query('status') status?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @CurrentUser() user?: { id: string; role: string },
   ) {
-    return this.paymentsService.findAll({
-      studentId,
-      courseId,
-      status,
-      page: page ? parseInt(page, 10) : undefined,
-      limit: limit ? parseInt(limit, 10) : undefined,
-    });
+    return this.paymentsService.findAll(
+      {
+        studentId,
+        courseId,
+        status,
+        page: page ? parseInt(page, 10) : undefined,
+        limit: limit ? parseInt(limit, 10) : undefined,
+      },
+      user,
+    );
   }
 
   @Get('stats')
@@ -296,12 +303,13 @@ export class PaymentsController {
   }
 
   @Get(':id')
-  @Roles('teacher')
+  @Roles('teacher', 'student')
   @ApiOperation({
     summary: 'Get payment details',
     description:
       'Returns full details for a single payment, including student info, course info, ' +
-      'all Paymob correlation IDs, and the checkout URL (if applicable).',
+      'all Paymob correlation IDs, and the checkout URL (if applicable). ' +
+      'Students can only access their own payments.',
   })
   @ApiParam({
     name: 'id',
@@ -321,8 +329,60 @@ export class PaymentsController {
     status: HttpStatus.UNAUTHORIZED,
     description: 'Invalid or missing JWT token',
   })
-  findOne(@Param('id') id: string) {
-    return this.paymentsService.findOne(id);
+  findOne(
+    @Param('id') id: string,
+    @CurrentUser() user?: { id: string; role: string },
+  ) {
+    return this.paymentsService.findOne(id, user);
+  }
+
+  @Post(':id/cancel')
+  @Roles('teacher', 'student')
+  @ApiOperation({
+    summary: 'Cancel a pending payment',
+    description:
+      'Cancels a PENDING or PROCESSING payment. ' +
+      'Students can only cancel their own payments. ' +
+      'Teachers can cancel any payment in their instance. ' +
+      'Once cancelled, the student can re-initiate payment for the same course.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Payment record ID to cancel',
+    example: 'clxq8a2b30001jf08m3n4o5p6',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Payment cancelled',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Payment cancelled' },
+        id: { type: 'string' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Payment not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: "Student trying to cancel another student's payment",
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Payment is not PENDING or PROCESSING',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Invalid or missing JWT token',
+  })
+  cancelPayment(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; role: string; instanceId: string },
+  ) {
+    return this.paymentsService.cancelPayment(id, user);
   }
 
   @Post(':id/refund')

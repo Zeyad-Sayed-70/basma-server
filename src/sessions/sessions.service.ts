@@ -4,6 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { CoursesService } from '../courses/courses.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContext } from '../common/context/tenant-context';
 import { CreateSessionDto } from './dto/create-session.dto';
@@ -13,6 +14,7 @@ import { UpdateSessionDto } from './dto/update-session.dto';
 export class SessionsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly coursesService: CoursesService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -56,16 +58,30 @@ export class SessionsService {
     return session;
   }
 
-  async findAll(courseId?: string, from?: string, to?: string) {
+  async findAll(
+    courseId?: string,
+    from?: string,
+    to?: string,
+    user?: { id: string; role: string },
+  ) {
     const instanceId = this.getInstanceId();
 
     const where: Record<string, unknown> = { instanceId };
     if (courseId) {
+      if (user?.role === 'student') {
+        await this.coursesService.assertStudentEnrolled(courseId, user.id);
+      }
       const course = await this.prisma.course.findFirst({
         where: { id: courseId, instanceId },
       });
       if (!course) throw new NotFoundException('Course not found');
       where.courseId = courseId;
+    } else if (user?.role === 'student') {
+      const enrollments = await this.prisma.courseEnrollment.findMany({
+        where: { studentId: user.id, instanceId },
+        select: { courseId: true },
+      });
+      where.courseId = { in: enrollments.map((e) => e.courseId) };
     }
     if (from || to) {
       const startTime: Record<string, Date> = {};
@@ -98,12 +114,19 @@ export class SessionsService {
     return { data, total: sessions.length };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, user?: { id: string; role: string }) {
     const instanceId = this.getInstanceId();
     const session = await this.prisma.session.findFirst({
       where: { id, instanceId },
     });
     if (!session) throw new NotFoundException('Session not found');
+
+    if (user?.role === 'student') {
+      await this.coursesService.assertStudentEnrolled(
+        session.courseId,
+        user.id,
+      );
+    }
 
     return {
       id: session.id,

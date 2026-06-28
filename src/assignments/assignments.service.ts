@@ -5,6 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { CoursesService } from '../courses/courses.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MinioService } from '../minio/minio.service';
 import { TenantContext } from '../common/context/tenant-context';
@@ -16,6 +17,7 @@ import { GradeSubmissionDto } from './dto/grade-submission.dto';
 export class AssignmentsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly coursesService: CoursesService,
     private readonly minio: MinioService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
@@ -45,16 +47,25 @@ export class AssignmentsService {
     });
   }
 
-  async findAll(courseId?: string) {
+  async findAll(courseId?: string, user?: { id: string; role: string }) {
     const instanceId = this.getInstanceId();
 
     const where: Record<string, unknown> = { instanceId };
     if (courseId) {
+      if (user?.role === 'student') {
+        await this.coursesService.assertStudentEnrolled(courseId, user.id);
+      }
       const course = await this.prisma.course.findFirst({
         where: { id: courseId, instanceId },
       });
       if (!course) throw new NotFoundException('Course not found');
       where.courseId = courseId;
+    } else if (user?.role === 'student') {
+      const enrollments = await this.prisma.courseEnrollment.findMany({
+        where: { studentId: user.id, instanceId },
+        select: { courseId: true },
+      });
+      where.courseId = { in: enrollments.map((e) => e.courseId) };
     }
 
     const assignments = await this.prisma.assignment.findMany({
@@ -76,12 +87,19 @@ export class AssignmentsService {
     return { data, total: assignments.length };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, user?: { id: string; role: string }) {
     const instanceId = this.getInstanceId();
     const assignment = await this.prisma.assignment.findFirst({
       where: { id, instanceId },
     });
     if (!assignment) throw new NotFoundException('Assignment not found');
+
+    if (user?.role === 'student') {
+      await this.coursesService.assertStudentEnrolled(
+        assignment.courseId,
+        user.id,
+      );
+    }
 
     return {
       id: assignment.id,
@@ -132,6 +150,11 @@ export class AssignmentsService {
       where: { id: assignmentId, instanceId },
     });
     if (!assignment) throw new NotFoundException('Assignment not found');
+
+    await this.coursesService.assertStudentEnrolled(
+      assignment.courseId,
+      studentId,
+    );
 
     const existing = await this.prisma.studentAssignmentSubmission.findUnique({
       where: { studentId_assignmentId: { studentId, assignmentId } },

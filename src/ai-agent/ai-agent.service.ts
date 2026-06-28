@@ -103,7 +103,9 @@ You are an AI teaching assistant for the teacher **${teacher.name}**.
       try {
         const sessionResult = await client.session.create({
           body: { title: title ?? `Chat with ${student.name}` },
-          query: { directory: this.opencodeService.getTeacherProjectDir(instanceId) },
+          query: {
+            directory: this.opencodeService.getTeacherProjectDir(instanceId),
+          },
         });
         if (sessionResult.data) {
           opencodeSessionId = sessionResult.data.id;
@@ -199,7 +201,9 @@ You are an AI teaching assistant for the teacher **${teacher.name}**.
       try {
         const sessionResult = await client.session.create({
           body: { title: conv.title ?? 'Chat session' },
-          query: { directory: this.opencodeService.getTeacherProjectDir(instanceId) },
+          query: {
+            directory: this.opencodeService.getTeacherProjectDir(instanceId),
+          },
         });
         if (sessionResult.data) {
           opencodeSessionId = sessionResult.data.id;

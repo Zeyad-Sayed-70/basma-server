@@ -6,6 +6,7 @@ import {
   IsDateString,
   IsUrl,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { SessionType, SessionPlatform } from '@prisma/client';
 
@@ -67,6 +68,7 @@ export class CreateSessionDto {
   })
   @IsUrl()
   @IsOptional()
+  @Transform(({ value }) => value || undefined)
   meetingUrl?: string;
 
   @ApiPropertyOptional({

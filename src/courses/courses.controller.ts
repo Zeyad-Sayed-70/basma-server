@@ -24,6 +24,8 @@ import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CoursesService } from './courses.service';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/decorators/current-user.decorator';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import {
@@ -36,12 +38,12 @@ import { EnrollmentListResponseDto } from './dto/enrollment-response.dto';
 @ApiTags('Courses')
 @ApiBearerAuth()
 @UseGuards(AuthGuard('jwt'), RolesGuard)
-@Roles('teacher')
 @Controller('courses')
 export class CoursesController {
   constructor(private readonly coursesService: CoursesService) {}
 
   @Post()
+  @Roles('teacher')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Create a new course',
@@ -63,6 +65,7 @@ export class CoursesController {
   }
 
   @Get()
+  @Roles('teacher', 'student')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'List all courses',
@@ -82,11 +85,15 @@ export class CoursesController {
     type: CourseListResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async findAll(@Query('groupId') groupId?: string) {
-    return this.coursesService.findAll(groupId);
+  async findAll(
+    @Query('groupId') groupId?: string,
+    @CurrentUser() user?: AuthenticatedUser,
+  ) {
+    return this.coursesService.findAll(groupId, user);
   }
 
   @Get(':id')
+  @Roles('teacher', 'student')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get course by ID',
@@ -102,11 +109,15 @@ export class CoursesController {
   })
   @ApiResponse({ status: 404, description: 'Course not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async findOne(@Param('id') id: string) {
-    return this.coursesService.findOne(id);
+  async findOne(
+    @Param('id') id: string,
+    @CurrentUser() user?: AuthenticatedUser,
+  ) {
+    return this.coursesService.findOne(id, user);
   }
 
   @Patch(':id')
+  @Roles('teacher')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Update course',
@@ -128,6 +139,7 @@ export class CoursesController {
   }
 
   @Delete(':id')
+  @Roles('teacher')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Delete course',
@@ -145,6 +157,7 @@ export class CoursesController {
   }
 
   @Post(':id/enrollments')
+  @Roles('teacher')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Enroll students in course',
@@ -171,6 +184,7 @@ export class CoursesController {
   }
 
   @Delete(':courseId/enrollments/:studentId')
+  @Roles('teacher')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Unenroll student from course',
@@ -194,6 +208,7 @@ export class CoursesController {
   }
 
   @Get(':id/enrollments')
+  @Roles('teacher')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'List enrolled students',

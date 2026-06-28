@@ -26,12 +26,12 @@ import {
 @ApiTags('Gradebook')
 @ApiBearerAuth()
 @UseGuards(AuthGuard('jwt'), RolesGuard)
-@Roles('teacher')
 @Controller('gradebook')
 export class GradebookController {
   constructor(private readonly gradebookService: GradebookService) {}
 
   @Get('courses/:courseId')
+  @Roles('teacher')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get course gradebook',
@@ -55,6 +55,7 @@ export class GradebookController {
   }
 
   @Get('groups/:groupId')
+  @Roles('teacher')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get group gradebook',
@@ -76,6 +77,7 @@ export class GradebookController {
   }
 
   @Get('students/:studentId')
+  @Roles('teacher', 'student')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get student gradebook',

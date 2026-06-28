@@ -72,7 +72,7 @@ export class AssignmentsController {
   }
 
   @Get()
-  @Roles('teacher')
+  @Roles('teacher', 'student')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'List all assignments',
@@ -91,12 +91,15 @@ export class AssignmentsController {
     type: AssignmentListResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async findAll(@Query('courseId') courseId?: string) {
-    return this.assignmentsService.findAll(courseId);
+  async findAll(
+    @Query('courseId') courseId?: string,
+    @CurrentUser() user?: AuthenticatedUser,
+  ) {
+    return this.assignmentsService.findAll(courseId, user);
   }
 
   @Get(':id')
-  @Roles('teacher')
+  @Roles('teacher', 'student')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get assignment by ID',
@@ -111,8 +114,11 @@ export class AssignmentsController {
   })
   @ApiResponse({ status: 404, description: 'Assignment not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async findOne(@Param('id') id: string) {
-    return this.assignmentsService.findOne(id);
+  async findOne(
+    @Param('id') id: string,
+    @CurrentUser() user?: AuthenticatedUser,
+  ) {
+    return this.assignmentsService.findOne(id, user);
   }
 
   @Patch(':id')

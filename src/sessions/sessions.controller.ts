@@ -23,6 +23,8 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/decorators/current-user.decorator';
 import { SessionsService } from './sessions.service';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { UpdateSessionDto } from './dto/update-session.dto';
@@ -34,12 +36,12 @@ import {
 @ApiTags('Sessions')
 @ApiBearerAuth()
 @UseGuards(AuthGuard('jwt'), RolesGuard)
-@Roles('teacher')
 @Controller('sessions')
 export class SessionsController {
   constructor(private readonly sessionsService: SessionsService) {}
 
   @Post()
+  @Roles('teacher')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Create a new session',
@@ -62,6 +64,7 @@ export class SessionsController {
   }
 
   @Get()
+  @Roles('teacher', 'student')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'List all sessions',
@@ -95,11 +98,13 @@ export class SessionsController {
     @Query('courseId') courseId?: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
+    @CurrentUser() user?: AuthenticatedUser,
   ) {
-    return this.sessionsService.findAll(courseId, from, to);
+    return this.sessionsService.findAll(courseId, from, to, user);
   }
 
   @Get(':id')
+  @Roles('teacher', 'student')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get session by ID',
@@ -115,11 +120,15 @@ export class SessionsController {
   })
   @ApiResponse({ status: 404, description: 'Session not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async findOne(@Param('id') id: string) {
-    return this.sessionsService.findOne(id);
+  async findOne(
+    @Param('id') id: string,
+    @CurrentUser() user?: AuthenticatedUser,
+  ) {
+    return this.sessionsService.findOne(id, user);
   }
 
   @Patch(':id')
+  @Roles('teacher')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Update session',
@@ -142,6 +151,7 @@ export class SessionsController {
   }
 
   @Delete(':id')
+  @Roles('teacher')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Delete session',

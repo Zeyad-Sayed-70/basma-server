@@ -75,7 +75,7 @@ export class QuizzesController {
   }
 
   @Get()
-  @Roles('teacher')
+  @Roles('teacher', 'student')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'List all quizzes',
@@ -95,12 +95,15 @@ export class QuizzesController {
     type: QuizListResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async findAll(@Query('courseId') courseId?: string) {
-    return this.quizzesService.findAll(courseId);
+  async findAll(
+    @Query('courseId') courseId?: string,
+    @CurrentUser() user?: AuthenticatedUser,
+  ) {
+    return this.quizzesService.findAll(courseId, user);
   }
 
   @Get(':id')
-  @Roles('teacher')
+  @Roles('teacher', 'student')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get quiz by ID',
@@ -116,8 +119,11 @@ export class QuizzesController {
   })
   @ApiResponse({ status: 404, description: 'Quiz not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async findOne(@Param('id') id: string) {
-    return this.quizzesService.findOne(id);
+  async findOne(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.quizzesService.findOne(id, user);
   }
 
   @Patch(':id')

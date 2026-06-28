@@ -3365,7 +3365,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MessageResponseDto"
+                  "$ref": "#/components/schemas/PaymobMessageDto"
                 }
               }
             }
@@ -3390,7 +3390,7 @@
     },
     "/api/payments/pay": {
       "post": {
-        "description": "Creates a Paymob payment intention and returns a checkout URL. The student must be enrolled in the course, and the course must have price > 0. Only one pending payment per student per course is allowed at a time. The returned checkoutUrl should be opened in a browser to redirect to Paymob Unified Checkout. The webhook will update the payment status automatically when the student completes or fails payment.",
+        "description": "Creates a Paymob payment intention and returns a checkout URL. The student must NOT already be enrolled in the course, and the course must have price > 0. If a pending payment already exists with a valid clientSecret, the existing checkout URL is returned instead of creating a new intention. Only one pending payment per student per course is allowed at a time — cancel the old one first via POST /payments/:id/cancel. The returned checkoutUrl should be opened in a browser to redirect to Paymob Unified Checkout. The webhook will update the payment status and auto-enroll the student when payment succeeds.",
         "operationId": "PaymentsController_initiatePayment",
         "parameters": [],
         "requestBody": {
@@ -3415,13 +3415,13 @@
             }
           },
           "400": {
-            "description": "Free course, duplicate pending payment, or Paymob not configured"
+            "description": "Free course, already enrolled, expired pending payment, or Paymob not configured"
           },
           "401": {
             "description": "Invalid or missing JWT token"
           },
           "403": {
-            "description": "Student is not enrolled in this course"
+            "description": "Student does not have access to this course"
           },
           "404": {
             "description": "Course not found or student not found"
@@ -3485,7 +3485,7 @@
         ]
       },
       "get": {
-        "description": "Returns paginated list of payments for this instance. Filterable by student, course, and payment status. Payments are ordered by creation date (newest first).",
+        "description": "Returns paginated list of payments for this instance. Filterable by student, course, and payment status. Students can only see their own payments. Payments are ordered by creation date (newest first).",
         "operationId": "PaymentsController_findAll",
         "parameters": [
           {
@@ -3519,7 +3519,8 @@
                 "FAILED",
                 "REFUNDED",
                 "PARTIALLY_REFUNDED",
-                "VOIDED"
+                "VOIDED",
+                "CANCELLED"
               ],
               "type": "string"
             }
@@ -3604,7 +3605,7 @@
     },
     "/api/payments/{id}": {
       "get": {
-        "description": "Returns full details for a single payment, including student info, course info, all Paymob correlation IDs, and the checkout URL (if applicable).",
+        "description": "Returns full details for a single payment, including student info, course info, all Paymob correlation IDs, and the checkout URL (if applicable). Students can only access their own payments.",
         "operationId": "PaymentsController_findOne",
         "parameters": [
           {
@@ -3642,6 +3643,66 @@
           }
         ],
         "summary": "Get payment details",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/api/payments/{id}/cancel": {
+      "post": {
+        "description": "Cancels a PENDING or PROCESSING payment. Students can only cancel their own payments. Teachers can cancel any payment in their instance. Once cancelled, the student can re-initiate payment for the same course.",
+        "operationId": "PaymentsController_cancelPayment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Payment record ID to cancel",
+            "schema": {
+              "example": "clxq8a2b30001jf08m3n4o5p6",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Payment cancelled"
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payment is not PENDING or PROCESSING"
+          },
+          "401": {
+            "description": "Invalid or missing JWT token"
+          },
+          "403": {
+            "description": "Student trying to cancel another student's payment"
+          },
+          "404": {
+            "description": "Payment not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Cancel a pending payment",
         "tags": [
           "Payments"
         ]
@@ -3921,7 +3982,7 @@
     },
     "/api/chat/messages/{id}": {
       "delete": {
-        "description": "Teacher can delete any message in their instance. This is for moderation.",
+        "description": "Teachers can delete any message. Students can delete their own messages.",
         "operationId": "ChatController_deleteMessage",
         "parameters": [
           {
@@ -3941,6 +4002,9 @@
           "401": {
             "description": "Unauthorized"
           },
+          "403": {
+            "description": "Forbidden — not your message"
+          },
           "404": {
             "description": "Message not found"
           }
@@ -3950,7 +4014,7 @@
             "bearer": []
           }
         ],
-        "summary": "Delete a message (teacher only)",
+        "summary": "Delete a message",
         "tags": [
           "Chat"
         ]
@@ -4714,7 +4778,11 @@
     "contact": {}
   },
   "tags": [],
-  "servers": [],
+  "servers": [
+    {
+      "url": "http://localhost:3000"
+    }
+  ],
   "components": {
     "securitySchemes": {
       "bearer": {
@@ -5594,6 +5662,11 @@
           "createdAt": {
             "type": "string",
             "example": "2025-01-01T00:00:00.000Z"
+          },
+          "isEnrolled": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the current student is enrolled"
           },
           "updatedAt": {
             "type": "string",
@@ -7219,46 +7292,17 @@
           "updatedAt"
         ]
       },
-      "MessageResponseDto": {
+      "PaymobMessageDto": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string"
-          },
-          "senderId": {
-            "type": "string"
-          },
-          "senderName": {
-            "type": "string"
-          },
-          "senderRole": {
-            "enum": [
-              "TEACHER",
-              "STUDENT"
-            ],
-            "type": "string"
-          },
-          "content": {
-            "type": "string"
-          },
-          "fileUrl": {
-            "type": "string"
-          },
-          "groupId": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string"
+          "message": {
+            "type": "string",
+            "description": "Human-readable status message",
+            "example": "Paymob configuration removed"
           }
         },
         "required": [
-          "id",
-          "senderId",
-          "senderName",
-          "senderRole",
-          "content",
-          "groupId",
-          "createdAt"
+          "message"
         ]
       },
       "CreatePaymentDto": {
@@ -7266,7 +7310,7 @@
         "properties": {
           "courseId": {
             "type": "string",
-            "description": "ID of the course the student wants to pay for. Must be a course the student is enrolled in with a price > 0.",
+            "description": "ID of the course the student wants to pay for in order to get enrolled. The course must have a price > 0 and the student must not already be enrolled.",
             "example": "clxq8a2b30001jf08m3n4o5p6"
           },
           "metadata": {
@@ -7747,6 +7791,48 @@
         },
         "required": [
           "received"
+        ]
+      },
+      "MessageResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "senderId": {
+            "type": "string"
+          },
+          "senderName": {
+            "type": "string"
+          },
+          "senderRole": {
+            "enum": [
+              "TEACHER",
+              "STUDENT"
+            ],
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "fileUrl": {
+            "type": "string"
+          },
+          "groupId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "senderId",
+          "senderName",
+          "senderRole",
+          "content",
+          "groupId",
+          "createdAt"
         ]
       },
       "MessageListResponseDto": {
