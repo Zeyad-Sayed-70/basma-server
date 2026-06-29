@@ -86,6 +86,21 @@ enum ChatSenderRole {
   STUDENT
 }
 
+enum CurriculumElementType {
+  VIDEO
+  RICH_CONTENT
+  FILE
+  QUIZ
+  ASSIGNMENT
+  SESSION
+}
+
+enum ElementProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
 model Instance {
   id        String   @id @default(cuid())
   name      String
@@ -116,6 +131,7 @@ model Instance {
 
   whatsappSession         WhatsAppSession?
   notificationPreferences NotificationPreference[]
+  curricula               Curriculum[]
 
   @@map("instances")
 }
@@ -221,6 +237,8 @@ model Student {
   quizAttempts          StudentQuizAttempt[]
   assignmentSubmissions StudentAssignmentSubmission[]
   payments              Payment[]
+  elementProgress       ElementProgress[]
+  courseProgress        CourseProgress[]
 
   @@unique([instanceId, email])
   @@index([groupId])
@@ -245,6 +263,7 @@ model Course {
   assignments Assignment[]
   enrollments CourseEnrollment[]
   payments    Payment[]
+  curriculum  Curriculum?
 
   @@index([groupId])
   @@index([instanceId])
@@ -282,6 +301,8 @@ model Session {
   createdAt  DateTime         @default(now())
   updatedAt  DateTime         @updatedAt
 
+  curriculumElements CurriculumElement[]
+
   @@index([courseId])
   @@index([instanceId])
   @@map("sessions")
@@ -299,8 +320,9 @@ model Quiz {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  questions QuizQuestion[]
-  attempts  StudentQuizAttempt[]
+  questions          QuizQuestion[]
+  attempts           StudentQuizAttempt[]
+  curriculumElements CurriculumElement[]
 
   @@index([courseId])
   @@index([instanceId])
@@ -350,7 +372,8 @@ model Assignment {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  submissions StudentAssignmentSubmission[]
+  submissions        StudentAssignmentSubmission[]
+  curriculumElements CurriculumElement[]
 
   @@index([courseId])
   @@index([instanceId])
@@ -575,4 +598,168 @@ model AgentMessage {
   @@index([conversationId])
   @@index([instanceId])
   @@map("agent_messages")
+}
+
+model Curriculum {
+  id         String   @id @default(cuid())
+  courseId   String   @unique
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  instanceId String
+  instance   Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  title      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  elements CurriculumElement[]
+  videos   CurriculumVideo[]
+  files    CurriculumFile[]
+  richContents CurriculumRichContent[]
+  images   CurriculumImage[]
+
+  @@index([instanceId])
+  @@map("curricula")
+}
+
+model CurriculumElement {
+  id             String               @id @default(cuid())
+  curriculumId   String
+  curriculum     Curriculum           @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  instanceId     String
+  type           CurriculumElementType
+  title          String
+  position       Int
+  required       Boolean              @default(true)
+
+  videoId        String?              @unique
+  video          CurriculumVideo?     @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  richContentId  String?              @unique
+  richContent    CurriculumRichContent? @relation(fields: [richContentId], references: [id], onDelete: Cascade)
+  fileId         String?              @unique
+  file           CurriculumFile?      @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  quizId         String?
+  quiz           Quiz?                @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  assignmentId   String?
+  assignment     Assignment?          @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  sessionId      String?
+  session        Session?             @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  progress ElementProgress[]
+
+  @@unique([curriculumId, position])
+  @@unique([curriculumId, quizId])
+  @@unique([curriculumId, assignmentId])
+  @@unique([curriculumId, sessionId])
+  @@index([curriculumId])
+  @@index([instanceId])
+  @@map("curriculum_elements")
+}
+
+model CurriculumVideo {
+  id              String   @id @default(cuid())
+  curriculumId    String
+  curriculum      Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  instanceId      String
+  title           String
+  description     String?
+  videoUrl        String
+  fileObjectKey   String
+  mimeType        String
+  fileSize        Int
+  durationSeconds Int?
+  createdAt       DateTime @default(now())
+
+  element CurriculumElement?
+
+  @@index([curriculumId])
+  @@index([instanceId])
+  @@map("curriculum_videos")
+}
+
+model CurriculumFile {
+  id            String   @id @default(cuid())
+  curriculumId  String
+  curriculum    Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  instanceId    String
+  title         String
+  description   String?
+  filename      String
+  fileUrl       String
+  fileObjectKey String
+  mimeType      String
+  fileSize      Int
+  createdAt     DateTime @default(now())
+
+  element CurriculumElement?
+
+  @@index([curriculumId])
+  @@index([instanceId])
+  @@map("curriculum_files")
+}
+
+model CurriculumRichContent {
+  id           String   @id @default(cuid())
+  curriculumId String
+  curriculum   Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  instanceId   String
+  title        String
+  bodyJson     Json     @default("[]")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  element CurriculumElement?
+
+  @@index([curriculumId])
+  @@index([instanceId])
+  @@map("curriculum_rich_content")
+}
+
+model CurriculumImage {
+  id            String   @id @default(cuid())
+  curriculumId  String
+  curriculum    Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  instanceId    String
+  fileUrl       String
+  fileObjectKey String
+  mimeType      String
+  fileSize      Int
+  createdAt     DateTime @default(now())
+
+  @@index([curriculumId])
+  @@index([instanceId])
+  @@map("curriculum_images")
+}
+
+model ElementProgress {
+  id              String               @id @default(cuid())
+  studentId       String
+  student         Student              @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  elementId       String
+  element         CurriculumElement    @relation(fields: [elementId], references: [id], onDelete: Cascade)
+  instanceId      String
+  status          ElementProgressStatus @default(NOT_STARTED)
+  progressPercent Int                  @default(0)
+  startedAt       DateTime?
+  completedAt     DateTime?
+  updatedAt       DateTime             @updatedAt
+
+  @@unique([studentId, elementId])
+  @@index([studentId])
+  @@index([instanceId])
+  @@map("element_progress")
+}
+
+model CourseProgress {
+  id                String   @id @default(cuid())
+  studentId         String
+  student           Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  courseId          String
+  instanceId        String
+  totalRequired     Int      @default(0)
+  completedRequired Int      @default(0)
+  percent           Int      @default(0)
+  updatedAt         DateTime @updatedAt
+
+  @@unique([studentId, courseId])
+  @@index([instanceId])
+  @@map("course_progress")
 }

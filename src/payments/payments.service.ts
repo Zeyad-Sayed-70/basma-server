@@ -539,7 +539,9 @@ export class PaymentsService {
     const obj = body['obj'] as Record<string, unknown> | undefined;
     const bodyHmac =
       queryHmac ||
-      String(body['hmac'] ?? body['hmac_header'] ?? (obj ? obj['hmac'] : '') ?? '');
+      String(
+        body['hmac'] ?? body['hmac_header'] ?? (obj ? obj['hmac'] : '') ?? '',
+      );
 
     if (!bodyHmac) {
       this.logger.warn(

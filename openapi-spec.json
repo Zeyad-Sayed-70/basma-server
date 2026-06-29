@@ -4769,6 +4769,1286 @@
           "AI Agent"
         ]
       }
+    },
+    "/api/courses/{courseId}/curriculum": {
+      "post": {
+        "description": "Creates a curriculum for a course. Idempotent — returns existing if already created.",
+        "operationId": "CurriculumController_create",
+        "parameters": [
+          {
+            "name": "courseId",
+            "required": true,
+            "in": "path",
+            "description": "Course ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCurriculumDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Curriculum created or already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurriculumResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden — teacher role required"
+          },
+          "404": {
+            "description": "Course not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create or get curriculum for a course",
+        "tags": [
+          "Curriculum"
+        ]
+      },
+      "get": {
+        "description": "Returns the full curriculum for a course with all elements ordered by position. For students, includes per-element progress and course-level progress.",
+        "operationId": "CurriculumController_findByCourse",
+        "parameters": [
+          {
+            "name": "courseId",
+            "required": true,
+            "in": "path",
+            "description": "Course ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Curriculum retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurriculumResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Course not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get curriculum with all elements",
+        "tags": [
+          "Curriculum"
+        ]
+      }
+    },
+    "/api/curriculum/{id}": {
+      "patch": {
+        "operationId": "CurriculumController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Curriculum ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCurriculumDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Curriculum updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurriculumResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden — teacher role required"
+          },
+          "404": {
+            "description": "Curriculum not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update curriculum metadata",
+        "tags": [
+          "Curriculum"
+        ]
+      },
+      "delete": {
+        "operationId": "CurriculumController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Curriculum ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Curriculum deleted"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden — teacher role required"
+          },
+          "404": {
+            "description": "Curriculum not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete curriculum and all elements",
+        "tags": [
+          "Curriculum"
+        ]
+      }
+    },
+    "/api/curriculum/{id}/elements/video": {
+      "post": {
+        "description": "Uploads a video file and creates a VIDEO curriculum element. Accepted formats: mp4, webm, etc. Max file size is configurable.",
+        "operationId": "ElementsController_addVideo",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Curriculum ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file",
+                  "title"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Video file (mp4, webm, etc.)"
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "Element title"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Video description"
+                  },
+                  "durationSeconds": {
+                    "type": "integer",
+                    "description": "Duration in seconds"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Video element created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — file missing or invalid"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden — teacher role required"
+          },
+          "404": {
+            "description": "Curriculum not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add video element",
+        "tags": [
+          "Curriculum"
+        ]
+      }
+    },
+    "/api/curriculum/{id}/elements/file": {
+      "post": {
+        "description": "Uploads a file (PDF, DOCX, etc.) and creates a FILE curriculum element.",
+        "operationId": "ElementsController_addFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Curriculum ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file",
+                  "title"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "File to upload"
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "Element title"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "File description"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "File element created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — file missing or invalid"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden — teacher role required"
+          },
+          "404": {
+            "description": "Curriculum not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add file element",
+        "tags": [
+          "Curriculum"
+        ]
+      }
+    },
+    "/api/curriculum/{id}/elements/rich-content": {
+      "post": {
+        "description": "Creates a RICH_CONTENT element with Tiptap-compatible JSON body. Only allowlisted node types are accepted (paragraph, heading, bulletList, orderedList, taskList, blockquote, codeBlock, horizontalRule, image, text).",
+        "operationId": "ElementsController_addRichContent",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Curriculum ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRichContentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Rich content element created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — invalid content structure"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden — teacher role required"
+          },
+          "404": {
+            "description": "Curriculum not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add rich content element",
+        "tags": [
+          "Curriculum"
+        ]
+      }
+    },
+    "/api/curriculum/{id}/elements/quiz/{quizId}": {
+      "post": {
+        "operationId": "ElementsController_attachQuiz",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Curriculum ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "quizId",
+            "required": true,
+            "in": "path",
+            "description": "Quiz ID to attach",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Quiz attached as curriculum element",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden — teacher role required"
+          },
+          "404": {
+            "description": "Quiz or curriculum not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Attach existing quiz as curriculum element",
+        "tags": [
+          "Curriculum"
+        ]
+      }
+    },
+    "/api/curriculum/{id}/elements/assignment/{assignmentId}": {
+      "post": {
+        "operationId": "ElementsController_attachAssignment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Curriculum ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assignmentId",
+            "required": true,
+            "in": "path",
+            "description": "Assignment ID to attach",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Assignment attached as curriculum element",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden — teacher role required"
+          },
+          "404": {
+            "description": "Assignment or curriculum not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Attach existing assignment as curriculum element",
+        "tags": [
+          "Curriculum"
+        ]
+      }
+    },
+    "/api/curriculum/{id}/elements/session/{sessionId}": {
+      "post": {
+        "operationId": "ElementsController_attachSession",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Curriculum ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "description": "Session ID to attach",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Session attached as curriculum element",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden — teacher role required"
+          },
+          "404": {
+            "description": "Session or curriculum not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Attach existing session as curriculum element",
+        "tags": [
+          "Curriculum"
+        ]
+      }
+    },
+    "/api/curriculum/{id}/elements/upload-image": {
+      "post": {
+        "description": "Uploads an image to the curriculum's image library. Returns a URL that can be embedded in rich content bodyJson.",
+        "operationId": "ElementsController_uploadImage",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Curriculum ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Image file (jpg, png, gif, webp)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Image uploaded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "example": "clx..."
+                    },
+                    "fileUrl": {
+                      "type": "string",
+                      "example": "https://minio.example.com/curriculum/images/.../image.png"
+                    },
+                    "fileObjectKey": {
+                      "type": "string",
+                      "example": "curriculum/images/demo/clx.../image.png"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — file missing"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden — teacher role required"
+          },
+          "404": {
+            "description": "Curriculum not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Upload image for rich content",
+        "tags": [
+          "Curriculum"
+        ]
+      }
+    },
+    "/api/curriculum/{id}/reorder": {
+      "post": {
+        "description": "Sets a new ordering for all elements in the curriculum. Provide all element IDs in the desired order. The count must match the total number of elements.",
+        "operationId": "ElementsController_reorder",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Curriculum ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Elements reordered"
+          },
+          "400": {
+            "description": "Bad request — ID count mismatch or invalid IDs"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden — teacher role required"
+          },
+          "404": {
+            "description": "Curriculum not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Reorder curriculum elements",
+        "tags": [
+          "Curriculum"
+        ]
+      }
+    },
+    "/api/elements/{id}": {
+      "patch": {
+        "description": "Updates element properties like title, required flag, or type-specific fields. For RICH_CONTENT elements, bodyJson can be updated. For VIDEO elements, description can be updated. For FILE elements, fileDescription can be updated.",
+        "operationId": "ElementsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Element ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateElementDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Element updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — invalid content structure"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden — teacher role required"
+          },
+          "404": {
+            "description": "Element not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update element metadata",
+        "tags": [
+          "Curriculum"
+        ]
+      },
+      "delete": {
+        "description": "Deletes a curriculum element. If it is a VIDEO or FILE type, the associated file is also removed from storage.",
+        "operationId": "ElementsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Element ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Element deleted"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden — teacher role required"
+          },
+          "404": {
+            "description": "Element not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete element",
+        "tags": [
+          "Curriculum"
+        ]
+      }
+    },
+    "/api/elements/{id}/replace-video": {
+      "patch": {
+        "description": "Uploads a new video file to replace the existing one. The old file is deleted from storage. Returns updated video metadata.",
+        "operationId": "ElementsController_replaceVideo",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Element ID (must be VIDEO type)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "New video file"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Video replaced",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "videoUrl": {
+                      "type": "string"
+                    },
+                    "mimeType": {
+                      "type": "string"
+                    },
+                    "fileSize": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — file missing"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden — teacher role required"
+          },
+          "404": {
+            "description": "Video element not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Replace video file",
+        "tags": [
+          "Curriculum"
+        ]
+      }
+    },
+    "/api/elements/{id}/replace-file": {
+      "patch": {
+        "description": "Uploads a new file to replace the existing one. The old file is deleted from storage. Returns updated file metadata.",
+        "operationId": "ElementsController_replaceFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Element ID (must be FILE type)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "New file"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "File replaced",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "filename": {
+                      "type": "string"
+                    },
+                    "fileUrl": {
+                      "type": "string"
+                    },
+                    "mimeType": {
+                      "type": "string"
+                    },
+                    "fileSize": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — file missing"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden — teacher role required"
+          },
+          "404": {
+            "description": "File element not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Replace file",
+        "tags": [
+          "Curriculum"
+        ]
+      }
+    },
+    "/api/courses/{courseId}/progress": {
+      "get": {
+        "description": "Returns the overall course progress (percentage, completed/total required elements).",
+        "operationId": "ProgressController_getCourseProgress",
+        "parameters": [
+          {
+            "name": "courseId",
+            "required": true,
+            "in": "path",
+            "description": "Course ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Course progress retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CourseProgressResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden — student role required"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get course progress for current student",
+        "tags": [
+          "Curriculum"
+        ]
+      }
+    },
+    "/api/curriculum/{id}/progress": {
+      "get": {
+        "description": "Returns progress for every element in the curriculum plus aggregated course progress.",
+        "operationId": "ProgressController_getCurriculumProgress",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Curriculum ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Curriculum progress retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurriculumProgressResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden — student role required"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get per-element progress for a curriculum",
+        "tags": [
+          "Curriculum"
+        ]
+      }
+    },
+    "/api/elements/{id}/progress/start": {
+      "post": {
+        "description": "Sets the element progress status to IN_PROGRESS. Idempotent — calling again updates the startedAt timestamp.",
+        "operationId": "ProgressController_startElement",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Element ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Element marked as started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementProgressResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden — student role required"
+          },
+          "404": {
+            "description": "Element not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Mark element as started",
+        "tags": [
+          "Curriculum"
+        ]
+      }
+    },
+    "/api/elements/{id}/progress": {
+      "patch": {
+        "description": "Updates the progress percentage (0-100). If progressPercent >= 95, status auto-advances to COMPLETED. Triggers course-level progress recomputation.",
+        "operationId": "ProgressController_updateProgress",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Element ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProgressUpdateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Progress updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementProgressResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — invalid percentage"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden — student role required"
+          },
+          "404": {
+            "description": "Element not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update element progress percentage",
+        "tags": [
+          "Curriculum"
+        ]
+      }
+    },
+    "/api/elements/{id}/progress/complete": {
+      "post": {
+        "description": "Sets the element progress status to COMPLETED with 100%. Triggers course-level progress recomputation.",
+        "operationId": "ProgressController_completeElement",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Element ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Element marked as completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementProgressResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden — student role required"
+          },
+          "404": {
+            "description": "Element not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Mark element as completed",
+        "tags": [
+          "Curriculum"
+        ]
+      }
+    },
+    "/api/courses/{courseId}/students/{studentId}/progress": {
+      "get": {
+        "description": "Allows a teacher to view any student's overall progress in a course.",
+        "operationId": "ProgressController_getStudentProgress",
+        "parameters": [
+          {
+            "name": "courseId",
+            "required": true,
+            "in": "path",
+            "description": "Course ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "description": "Student ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Student course progress retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CourseProgressResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden — teacher role required"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get a student's course progress (teacher view)",
+        "tags": [
+          "Curriculum"
+        ]
+      }
     }
   },
   "info": {
@@ -7997,6 +9277,625 @@
         },
         "required": [
           "content"
+        ]
+      },
+      "CreateCurriculumDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Optional override title for curriculum"
+          }
+        }
+      },
+      "CurriculumCount": {
+        "type": "object",
+        "properties": {
+          "elements": {
+            "type": "number",
+            "example": 5
+          }
+        },
+        "required": [
+          "elements"
+        ]
+      },
+      "VideoDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "title": {
+            "type": "string",
+            "example": "Introduction Video"
+          },
+          "description": {
+            "type": "string",
+            "example": "Course overview video"
+          },
+          "videoUrl": {
+            "type": "string",
+            "example": "https://minio.example.com/curriculum/videos/..."
+          },
+          "mimeType": {
+            "type": "string",
+            "example": "video/mp4"
+          },
+          "fileSize": {
+            "type": "number",
+            "example": 52428800
+          },
+          "durationSeconds": {
+            "type": "number",
+            "example": 300
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "videoUrl",
+          "mimeType",
+          "fileSize"
+        ]
+      },
+      "FileDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "title": {
+            "type": "string",
+            "example": "Lecture Notes"
+          },
+          "description": {
+            "type": "string",
+            "example": "Chapter 1 notes"
+          },
+          "filename": {
+            "type": "string",
+            "example": "lecture-1.pdf"
+          },
+          "fileUrl": {
+            "type": "string",
+            "example": "https://minio.example.com/curriculum/files/..."
+          },
+          "mimeType": {
+            "type": "string",
+            "example": "application/pdf"
+          },
+          "fileSize": {
+            "type": "number",
+            "example": 1048576
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "filename",
+          "fileUrl",
+          "mimeType",
+          "fileSize"
+        ]
+      },
+      "RichContentDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "title": {
+            "type": "string",
+            "example": "Lesson Content"
+          },
+          "bodyJson": {
+            "example": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Hello"
+                  }
+                ]
+              }
+            ],
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "bodyJson"
+        ]
+      },
+      "ReferenceDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "title": {
+            "type": "string",
+            "example": "Quiz Title"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ]
+      },
+      "SessionSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "title": {
+            "type": "string",
+            "example": "Live Session"
+          },
+          "startTime": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2025-01-15T10:00:00.000Z"
+          },
+          "endTime": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2025-01-15T11:00:00.000Z"
+          },
+          "type": {
+            "type": "string",
+            "example": "LOCAL"
+          },
+          "location": {
+            "type": "string",
+            "example": "Room 101"
+          },
+          "platform": {
+            "type": "string",
+            "example": "ZOOM"
+          },
+          "meetingUrl": {
+            "type": "string",
+            "example": "https://zoom.us/j/123"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "startTime",
+          "type"
+        ]
+      },
+      "ElementProgressSummaryDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "NOT_STARTED"
+          },
+          "progressPercent": {
+            "type": "number",
+            "example": 0
+          },
+          "completedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "status",
+          "progressPercent"
+        ]
+      },
+      "ElementWithProgressDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "curriculumId": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "type": {
+            "type": "string",
+            "example": "VIDEO"
+          },
+          "title": {
+            "type": "string",
+            "example": "Introduction"
+          },
+          "position": {
+            "type": "number",
+            "example": 1000
+          },
+          "required": {
+            "type": "boolean",
+            "example": true
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          },
+          "video": {
+            "$ref": "#/components/schemas/VideoDto"
+          },
+          "file": {
+            "$ref": "#/components/schemas/FileDto"
+          },
+          "richContent": {
+            "$ref": "#/components/schemas/RichContentDto"
+          },
+          "quiz": {
+            "$ref": "#/components/schemas/ReferenceDto"
+          },
+          "assignment": {
+            "$ref": "#/components/schemas/ReferenceDto"
+          },
+          "session": {
+            "$ref": "#/components/schemas/SessionSummaryDto"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/ElementProgressSummaryDto"
+          }
+        },
+        "required": [
+          "id",
+          "curriculumId",
+          "type",
+          "title",
+          "position",
+          "required",
+          "createdAt",
+          "updatedAt",
+          "progress"
+        ]
+      },
+      "CurriculumResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "courseId": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "title": {
+            "type": "string",
+            "example": "Math 101 Curriculum"
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          },
+          "_count": {
+            "$ref": "#/components/schemas/CurriculumCount"
+          },
+          "elements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ElementWithProgressDto"
+            }
+          },
+          "courseProgress": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "courseId",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "UpdateCurriculumDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Curriculum title override"
+          }
+        }
+      },
+      "ElementResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "curriculumId": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "type": {
+            "type": "string",
+            "example": "VIDEO"
+          },
+          "title": {
+            "type": "string",
+            "example": "Introduction"
+          },
+          "position": {
+            "type": "number",
+            "example": 1000
+          },
+          "required": {
+            "type": "boolean",
+            "example": true
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          },
+          "video": {
+            "$ref": "#/components/schemas/VideoDto"
+          },
+          "file": {
+            "$ref": "#/components/schemas/FileDto"
+          },
+          "richContent": {
+            "$ref": "#/components/schemas/RichContentDto"
+          },
+          "quiz": {
+            "$ref": "#/components/schemas/ReferenceDto"
+          },
+          "assignment": {
+            "$ref": "#/components/schemas/ReferenceDto"
+          },
+          "session": {
+            "$ref": "#/components/schemas/SessionSummaryDto"
+          }
+        },
+        "required": [
+          "id",
+          "curriculumId",
+          "type",
+          "title",
+          "position",
+          "required",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "CreateRichContentDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Element title"
+          },
+          "bodyJson": {
+            "description": "Tiptap-compatible JSON body (array of nodes)",
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "bodyJson"
+        ]
+      },
+      "ReorderDto": {
+        "type": "object",
+        "properties": {
+          "elementIds": {
+            "minItems": 1,
+            "description": "Element IDs in new order (must include all elements)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "elementIds"
+        ]
+      },
+      "UpdateElementDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Element title"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether completion is required"
+          },
+          "bodyJson": {
+            "description": "Rich content body JSON (for RICH_CONTENT type)",
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Video description (for VIDEO type)"
+          },
+          "fileDescription": {
+            "type": "string",
+            "description": "File description (for FILE type)"
+          }
+        }
+      },
+      "CourseProgressResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "studentId": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "courseId": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "totalRequired": {
+            "type": "number",
+            "example": 10
+          },
+          "completedRequired": {
+            "type": "number",
+            "example": 7
+          },
+          "percent": {
+            "type": "number",
+            "example": 70
+          },
+          "updatedAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "studentId",
+          "courseId",
+          "totalRequired",
+          "completedRequired",
+          "percent",
+          "updatedAt"
+        ]
+      },
+      "ElementProgressItemDto": {
+        "type": "object",
+        "properties": {
+          "elementId": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "status": {
+            "type": "string",
+            "example": "IN_PROGRESS"
+          },
+          "progressPercent": {
+            "type": "number",
+            "example": 50
+          },
+          "completedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "elementId",
+          "status",
+          "progressPercent"
+        ]
+      },
+      "CurriculumProgressResponseDto": {
+        "type": "object",
+        "properties": {
+          "elementProgress": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ElementProgressItemDto"
+            }
+          },
+          "courseProgress": {
+            "$ref": "#/components/schemas/CourseProgressResponseDto"
+          }
+        },
+        "required": [
+          "elementProgress",
+          "courseProgress"
+        ]
+      },
+      "ElementProgressResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "studentId": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "elementId": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "status": {
+            "type": "string",
+            "example": "IN_PROGRESS"
+          },
+          "progressPercent": {
+            "type": "number",
+            "example": 50
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          },
+          "completedAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "studentId",
+          "elementId",
+          "status",
+          "progressPercent",
+          "updatedAt"
+        ]
+      },
+      "ProgressUpdateDto": {
+        "type": "object",
+        "properties": {
+          "progressPercent": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Progress percentage (0-100)"
+          }
+        },
+        "required": [
+          "progressPercent"
         ]
       },
       "JoinGroupDto": {

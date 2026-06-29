@@ -108,6 +108,11 @@ export class CoursesService {
       await this.assertStudentEnrolled(id, user.id);
     }
 
+    const curriculum = await this.prisma.curriculum.findFirst({
+      where: { courseId: id, instanceId },
+      select: { id: true },
+    });
+
     return {
       id: course.id,
       title: course.title,
@@ -117,6 +122,7 @@ export class CoursesService {
       instanceId: course.instanceId,
       studentCount: { total: course._count.enrollments },
       isEnrolled: user?.role === 'student' ? true : undefined,
+      curriculum: curriculum ? { id: curriculum.id } : null,
       createdAt: course.createdAt.toISOString(),
       updatedAt: course.updatedAt.toISOString(),
     };

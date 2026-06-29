@@ -24,6 +24,14 @@ const TENANT_MODELS = new Set([
   'QuestionBank',
   'ChatMessage',
   'ChatReadMarker',
+  'Curriculum',
+  'CurriculumElement',
+  'CurriculumVideo',
+  'CurriculumFile',
+  'CurriculumRichContent',
+  'CurriculumImage',
+  'ElementProgress',
+  'CourseProgress',
 ]);
 
 const SCOPE_ACTIONS = new Set([

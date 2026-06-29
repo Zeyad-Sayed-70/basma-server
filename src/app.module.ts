@@ -20,6 +20,7 @@ import { ChatModule } from './chat/chat.module';
 import { AgentSpaceModule } from './agent-space/agent-space.module';
 import { AgentStudentDataModule } from './agent-student-data/agent-student-data.module';
 import { AiAgentModule } from './ai-agent/ai-agent.module';
+import { CurriculumModule } from './curriculum/curriculum.module';
 import { TenantMiddleware } from './common/context/tenant.middleware';
 
 @Module({
@@ -45,6 +46,7 @@ import { TenantMiddleware } from './common/context/tenant.middleware';
     AgentSpaceModule,
     AgentStudentDataModule,
     AiAgentModule,
+    CurriculumModule,
   ],
 })
 export class AppModule implements NestModule {
