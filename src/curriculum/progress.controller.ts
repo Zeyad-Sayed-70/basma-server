@@ -52,7 +52,10 @@ export class ProgressController {
     type: CourseProgressResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden — student role required' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden — student role required',
+  })
   async getCourseProgress(
     @Param('courseId') courseId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -75,7 +78,10 @@ export class ProgressController {
     type: CurriculumProgressResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden — student role required' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden — student role required',
+  })
   async getCurriculumProgress(
     @Param('id') id: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -99,7 +105,10 @@ export class ProgressController {
     type: ElementProgressResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden — student role required' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden — student role required',
+  })
   @ApiResponse({ status: 404, description: 'Element not found' })
   async startElement(
     @Param('id') id: string,
@@ -127,7 +136,10 @@ export class ProgressController {
   })
   @ApiResponse({ status: 400, description: 'Bad request — invalid percentage' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden — student role required' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden — student role required',
+  })
   @ApiResponse({ status: 404, description: 'Element not found' })
   async updateProgress(
     @Param('id') id: string,
@@ -157,7 +169,10 @@ export class ProgressController {
     type: ElementProgressResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden — student role required' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden — student role required',
+  })
   @ApiResponse({ status: 404, description: 'Element not found' })
   async completeElement(
     @Param('id') id: string,
@@ -182,7 +197,10 @@ export class ProgressController {
     type: CourseProgressResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden — teacher role required' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden — teacher role required',
+  })
   async getStudentProgress(
     @Param('courseId') courseId: string,
     @Param('studentId') studentId: string,

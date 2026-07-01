@@ -53,7 +53,11 @@ class RichContentDto {
   @ApiProperty({ example: 'Lesson Content' })
   title: string;
 
-  @ApiProperty({ example: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hello' }] }] })
+  @ApiProperty({
+    example: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'Hello' }] },
+    ],
+  })
   bodyJson: Record<string, unknown>[];
 }
 

@@ -32,6 +32,7 @@ const TENANT_MODELS = new Set([
   'CurriculumImage',
   'ElementProgress',
   'CourseProgress',
+  'VideoJob',
 ]);
 
 const SCOPE_ACTIONS = new Set([

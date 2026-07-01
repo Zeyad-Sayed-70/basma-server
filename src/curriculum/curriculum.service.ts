@@ -78,13 +78,24 @@ export class CurriculumService {
       return null;
     }
 
-    let progressMap = new Map<string, { status: string; progressPercent: number; completedAt: Date | null }>();
+    let progressMap = new Map<
+      string,
+      { status: string; progressPercent: number; completedAt: Date | null }
+    >();
     let courseProgressData = null;
 
     if (studentId) {
       const progressRows = await this.prisma.elementProgress.findMany({
-        where: { studentId, elementId: { in: curriculum.elements.map((e) => e.id) } },
-        select: { elementId: true, status: true, progressPercent: true, completedAt: true },
+        where: {
+          studentId,
+          elementId: { in: curriculum.elements.map((e) => e.id) },
+        },
+        select: {
+          elementId: true,
+          status: true,
+          progressPercent: true,
+          completedAt: true,
+        },
       });
       progressMap = new Map(progressRows.map((p) => [p.elementId, p]));
 
@@ -98,7 +109,11 @@ export class CurriculumService {
       return {
         ...el,
         progress: p
-          ? { status: p.status, progressPercent: p.progressPercent, completedAt: p.completedAt }
+          ? {
+              status: p.status,
+              progressPercent: p.progressPercent,
+              completedAt: p.completedAt,
+            }
           : { status: 'NOT_STARTED', progressPercent: 0, completedAt: null },
       };
     });

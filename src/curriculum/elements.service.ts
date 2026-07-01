@@ -3,10 +3,13 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MinioService } from '../minio/minio.service';
 import { TenantContext } from '../common/context/tenant-context';
+import { VideoJobsProducer } from '../youtube/jobs/video-jobs.producer';
+import { BundleService } from '../youtube/bundle.service';
 import { CreateVideoElementDto } from './dto/create-video-element.dto';
 import { CreateFileElementDto } from './dto/create-file-element.dto';
 import { CreateRichContentDto } from './dto/create-rich-content.dto';
@@ -15,12 +18,19 @@ import { ReorderDto } from './dto/reorder.dto';
 import { validateRichContent } from './rich-content.util';
 import type { CurriculumElementType } from '@prisma/client';
 import { Prisma } from '@prisma/client';
+import { VideoJobResponseDto } from '../youtube/dto/job-response.dto';
+import type { StreamResponseDto } from '../youtube/dto/stream-bundle.dto';
+import * as fs from 'node:fs';
 
 @Injectable()
 export class ElementsService {
+  private readonly logger = new Logger(ElementsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly minio: MinioService,
+    private readonly videoJobsProducer: VideoJobsProducer,
+    private readonly bundleService: BundleService,
   ) {}
 
   private getInstanceId(): string {
@@ -40,17 +50,27 @@ export class ElementsService {
   async addVideo(
     curriculumId: string,
     dto: CreateVideoElementDto,
-    file: Express.Multer.File,
+    filePath: string,
+    originalName: string,
+    mimeType: string,
+    fileSize: number,
   ) {
     const instanceId = this.getInstanceId();
     await this.assertCurriculumAccess(curriculumId, instanceId);
 
     const cuid = this.generateId();
-    const ext = file.originalname.split('.').pop() ?? 'mp4';
+    const ext = originalName.split('.').pop() ?? 'mp4';
     const objectPath = `curriculum/videos/${instanceId}/${cuid}/${cuid}.${ext}`;
 
-    await this.minio.uploadBuffer(file.buffer, objectPath, file.mimetype);
+    const fileBuffer = fs.readFileSync(filePath);
+    await this.minio.uploadBuffer(fileBuffer, objectPath, mimeType);
     const videoUrl = this.minio.getObjectUrl(objectPath);
+
+    try {
+      fs.unlinkSync(filePath);
+    } catch {
+      /* best-effort */
+    }
 
     const maxPosition = await this.getMaxPosition(curriculumId);
 
@@ -62,8 +82,8 @@ export class ElementsService {
         description: dto.description,
         videoUrl,
         fileObjectKey: objectPath,
-        mimeType: file.mimetype,
-        fileSize: file.buffer.length,
+        mimeType,
+        fileSize,
         durationSeconds: dto.durationSeconds ?? null,
       },
     });
@@ -80,7 +100,175 @@ export class ElementsService {
       include: { video: true },
     });
 
-    return element;
+    const videoJob = await this.prisma.videoJob.create({
+      data: {
+        instanceId,
+        curriculumId,
+        elementId: element.id,
+        status: 'PENDING',
+        fileObjectKey: objectPath,
+      },
+    });
+
+    await this.videoJobsProducer.enqueueUpload(element.id, instanceId);
+
+    this.logger.log(`video.added elementId=${element.id} jobId=${videoJob.id}`);
+
+    return {
+      element,
+      job: VideoJobResponseDto.from(videoJob),
+    };
+  }
+
+  async getJob(elementId: string) {
+    const instanceId = this.getInstanceId();
+    const job = await this.prisma.videoJob.findFirst({
+      where: { elementId, instanceId },
+    });
+
+    if (!job) {
+      throw new NotFoundException('No upload job found for this element');
+    }
+
+    return VideoJobResponseDto.from(job);
+  }
+
+  async retryJob(elementId: string) {
+    const instanceId = this.getInstanceId();
+    const job = await this.prisma.videoJob.findFirst({
+      where: { elementId, instanceId },
+    });
+
+    if (!job) throw new NotFoundException('Job not found');
+    if (job.status !== 'FAILED') {
+      throw new BadRequestException('Can only retry a failed job');
+    }
+
+    const updated = await this.prisma.videoJob.update({
+      where: { id: job.id },
+      data: {
+        status: 'PENDING',
+        error: null,
+        attempts: 0,
+        startedAt: null,
+        finishedAt: null,
+        bundleJson: Prisma.JsonNull,
+        bundleExpiresAt: null,
+        youtubeVideoId: null,
+      },
+    });
+
+    if (job.fileObjectKey) {
+      await this.videoJobsProducer.enqueueUpload(elementId, instanceId);
+    }
+
+    this.logger.log(`video.retry elementId=${elementId}`);
+
+    return VideoJobResponseDto.from(updated);
+  }
+
+  async getStream(
+    elementId: string,
+    userId?: string,
+    role?: string,
+  ): Promise<StreamResponseDto> {
+    const instanceId = this.getInstanceId();
+
+    if (role === 'student' && userId) {
+      const element = await this.prisma.curriculumElement.findFirst({
+        where: { id: elementId, instanceId },
+        include: { curriculum: true },
+      });
+      if (element?.curriculum) {
+        const enrollment = await this.prisma.courseEnrollment.findFirst({
+          where: {
+            studentId: userId,
+            courseId: element.curriculum.courseId,
+            instanceId,
+          },
+        });
+        if (!enrollment) {
+          throw new ForbiddenException('You are not enrolled in this course');
+        }
+      }
+    }
+
+    const job = await this.prisma.videoJob.findFirst({
+      where: { elementId, instanceId },
+    });
+
+    if (!job) {
+      return { kind: 'uploading' };
+    }
+
+    if (job.status === 'PENDING' || job.status === 'PROCESSING') {
+      return { kind: 'uploading' };
+    }
+
+    if (job.status === 'CANCELLED') {
+      return { kind: 'failed', error: 'Upload was cancelled' };
+    }
+
+    if (job.status === 'FAILED') {
+      return {
+        kind: 'failed',
+        error: job.error ?? 'Upload failed',
+      };
+    }
+
+    if (job.bundleJson && job.bundleExpiresAt) {
+      const now = new Date();
+      if (now < new Date(job.bundleExpiresAt)) {
+        const raw = job.bundleJson as unknown;
+        const bundles = Array.isArray(raw)
+          ? (raw as Array<{
+              quality: string;
+              container: string;
+              height: number;
+              width: number;
+              videoUrl: string;
+              audioUrl: string;
+              expiresAt: string;
+              bitrateVideo: number;
+              bitrateAudio: number;
+            }>)
+          : (raw as { bundles: Array<any>; preferredContainer?: string })
+              .bundles;
+        const preferredContainer = (
+          Array.isArray(raw)
+            ? bundles.some((b) => b.container === 'mp4')
+              ? 'mp4'
+              : 'webm'
+            : (raw as { preferredContainer?: string }).preferredContainer ??
+              'mp4'
+        ) as 'mp4' | 'webm';
+
+        return {
+          kind: 'bundle',
+          bundle: {
+            elementId,
+            expiresAt: job.bundleExpiresAt.toISOString(),
+            preferredContainer,
+            qualities: bundles.map((b: any) => ({
+              quality: b.quality,
+              height: b.height,
+              width: b.width,
+              container: b.container as 'mp4' | 'webm',
+              videoUrl: b.videoUrl,
+              audioUrl: b.audioUrl,
+              expiresAt: b.expiresAt,
+            })),
+          },
+        };
+      }
+    }
+
+    if (job.youtubeVideoId) {
+      await this.videoJobsProducer.enqueueBundle(elementId, job.youtubeVideoId);
+      return { kind: 'preparing' };
+    }
+
+    return { kind: 'uploading' };
   }
 
   async addFile(
@@ -286,6 +474,11 @@ export class ElementsService {
     });
     if (!element) throw new NotFoundException('Element not found');
 
+    await this.prisma.videoJob.updateMany({
+      where: { elementId: id, status: { in: ['PENDING', 'PROCESSING'] } },
+      data: { status: 'CANCELLED' },
+    });
+
     if (element.video?.fileObjectKey) {
       try {
         await this.minio.deleteObject(element.video.fileObjectKey);
@@ -305,13 +498,24 @@ export class ElementsService {
     await this.prisma.curriculumElement.delete({ where: { id } });
   }
 
-  async replaceVideo(id: string, file: Express.Multer.File) {
+  async replaceVideo(
+    id: string,
+    filePath: string,
+    originalName: string,
+    mimeType: string,
+    fileSize: number,
+  ) {
     const instanceId = this.getInstanceId();
     const element = await this.prisma.curriculumElement.findFirst({
       where: { id, instanceId, type: 'VIDEO' },
       include: { video: true },
     });
     if (!element?.video) throw new NotFoundException('Video element not found');
+
+    await this.prisma.videoJob.updateMany({
+      where: { elementId: id, status: { in: ['PENDING', 'PROCESSING'] } },
+      data: { status: 'CANCELLED' },
+    });
 
     if (element.video.fileObjectKey) {
       try {
@@ -321,20 +525,49 @@ export class ElementsService {
       }
     }
 
-    const ext = file.originalname.split('.').pop() ?? 'mp4';
+    const ext = originalName.split('.').pop() ?? 'mp4';
     const objectPath = `curriculum/videos/${instanceId}/${element.id}/${element.id}.${ext}`;
-    await this.minio.uploadBuffer(file.buffer, objectPath, file.mimetype);
+
+    const fileBuffer = fs.readFileSync(filePath);
+    await this.minio.uploadBuffer(fileBuffer, objectPath, mimeType);
     const videoUrl = this.minio.getObjectUrl(objectPath);
 
-    return this.prisma.curriculumVideo.update({
+    try {
+      fs.unlinkSync(filePath);
+    } catch {
+      /* best-effort */
+    }
+
+    const updatedVideo = await this.prisma.curriculumVideo.update({
       where: { id: element.video.id },
       data: {
         videoUrl,
         fileObjectKey: objectPath,
-        mimeType: file.mimetype,
-        fileSize: file.buffer.length,
+        mimeType,
+        fileSize,
       },
     });
+
+    const videoJob = await this.prisma.videoJob.create({
+      data: {
+        instanceId,
+        curriculumId: element.curriculumId,
+        elementId: id,
+        status: 'PENDING',
+        fileObjectKey: objectPath,
+      },
+    });
+
+    await this.videoJobsProducer.enqueueUpload(id, instanceId);
+
+    this.logger.log(
+      `video.replaced elementId=${id} jobId=${videoJob.id} oldYtId=orphaned`,
+    );
+
+    return {
+      video: updatedVideo,
+      job: VideoJobResponseDto.from(videoJob),
+    };
   }
 
   async replaceFile(id: string, file: Express.Multer.File) {

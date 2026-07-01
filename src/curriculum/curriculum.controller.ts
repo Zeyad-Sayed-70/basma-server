@@ -57,7 +57,10 @@ export class CurriculumController {
     type: CurriculumResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden — teacher role required' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden — teacher role required',
+  })
   @ApiResponse({ status: 404, description: 'Course not found' })
   async create(
     @Param('courseId') courseId: string,
@@ -92,7 +95,10 @@ export class CurriculumController {
     }
 
     const studentId = user?.role === 'student' ? user.id : undefined;
-    const curriculum = await this.curriculumService.findByCourse(courseId, studentId);
+    const curriculum = await this.curriculumService.findByCourse(
+      courseId,
+      studentId,
+    );
     return { data: curriculum };
   }
 
@@ -108,7 +114,10 @@ export class CurriculumController {
     type: CurriculumResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden — teacher role required' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden — teacher role required',
+  })
   @ApiResponse({ status: 404, description: 'Curriculum not found' })
   async update(@Param('id') id: string, @Body() dto: UpdateCurriculumDto) {
     return this.curriculumService.update(id, dto);
@@ -121,7 +130,10 @@ export class CurriculumController {
   @ApiParam({ name: 'id', description: 'Curriculum ID' })
   @ApiResponse({ status: 204, description: 'Curriculum deleted' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden — teacher role required' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden — teacher role required',
+  })
   @ApiResponse({ status: 404, description: 'Curriculum not found' })
   async remove(@Param('id') id: string) {
     await this.curriculumService.remove(id);

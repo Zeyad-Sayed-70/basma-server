@@ -5,3 +5,9 @@ dist/
 .DS_Store
 coverage/
 .tmp/
+
+# YouTube video pipeline — secure assets
+data/*
+!data/.gitkeep
+tmp/*
+!tmp/.gitkeep

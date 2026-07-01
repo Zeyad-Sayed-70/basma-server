@@ -101,6 +101,14 @@ enum ElementProgressStatus {
   COMPLETED
 }
 
+enum VideoJobStatus {
+  PENDING
+  PROCESSING
+  CANCELLED
+  COMPLETED
+  FAILED
+}
+
 model Instance {
   id        String   @id @default(cuid())
   name      String
@@ -762,4 +770,42 @@ model CourseProgress {
   @@unique([studentId, courseId])
   @@index([instanceId])
   @@map("course_progress")
+}
+
+model VideoJob {
+  id              String         @id @default(cuid())
+  instanceId      String
+  curriculumId    String
+  elementId       String         @unique
+  status          VideoJobStatus @default(PENDING)
+  fileObjectKey   String?
+  youtubeVideoId  String?
+  bundleJson      Json?
+  bundleExpiresAt DateTime?
+  error           String?
+  attempts        Int            @default(0)
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([instanceId, status])
+  @@index([bundleExpiresAt])
+  @@map("video_jobs")
+}
+
+model YoutubeChannelAuth {
+  id            String   @id @default("singleton")
+  clientId      String
+  clientSecret  String
+  refreshToken  String
+  accessToken   String?
+  scope         String
+  expiresAt     DateTime?
+  channelId     String?
+  channelTitle  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("youtube_channel_auth")
 }

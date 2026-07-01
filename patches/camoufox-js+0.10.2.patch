@@ -1,0 +1,58 @@
+diff --git a/better-sqlite3-shim.mjs b/better-sqlite3-shim.mjs
+--- a/better-sqlite3-shim.mjs
++++ b/better-sqlite3-shim.mjs
+@@ -0,0 +1,46 @@
++import initSqlJs from 'sql.js';
++import * as fs from 'node:fs';
++
++const SQL = await initSqlJs();
++
++export default class Database {
++  #db;
++
++  constructor(pathName) {
++    const buffer = fs.readFileSync(pathName);
++    this.#db = new SQL.Database(buffer);
++  }
++
++  prepare(sql) {
++    return new Statement(this.#db, sql);
++  }
++
++  close() {
++    this.#db.close();
++  }
++}
++
++class Statement {
++  #db;
++  #sql;
++  constructor(db, sql) {
++    this.#db = db;
++    this.#sql = sql;
++  }
++
++  all(...params) {
++    const stmt = this.#db.prepare(this.#sql);
++    if (params.length > 0) {
++      stmt.bind(params);
++    }
++    const rows = [];
++    while (stmt.step()) {
++      rows.push(stmt.getAsObject());
++    }
++    stmt.free();
++    return rows;
++  }
++}
+diff --git a/dist/webgl/sample.js b/dist/webgl/sample.js
+--- a/dist/webgl/sample.js
++++ b/dist/webgl/sample.js
+@@ -14,7 +14,7 @@ async function openDatabase(pathName) {
+         }
+         else {
+-            const { default: BetterSqlite3 } = await import("better-sqlite3");
++            const { default: BetterSqlite3 } = await import("../../better-sqlite3-shim.mjs");
+             DatabaseConstructor = BetterSqlite3;
+         }
+     }

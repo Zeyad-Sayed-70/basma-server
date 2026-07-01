@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BullModule } from '@nestjs/bullmq';
 import { CurriculumController } from './curriculum.controller';
 import { CurriculumService } from './curriculum.service';
 import { ElementsController } from './elements.controller';
@@ -9,9 +10,18 @@ import { ProgressListener } from './progress.listener';
 import { SessionCompleteScheduler } from './session-complete.scheduler';
 import { CoursesModule } from '../courses/courses.module';
 import { MinioModule } from '../minio/minio.module';
+import { YoutubeModule } from '../youtube/youtube.module';
 
 @Module({
-  imports: [CoursesModule, MinioModule],
+  imports: [
+    CoursesModule,
+    MinioModule,
+    YoutubeModule,
+    BullModule.registerQueue(
+      { name: 'video-jobs.upload' },
+      { name: 'video-jobs.bundle' },
+    ),
+  ],
   controllers: [CurriculumController, ElementsController, ProgressController],
   providers: [
     CurriculumService,
