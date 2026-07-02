@@ -37,13 +37,16 @@ class GradebookAssignmentScore {
   title: string;
 
   @ApiPropertyOptional({
-    example: 18,
+    example: 85,
     description: 'Grade achieved (null if not yet graded)',
   })
   grade: number | null;
 
+  @ApiProperty({ example: 100, description: 'Maximum marks / total degree for this assignment' })
+  totalMarks: number;
+
   @ApiPropertyOptional({
-    example: 75,
+    example: 85,
     description: 'Percentage of max grade in this assignment set',
   })
   percentage?: number | null;

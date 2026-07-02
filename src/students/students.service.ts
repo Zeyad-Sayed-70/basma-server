@@ -43,6 +43,23 @@ export class StudentsService {
     } as unknown as number;
   }
 
+  private async autoEnrollFreeCourses(studentId: string, groupId: string, instanceId: string) {
+    const freeCourses = await this.prisma.course.findMany({
+      where: { groupId, instanceId, price: 0 },
+      select: { id: true },
+    });
+    if (freeCourses.length > 0) {
+      await this.prisma.courseEnrollment.createMany({
+        data: freeCourses.map((c) => ({
+          studentId,
+          courseId: c.id,
+          instanceId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+  }
+
   async create(dto: CreateStudentDto) {
     const instanceId = this.getInstanceId();
 
@@ -72,7 +89,7 @@ export class StudentsService {
       }
     }
 
-    return this.prisma.student.create({
+    const student = await this.prisma.student.create({
       data: {
         name: dto.name,
         email: dto.email,
@@ -82,6 +99,10 @@ export class StudentsService {
         instanceId,
       },
     });
+
+    await this.autoEnrollFreeCourses(student.id, dto.groupId, instanceId);
+
+    return student;
   }
 
   async findAll(groupId?: string) {
@@ -237,7 +258,7 @@ export class StudentsService {
       });
       const isOverLimit = currentCount >= limit;
 
-      await this.prisma.student.create({
+      const student = await this.prisma.student.create({
         data: {
           name: row.name,
           email: row.email,
@@ -247,6 +268,8 @@ export class StudentsService {
           instanceId,
         },
       });
+
+      await this.autoEnrollFreeCourses(student.id, dto.groupId, instanceId);
 
       if (isOverLimit) {
         inactive++;
@@ -330,6 +353,8 @@ export class StudentsService {
         instanceId,
       },
     });
+
+    await this.autoEnrollFreeCourses(student.id, group.id, instanceId);
 
     return {
       id: student.id,

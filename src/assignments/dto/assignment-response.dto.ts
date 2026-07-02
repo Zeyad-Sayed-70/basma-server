@@ -19,6 +19,9 @@ export class AssignmentResponseDto {
   @ApiProperty({ example: 'clx...' })
   instanceId: string;
 
+  @ApiProperty({ example: 100, description: 'Maximum marks / total degree' })
+  totalMarks: number;
+
   @ApiProperty({ example: '2025-01-01T00:00:00.000Z' })
   createdAt: string;
 

@@ -373,6 +373,7 @@ model Assignment {
   title       String
   description String?
   dueDate     DateTime?
+  maxGrade    Int       @default(100)
   courseId    String
   course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
   instanceId  String

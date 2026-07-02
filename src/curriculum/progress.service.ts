@@ -22,16 +22,19 @@ export class ProgressService {
     });
     if (!element) throw new NotFoundException('Element not found');
 
-    const progress = await this.prisma.elementProgress.upsert({
+    const existing = await this.prisma.elementProgress.findUnique({
       where: { studentId_elementId: { studentId, elementId } },
-      create: {
+    });
+
+    if (existing) {
+      return existing;
+    }
+
+    const progress = await this.prisma.elementProgress.create({
+      data: {
         studentId,
         elementId,
         instanceId: element.instanceId,
-        status: 'IN_PROGRESS',
-        startedAt: new Date(),
-      },
-      update: {
         status: 'IN_PROGRESS',
         startedAt: new Date(),
       },
@@ -50,8 +53,17 @@ export class ProgressService {
     });
     if (!element) throw new NotFoundException('Element not found');
 
-    const status = progressPercent >= 95 ? 'COMPLETED' : 'IN_PROGRESS';
-    const completedAt = status === 'COMPLETED' ? new Date() : null;
+    const existing = await this.prisma.elementProgress.findUnique({
+      where: { studentId_elementId: { studentId, elementId } },
+    });
+
+    let status: 'COMPLETED' | 'IN_PROGRESS' = progressPercent >= 95 ? 'COMPLETED' : 'IN_PROGRESS';
+    let completedAt = status === 'COMPLETED' ? new Date() : null;
+
+    if (existing?.status === 'COMPLETED') {
+      status = 'COMPLETED';
+      completedAt = existing.completedAt;
+    }
 
     const progress = await this.prisma.elementProgress.upsert({
       where: { studentId_elementId: { studentId, elementId } },

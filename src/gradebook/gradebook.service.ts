@@ -72,11 +72,16 @@ export class GradebookService {
                   },
                 },
               });
+            const maxGrade = assignment.maxGrade;
             return {
               assignmentId: assignment.id,
               title: assignment.title,
               grade: submission?.grade ?? null,
-              percentage: null,
+              totalMarks: maxGrade,
+              percentage:
+                submission?.grade != null
+                  ? Math.round((submission.grade / maxGrade) * 100)
+                  : null,
             };
           }),
         );
@@ -86,8 +91,8 @@ export class GradebookService {
             .filter((q) => q.percentage != null)
             .map((q) => q.percentage!),
           ...assignmentGrades
-            .filter((a) => a.grade != null)
-            .map((a) => a.grade!),
+            .filter((a) => a.percentage != null)
+            .map((a) => a.percentage!),
         ];
         const overallPercentage =
           allScores.length > 0
@@ -143,6 +148,7 @@ export class GradebookService {
           assignmentId: string;
           title: string;
           grade: number | null;
+          totalMarks: number;
           percentage: number | null;
         }> = [];
 
@@ -183,11 +189,16 @@ export class GradebookService {
                   },
                 },
               });
+            const maxGrade = assignment.maxGrade;
             allAssignments.push({
               assignmentId: assignment.id,
               title: assignment.title,
               grade: submission?.grade ?? null,
-              percentage: null,
+              totalMarks: maxGrade,
+              percentage:
+                submission?.grade != null
+                  ? Math.round((submission.grade / maxGrade) * 100)
+                  : null,
             });
           }
         }
@@ -196,7 +207,9 @@ export class GradebookService {
           ...allQuizzes
             .filter((q) => q.percentage != null)
             .map((q) => q.percentage!),
-          ...allAssignments.filter((a) => a.grade != null).map((a) => a.grade!),
+          ...allAssignments
+            .filter((a) => a.percentage != null)
+            .map((a) => a.percentage!),
         ];
         const overallPercentage =
           allPercentages.length > 0
@@ -247,6 +260,7 @@ export class GradebookService {
       assignmentId: string;
       title: string;
       grade: number | null;
+      totalMarks: number;
       percentage: number | null;
     }> = [];
 
@@ -287,11 +301,16 @@ export class GradebookService {
               },
             },
           });
+        const maxGrade = assignment.maxGrade;
         allAssignments.push({
           assignmentId: assignment.id,
           title: assignment.title,
           grade: submission?.grade ?? null,
-          percentage: null,
+          totalMarks: maxGrade,
+          percentage:
+            submission?.grade != null
+              ? Math.round((submission.grade / maxGrade) * 100)
+              : null,
         });
       }
     }
@@ -300,7 +319,9 @@ export class GradebookService {
       ...allQuizzes
         .filter((q) => q.percentage != null)
         .map((q) => q.percentage!),
-      ...allAssignments.filter((a) => a.grade != null).map((a) => a.grade!),
+      ...allAssignments
+        .filter((a) => a.percentage != null)
+        .map((a) => a.percentage!),
     ];
     const overallPercentage =
       allPercentages.length > 0

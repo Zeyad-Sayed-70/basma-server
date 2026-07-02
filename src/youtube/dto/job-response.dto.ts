@@ -1,3 +1,5 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
 export enum JobDisplayState {
   PENDING = 'pending',
   PROCESSING = 'processing',
@@ -6,8 +8,13 @@ export enum JobDisplayState {
 }
 
 export class VideoJobResponseDto {
+  @ApiProperty({ example: 'clx...' })
   jobId: string;
+
+  @ApiProperty({ enum: JobDisplayState, example: JobDisplayState.READY })
   state: JobDisplayState;
+
+  @ApiPropertyOptional({ example: 'Upload failed' })
   error?: string;
 
   static from(job: {

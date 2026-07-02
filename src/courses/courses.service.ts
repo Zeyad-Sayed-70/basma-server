@@ -29,7 +29,7 @@ export class CoursesService {
     });
     if (!group) throw new NotFoundException('Group not found');
 
-    return this.prisma.course.create({
+    const course = await this.prisma.course.create({
       data: {
         title: dto.title,
         description: dto.description,
@@ -38,6 +38,25 @@ export class CoursesService {
         instanceId,
       },
     });
+
+    if (course.price === 0) {
+      const students = await this.prisma.student.findMany({
+        where: { groupId: dto.groupId, instanceId },
+        select: { id: true },
+      });
+      if (students.length > 0) {
+        await this.prisma.courseEnrollment.createMany({
+          data: students.map((s) => ({
+            studentId: s.id,
+            courseId: course.id,
+            instanceId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
+
+    return course;
   }
 
   async assertStudentEnrolled(courseId: string, studentId: string) {
@@ -129,9 +148,13 @@ export class CoursesService {
   }
 
   async update(id: string, dto: UpdateCourseDto) {
-    await this.findOne(id);
+    const instanceId = this.getInstanceId();
+    const course = await this.prisma.course.findFirst({
+      where: { id, instanceId },
+    });
+    if (!course) throw new NotFoundException('Course not found');
 
-    return this.prisma.course.update({
+    const updated = await this.prisma.course.update({
       where: { id },
       data: {
         ...(dto.title !== undefined && { title: dto.title }),
@@ -139,6 +162,25 @@ export class CoursesService {
         ...(dto.price !== undefined && { price: dto.price }),
       },
     });
+
+    if (updated.price === 0 && course.price !== 0) {
+      const students = await this.prisma.student.findMany({
+        where: { groupId: updated.groupId, instanceId },
+        select: { id: true },
+      });
+      if (students.length > 0) {
+        await this.prisma.courseEnrollment.createMany({
+          data: students.map((s) => ({
+            studentId: s.id,
+            courseId: updated.id,
+            instanceId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
+
+    return updated;
   }
 
   async remove(id: string) {

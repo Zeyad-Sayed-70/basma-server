@@ -271,6 +271,126 @@ export class ElementsService {
     return { kind: 'uploading' };
   }
 
+  async streamMedia(
+    elementId: string,
+    quality: string,
+    track: string,
+    container: string | undefined,
+    userId: string | undefined,
+    role: string | undefined,
+    res: any,
+  ) {
+    const instanceId = this.getInstanceId();
+
+    if (role === 'student' && userId) {
+      const element = await this.prisma.curriculumElement.findFirst({
+        where: { id: elementId, instanceId },
+        include: { curriculum: true },
+      });
+      if (element?.curriculum) {
+        const enrollment = await this.prisma.courseEnrollment.findFirst({
+          where: {
+            studentId: userId,
+            courseId: element.curriculum.courseId,
+            instanceId,
+          },
+        });
+        if (!enrollment) {
+          throw new ForbiddenException('You are not enrolled in this course');
+        }
+      }
+    }
+
+    const job = await this.prisma.videoJob.findFirst({
+      where: { elementId, instanceId },
+    });
+
+    if (!job?.bundleJson) {
+      throw new NotFoundException('Stream bundle not available');
+    }
+
+    const raw = job.bundleJson as unknown;
+    const bundles = Array.isArray(raw)
+      ? (raw as Array<{
+          quality: string;
+          container: string;
+          videoUrl: string;
+          audioUrl: string;
+        }>)
+      : (raw as { bundles: Array<any> }).bundles;
+
+    const resolvedContainer = container ?? 'mp4';
+    const entry = bundles.find(
+      (b) => b.quality === quality && b.container === resolvedContainer,
+    );
+
+    if (!entry) {
+      throw new NotFoundException(
+        `Quality "${quality}" with container "${resolvedContainer}" not found`,
+      );
+    }
+
+    const url = track === 'audio' ? entry.audioUrl : entry.videoUrl;
+
+    if (!url) {
+      throw new NotFoundException(
+        `No ${track} URL for quality "${quality}"`,
+      );
+    }
+
+    const reqHeaders = res.req?.headers ?? {};
+
+    const range = reqHeaders.range as string | undefined;
+
+    const headers: Record<string, string> = {};
+    if (range) {
+      headers.range = range;
+    }
+
+    for (const key of ['user-agent', 'accept', 'accept-language', 'origin', 'referer']) {
+      const val = reqHeaders[key];
+      if (val && !Array.isArray(val)) {
+        headers[key] = val;
+      }
+    }
+
+    const response = await fetch(url, { headers });
+
+    if (!response.ok && response.status !== 206) {
+      throw new Error(`Upstream returned ${response.status}`);
+    }
+
+    const contentType =
+      response.headers.get('content-type') ??
+      (track === 'video' ? 'video/mp4' : 'audio/mp4');
+    const contentLength = response.headers.get('content-length');
+    const contentRange = response.headers.get('content-range');
+
+    res.setHeader('Content-Type', contentType);
+    if (contentLength) res.setHeader('Content-Length', contentLength);
+    if (contentRange) res.setHeader('Content-Range', contentRange);
+    res.setHeader('Accept-Ranges', 'bytes');
+
+    res.status(response.status);
+
+    if (response.body) {
+      const reader = response.body.getReader();
+      const pump = () => {
+        reader.read().then(({ done, value }) => {
+          if (done) {
+            res.end();
+            return;
+          }
+          res.write(value);
+          pump();
+        });
+      };
+      pump();
+    } else {
+      res.end();
+    }
+  }
+
   async addFile(
     curriculumId: string,
     dto: CreateFileElementDto,
@@ -652,6 +772,15 @@ export class ElementsService {
         );
       }
     }
+
+    await this.prisma.$transaction(
+      dto.elementIds.map((elementId, index) =>
+        this.prisma.curriculumElement.update({
+          where: { id: elementId },
+          data: { position: -(index + 1) },
+        }),
+      ),
+    );
 
     await this.prisma.$transaction(
       dto.elementIds.map((elementId, index) =>

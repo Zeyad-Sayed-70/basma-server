@@ -41,6 +41,7 @@ export class AssignmentsService {
         title: dto.title,
         description: dto.description,
         dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
+        maxGrade: dto.totalMarks ?? 100,
         courseId: dto.courseId,
         instanceId,
       },
@@ -80,6 +81,7 @@ export class AssignmentsService {
       dueDate: a.dueDate?.toISOString() ?? null,
       courseId: a.courseId,
       instanceId: a.instanceId,
+      totalMarks: a.maxGrade,
       createdAt: a.createdAt.toISOString(),
       updatedAt: a.updatedAt.toISOString(),
     }));
@@ -108,6 +110,7 @@ export class AssignmentsService {
       dueDate: assignment.dueDate?.toISOString() ?? null,
       courseId: assignment.courseId,
       instanceId: assignment.instanceId,
+      totalMarks: assignment.maxGrade,
       createdAt: assignment.createdAt.toISOString(),
       updatedAt: assignment.updatedAt.toISOString(),
     };
@@ -124,6 +127,7 @@ export class AssignmentsService {
         ...(dto.dueDate !== undefined && {
           dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
         }),
+        ...(dto.totalMarks !== undefined && { maxGrade: dto.totalMarks }),
       },
     });
   }

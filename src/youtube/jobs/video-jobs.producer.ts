@@ -40,7 +40,20 @@ export class VideoJobsProducer {
   }
 
   async enqueueBundle(elementId: string, youtubeVideoId: string) {
-    const jobId = `bundle-${elementId}-${Date.now()}`;
+    const jobId = `bundle-${elementId}`;
+
+    const existing = await this.bundleQueue.getJob(jobId);
+    if (existing) {
+      const state = await existing.getState();
+      if (state === 'waiting' || state === 'active' || state === 'delayed') {
+        this.logger.log(
+          `bundle.skip elementId=${elementId} already ${state} jobId=${jobId}`,
+        );
+        return;
+      }
+      await existing.remove();
+    }
+
     await this.bundleQueue.add(
       'process',
       { elementId, youtubeVideoId } satisfies BundleJobData,

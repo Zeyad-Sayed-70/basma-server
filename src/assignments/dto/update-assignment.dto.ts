@@ -1,4 +1,4 @@
-import { IsString, MinLength, IsOptional, IsDateString } from 'class-validator';
+import { IsString, MinLength, IsOptional, IsDateString, IsNumber, Min } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateAssignmentDto {
@@ -26,4 +26,13 @@ export class UpdateAssignmentDto {
   @IsDateString()
   @IsOptional()
   dueDate?: string;
+
+  @ApiPropertyOptional({
+    example: 100,
+    description: 'Maximum marks / total degree (defaults to 100)',
+  })
+  @IsNumber()
+  @Min(1)
+  @IsOptional()
+  totalMarks?: number;
 }

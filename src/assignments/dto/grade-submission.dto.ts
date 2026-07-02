@@ -3,12 +3,12 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class GradeSubmissionDto {
   @ApiProperty({
-    example: 18,
-    description: 'Grade / score for the submission (0-100 or custom scale)',
+    example: 85,
+    description: 'Grade / score for the submission (out of assignment maxGrade, default 100)',
   })
   @IsNumber()
   @Min(0)
-  @Max(10000)
+  @Max(100)
   grade: number;
 
   @ApiPropertyOptional({

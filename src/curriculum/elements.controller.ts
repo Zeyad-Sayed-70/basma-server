@@ -6,11 +6,14 @@ import {
   Get,
   Body,
   Param,
+  Query,
   UseGuards,
   UseInterceptors,
   UploadedFile,
   HttpCode,
   HttpStatus,
+  Header,
+  Res,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -20,10 +23,12 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiParam,
+  ApiQuery,
   ApiConsumes,
+  ApiExtraModels,
 } from '@nestjs/swagger';
-import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { StreamAuthGuard } from './stream-auth.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/decorators/current-user.decorator';
@@ -41,10 +46,14 @@ import {
   MAX_VIDEO_SIZE_BYTES,
 } from '../common/uploads/video-upload.config';
 import { VideoJobResponseDto } from '../youtube/dto/job-response.dto';
+import {
+  StreamBundleResponseDto,
+  VideoQualityDto,
+} from '../youtube/dto/stream-bundle.dto';
 
 @ApiTags('Curriculum')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseGuards(StreamAuthGuard, RolesGuard)
 @Controller()
 export class ElementsController {
   constructor(
@@ -90,6 +99,34 @@ export class ElementsController {
   @ApiResponse({
     status: 202,
     description: 'Video upload started',
+    schema: {
+      type: 'object',
+      properties: {
+        element: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', example: 'clx...' },
+            curriculumId: { type: 'string', example: 'clx...' },
+            type: { type: 'string', example: 'VIDEO' },
+            title: { type: 'string', example: 'Introduction' },
+            position: { type: 'integer', example: 1000 },
+            required: { type: 'boolean', example: true },
+            video: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', example: 'clx...' },
+                title: { type: 'string', example: 'Introduction Video' },
+                videoUrl: { type: 'string', example: 'https://minio.example.com/...' },
+                mimeType: { type: 'string', example: 'video/mp4' },
+                fileSize: { type: 'integer', example: 52428800 },
+                durationSeconds: { type: 'integer', example: 300 },
+              },
+            },
+          },
+        },
+        job: { '$ref': '#/components/schemas/VideoJobResponseDto' },
+      },
+    },
   })
   @ApiResponse({
     status: 400,
@@ -164,24 +201,96 @@ export class ElementsController {
   @Post('elements/:id/stream')
   @Roles('teacher', 'student')
   @HttpCode(HttpStatus.OK)
+  @ApiExtraModels(StreamBundleResponseDto, VideoQualityDto)
   @ApiOperation({
     summary: 'Get video stream bundle',
     description:
       'Returns a bundle of direct stream URLs for all video qualities. ' +
-      'If bundle is expired, returns 202 to trigger regeneration. ' +
-      'If upload in progress, returns 409. Student must be enrolled.',
+      'If bundle is expired, returns kind=preparing to trigger regeneration. ' +
+      'If still uploading, returns kind=uploading. ' +
+      'Student must be enrolled in the course.',
   })
   @ApiParam({ name: 'id', description: 'Element ID' })
-  @ApiResponse({ status: 200, description: 'Stream bundle ready' })
-  @ApiResponse({ status: 202, description: 'Bundle is being regenerated' })
+  @ApiResponse({
+    status: 200,
+    description: 'Stream bundle or status',
+    schema: {
+      oneOf: [
+        {
+          type: 'object',
+          properties: {
+            kind: { type: 'string', example: 'bundle' },
+            bundle: { '$ref': '#/components/schemas/StreamBundleResponseDto' },
+          },
+        },
+        {
+          type: 'object',
+          properties: {
+            kind: { type: 'string', example: 'preparing' },
+          },
+        },
+        {
+          type: 'object',
+          properties: {
+            kind: { type: 'string', example: 'uploading' },
+          },
+        },
+        {
+          type: 'object',
+          properties: {
+            kind: { type: 'string', example: 'failed' },
+            error: { type: 'string' },
+          },
+        },
+      ],
+    },
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Not enrolled in course' })
-  @ApiResponse({ status: 409, description: 'Upload in progress or failed' })
   async getStream(
     @Param('id') id: string,
     @CurrentUser() user?: AuthenticatedUser,
   ) {
     return this.elementsService.getStream(id, user?.id, user?.role);
+  }
+
+  @Get('elements/:id/stream/:quality/:track')
+  @Roles('teacher', 'student')
+  @HttpCode(HttpStatus.OK)
+  @Header('Accept-Ranges', 'bytes')
+  @ApiOperation({
+    summary: 'Proxy video/audio stream',
+    description:
+      'Proxies the video or audio track for a given quality. ' +
+      'Supports Range headers for seeking. ' +
+      'The actual CDN URL is never exposed to the client.',
+  })
+  @ApiParam({ name: 'id', description: 'Element ID' })
+  @ApiParam({ name: 'quality', description: 'Quality label e.g. 720p' })
+  @ApiParam({ name: 'track', description: 'Track type: video or audio' })
+  @ApiQuery({ name: 'container', required: false, description: 'Container format (mp4, webm) — defaults to preferredContainer' })
+  @ApiResponse({ status: 200, description: 'Media stream' })
+  @ApiResponse({ status: 206, description: 'Partial content (Range request)' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Not enrolled in course' })
+  @ApiResponse({ status: 404, description: 'Quality or track not found' })
+  async streamMedia(
+    @Param('id') id: string,
+    @Param('quality') quality: string,
+    @Param('track') track: string,
+    @Query('container') container: string | undefined,
+    @CurrentUser() user?: AuthenticatedUser,
+    @Res() res?: any,
+  ) {
+    return this.elementsService.streamMedia(
+      id,
+      quality,
+      track,
+      container,
+      user?.id,
+      user?.role,
+      res,
+    );
   }
 
   @Post('curriculum/:id/elements/file')
@@ -490,6 +599,22 @@ export class ElementsController {
   @ApiResponse({
     status: 200,
     description: 'Video replacement started',
+    schema: {
+      type: 'object',
+      properties: {
+        video: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', example: 'clx...' },
+            title: { type: 'string', example: 'Introduction Video' },
+            videoUrl: { type: 'string', example: 'https://minio.example.com/...' },
+            mimeType: { type: 'string', example: 'video/mp4' },
+            fileSize: { type: 'integer', example: 52428800 },
+          },
+        },
+        job: { '$ref': '#/components/schemas/VideoJobResponseDto' },
+      },
+    },
   })
   @ApiResponse({ status: 400, description: 'Bad request — file missing' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
