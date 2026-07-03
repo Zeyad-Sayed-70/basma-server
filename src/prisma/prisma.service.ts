@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { TenantContext } from '../common/context/tenant-context';
 
 const TENANT_MODELS = new Set([
+  'LandingPage',
   'Teacher',
   'Brand',
   'Group',

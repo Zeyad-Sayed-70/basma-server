@@ -7,10 +7,13 @@ import {
   Body,
   Param,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiOperation,
@@ -19,6 +22,7 @@ import {
   ApiBody,
   ApiParam,
   ApiQuery,
+  ApiConsumes,
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -154,6 +158,45 @@ export class CoursesController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async remove(@Param('id') id: string) {
     await this.coursesService.remove(id);
+  }
+
+  @Post(':id/image')
+  @Roles('teacher')
+  @UseInterceptors(FileInterceptor('file'))
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Upload course image' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Course image file (png, jpg, svg)',
+        },
+      },
+    },
+  })
+  @ApiParam({ name: 'id', description: 'Course ID' })
+  @ApiResponse({ status: 200, description: 'Image uploaded successfully' })
+  @ApiResponse({ status: 404, description: 'Course not found' })
+  async uploadImage(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.coursesService.uploadImage(id, file);
+  }
+
+  @Delete(':id/image')
+  @Roles('teacher')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Remove course image' })
+  @ApiParam({ name: 'id', description: 'Course ID' })
+  @ApiResponse({ status: 200, description: 'Image removed successfully' })
+  @ApiResponse({ status: 404, description: 'Course not found' })
+  async removeImage(@Param('id') id: string) {
+    return this.coursesService.removeImage(id);
   }
 
   @Post(':id/enrollments')

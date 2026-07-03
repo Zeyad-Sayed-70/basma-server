@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
+import { TierFeatureService } from '../common/services/tier-feature.service';
 import { WhatsAppService } from './whatsapp/whatsapp.service';
 
 @Injectable()
@@ -10,6 +11,7 @@ export class NotificationsScheduler {
   constructor(
     private readonly prisma: PrismaService,
     private readonly whatsAppService: WhatsAppService,
+    private readonly tierFeatureService: TierFeatureService,
   ) {}
 
   @Cron('0 8 * * *')
@@ -46,6 +48,15 @@ export class NotificationsScheduler {
     for (const session of sessions) {
       const instanceId = session.instanceId;
       if (!this.whatsAppService.isConnected(instanceId)) continue;
+
+      try {
+        await this.tierFeatureService.requireFeature(
+          instanceId,
+          'sessionNotifications',
+        );
+      } catch {
+        continue;
+      }
 
       const pref = await this.prisma.notificationPreference.findUnique({
         where: { instanceId_type: { instanceId, type: 'SESSION_REMINDER' } },
@@ -107,6 +118,15 @@ export class NotificationsScheduler {
     for (const assignment of assignments) {
       const instanceId = assignment.instanceId;
       if (!this.whatsAppService.isConnected(instanceId)) continue;
+
+      try {
+        await this.tierFeatureService.requireFeature(
+          instanceId,
+          'sessionNotifications',
+        );
+      } catch {
+        continue;
+      }
 
       const pref = await this.prisma.notificationPreference.findUnique({
         where: { instanceId_type: { instanceId, type: 'ASSIGNMENT_DUE' } },
@@ -179,6 +199,19 @@ export class NotificationsScheduler {
 
       if (!this.whatsAppService.isConnected(instanceId)) continue;
 
+      const pref = await this.prisma.notificationPreference.findUnique({
+        where: {
+          instanceId_type: { instanceId, type: notification.type as never },
+        },
+      });
+      if (pref && !pref.enabled) {
+        await this.prisma.notification.update({
+          where: { id: notification.id },
+          data: { status: 'FAILED' },
+        });
+        continue;
+      }
+
       const jid = `${phone}@s.whatsapp.net`;
       const message = `*${notification.title}*\n\n${notification.body}`;
 
@@ -248,6 +281,13 @@ export class NotificationsScheduler {
     for (const log of failedLogs) {
       const instanceId = log.notification.instanceId;
       if (!this.whatsAppService.isConnected(instanceId)) continue;
+
+      const pref = await this.prisma.notificationPreference.findUnique({
+        where: {
+          instanceId_type: { instanceId, type: log.notification.type as never },
+        },
+      });
+      if (pref && !pref.enabled) continue;
 
       const jid = `${log.recipientPhone}@s.whatsapp.net`;
       const message = `*${log.notification.title}*\n\n${log.notification.body}`;

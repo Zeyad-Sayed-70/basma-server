@@ -17,6 +17,7 @@ const EXCLUDED_PATHS = [
   '/admin',
   '/api/docs',
   '/api/brand/public',
+  '/api/landing/public',
   '/api/ws-test',
 ];
 

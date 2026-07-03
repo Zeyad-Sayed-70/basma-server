@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { MinioService } from '../minio/minio.service';
 import { TenantContext } from '../common/context/tenant-context';
 import { TierFeatureService } from '../common/services/tier-feature.service';
 import { CreateCourseDto } from './dto/create-course.dto';
@@ -16,6 +17,7 @@ import { CreateEnrollmentDto } from './dto/create-enrollment.dto';
 export class CoursesService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly minio: MinioService,
     private readonly tierFeatureService: TierFeatureService,
   ) {}
 
@@ -115,6 +117,8 @@ export class CoursesService {
       title: c.title,
       description: c.description,
       price: c.price,
+      imageUrl: c.imageUrl,
+      imageFileSize: c.imageFileSize,
       groupId: c.groupId,
       instanceId: c.instanceId,
       studentCount: { total: c._count.enrollments },
@@ -150,6 +154,8 @@ export class CoursesService {
       title: course.title,
       description: course.description,
       price: course.price,
+      imageUrl: course.imageUrl,
+      imageFileSize: course.imageFileSize,
       groupId: course.groupId,
       instanceId: course.instanceId,
       studentCount: { total: course._count.enrollments },
@@ -204,6 +210,55 @@ export class CoursesService {
     if (!course) throw new NotFoundException('Course not found');
 
     await this.prisma.course.delete({ where: { id } });
+  }
+
+  async uploadImage(id: string, file: Express.Multer.File) {
+    const instanceId = this.getInstanceId();
+
+    const course = await this.prisma.course.findFirst({
+      where: { id, instanceId },
+    });
+    if (!course) throw new NotFoundException('Course not found');
+
+    if (course.imageUrl) {
+      try {
+        await this.minio.deleteObject(course.imageUrl);
+      } catch {
+        // ignore if old file no longer exists
+      }
+    }
+
+    const ext = file.originalname.split('.').pop() ?? 'png';
+    const objectPath = `${instanceId}/courses/${id}/${Date.now()}.${ext}`;
+    await this.minio.uploadBuffer(file.buffer, objectPath, file.mimetype);
+    const imageUrl = this.minio.getObjectUrl(objectPath);
+
+    return this.prisma.course.update({
+      where: { id },
+      data: { imageUrl, imageFileSize: file.buffer.length },
+    });
+  }
+
+  async removeImage(id: string) {
+    const instanceId = this.getInstanceId();
+
+    const course = await this.prisma.course.findFirst({
+      where: { id, instanceId },
+    });
+    if (!course) throw new NotFoundException('Course not found');
+
+    if (course.imageUrl) {
+      try {
+        await this.minio.deleteObject(course.imageUrl);
+      } catch {
+        // ignore if old file no longer exists
+      }
+    }
+
+    return this.prisma.course.update({
+      where: { id },
+      data: { imageUrl: null, imageFileSize: null },
+    });
   }
 
   async enroll(id: string, dto: CreateEnrollmentDto) {

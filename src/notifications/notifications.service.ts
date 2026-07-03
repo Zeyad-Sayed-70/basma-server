@@ -38,6 +38,15 @@ export class NotificationsService {
       'sessionNotifications',
     );
 
+    const pref = await this.prisma.notificationPreference.findUnique({
+      where: { instanceId_type: { instanceId, type: dto.type } },
+    });
+    if (pref && !pref.enabled) {
+      throw new ForbiddenException(
+        `Notifications of type "${dto.type}" are disabled`,
+      );
+    }
+
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
@@ -194,6 +203,13 @@ export class NotificationsService {
       'whatsappNotifsPerMonth',
       notifsThisMonth,
     );
+
+    const pref = await this.prisma.notificationPreference.findUnique({
+      where: { instanceId_type: { instanceId, type: 'CUSTOM' } },
+    });
+    if (pref && !pref.enabled) {
+      throw new ForbiddenException('Custom notifications are disabled');
+    }
 
     const students = await this.prisma.student.findMany({
       where: {

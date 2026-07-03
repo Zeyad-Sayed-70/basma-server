@@ -24,6 +24,7 @@ import { AgentStudentDataModule } from './agent-student-data/agent-student-data.
 import { AiAgentModule } from './ai-agent/ai-agent.module';
 import { CurriculumModule } from './curriculum/curriculum.module';
 import { AdminModule } from './admin/admin.module';
+import { LandingModule } from './landing/landing.module';
 import { TenantMiddleware } from './common/context/tenant.middleware';
 import { TierExpiryGuard } from './common/guards/tier-expiry.guard';
 
@@ -61,6 +62,7 @@ import { TierExpiryGuard } from './common/guards/tier-expiry.guard';
     AiAgentModule,
     CurriculumModule,
     AdminModule,
+    LandingModule,
   ],
   providers: [
     {

@@ -19,6 +19,11 @@ enum RegistrationMode {
   CLOSED
 }
 
+enum LandingPageStatus {
+  DRAFT
+  PUBLISHED
+}
+
 enum StudentStatus {
   ACTIVE
   INACTIVE
@@ -143,6 +148,7 @@ model Instance {
   notificationPreferences NotificationPreference[]
   curricula               Curriculum[]
 
+  landingPage     LandingPage?
   tierChangeLogs TierChangeLog[]
 
   @@map("instances")
@@ -207,6 +213,23 @@ model Brand {
   @@map("brands")
 }
 
+model LandingPage {
+  id             String            @id @default(cuid())
+  instanceId     String            @unique
+  instance       Instance          @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  status         LandingPageStatus @default(DRAFT)
+  locale         String            @default("ar")
+  seoTitle       String?
+  seoDescription String?
+  ogImageUrl     String?
+  content        Json
+  publishedAt    DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@map("landing_pages")
+}
+
 model Group {
   id               String           @id @default(cuid())
   name             String
@@ -264,6 +287,8 @@ model Course {
   title       String
   description String?
   price       Float    @default(0)
+  imageUrl    String?
+  imageFileSize Int?
   groupId     String
   group       Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
   instanceId  String

@@ -1202,6 +1202,87 @@
         ]
       }
     },
+    "/api/courses/{id}/image": {
+      "post": {
+        "operationId": "CoursesController_uploadImage",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Course ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Course image file (png, jpg, svg)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Image uploaded successfully"
+          },
+          "404": {
+            "description": "Course not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Upload course image",
+        "tags": [
+          "Courses"
+        ]
+      },
+      "delete": {
+        "operationId": "CoursesController_removeImage",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Course ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Image removed successfully"
+          },
+          "404": {
+            "description": "Course not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove course image",
+        "tags": [
+          "Courses"
+        ]
+      }
+    },
     "/api/courses/{id}/enrollments": {
       "post": {
         "description": "Enrolls one or more students in a course. Students must belong to the same group as the course. Duplicate enrollments are silently ignored (idempotent).",
@@ -6779,6 +6860,290 @@
           "Admin"
         ]
       }
+    },
+    "/api/landing": {
+      "get": {
+        "description": "Returns the current landing page for the authenticated teacher. Creates a default one if none exists.",
+        "operationId": "LandingController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Landing page retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LandingResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get or create landing page",
+        "tags": [
+          "Landing"
+        ]
+      },
+      "put": {
+        "description": "Updates the landing page content, SEO fields, or locale. Validates referenced courses belong to the current instance.",
+        "operationId": "LandingController_update",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLandingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Landing page updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LandingResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Landing page not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update landing page content",
+        "tags": [
+          "Landing"
+        ]
+      }
+    },
+    "/api/landing/publish": {
+      "post": {
+        "description": "Validates required fields and publishes the landing page. Returns validation errors if requirements are not met.",
+        "operationId": "LandingController_publish",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Landing page published",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LandingResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation errors prevent publishing"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Publish landing page",
+        "tags": [
+          "Landing"
+        ]
+      }
+    },
+    "/api/landing/unpublish": {
+      "post": {
+        "description": "Sets landing page status back to draft.",
+        "operationId": "LandingController_unpublish",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Landing page unpublished",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LandingResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Unpublish landing page",
+        "tags": [
+          "Landing"
+        ]
+      }
+    },
+    "/api/landing/reset": {
+      "post": {
+        "description": "Resets all content, SEO fields, and status to default starter values.",
+        "operationId": "LandingController_reset",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Landing page reset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LandingResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Reset landing page to defaults",
+        "tags": [
+          "Landing"
+        ]
+      }
+    },
+    "/api/landing/media": {
+      "post": {
+        "description": "Uploads an image file to MinIO storage for use in landing page sections. Returns the public URL.",
+        "operationId": "LandingController_uploadMedia",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Image file (jpg, png, webp, svg) — max 5MB"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Media uploaded successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid file type or size"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Upload landing media",
+        "tags": [
+          "Landing"
+        ]
+      }
+    },
+    "/api/landing/public/by-subdomain/{subdomain}": {
+      "get": {
+        "description": "Returns combined brand, landing content, and public courses for anonymous visitors. Used to render the teacher's public landing page.",
+        "operationId": "LandingPublicController_findBySubdomain",
+        "parameters": [
+          {
+            "name": "subdomain",
+            "required": true,
+            "in": "path",
+            "description": "Instance subdomain",
+            "schema": {
+              "example": "myschool",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public landing page info retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LandingPublicResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Instance or landing page not found"
+          }
+        },
+        "summary": "Get public landing page by subdomain",
+        "tags": [
+          "Landing (Public)"
+        ]
+      }
+    },
+    "/api/landing/public/by-domain/{domain}": {
+      "get": {
+        "description": "Returns the same combined response as subdomain lookup, but resolved by the custom domain set in brand settings.",
+        "operationId": "LandingPublicController_findByDomain",
+        "parameters": [
+          {
+            "name": "domain",
+            "required": true,
+            "in": "path",
+            "description": "Custom domain",
+            "schema": {
+              "example": "myschool.example.com",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public landing page info retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LandingPublicResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Domain not verified (if verification is implemented)"
+          },
+          "404": {
+            "description": "Instance or landing page not found"
+          }
+        },
+        "summary": "Get public landing page by custom domain",
+        "tags": [
+          "Landing (Public)"
+        ]
+      }
     }
   },
   "info": {
@@ -7651,6 +8016,14 @@
             "type": "number",
             "example": 0,
             "description": "Course price in EGP"
+          },
+          "imageUrl": {
+            "type": "string",
+            "description": "Course image URL"
+          },
+          "imageFileSize": {
+            "type": "number",
+            "description": "Course image file size in bytes"
           },
           "groupId": {
             "type": "string",
@@ -10803,6 +11176,613 @@
         },
         "required": [
           "code"
+        ]
+      },
+      "LandingCtaDto": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 60,
+            "example": "سجل الآن"
+          },
+          "type": {
+            "enum": [
+              "REGISTER",
+              "COURSES",
+              "WHATSAPP",
+              "CUSTOM_URL"
+            ],
+            "type": "string",
+            "example": "REGISTER"
+          },
+          "href": {
+            "type": "string",
+            "maxLength": 500,
+            "example": "/courses"
+          },
+          "groupId": {
+            "type": "string"
+          },
+          "courseId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "type"
+        ]
+      },
+      "LandingHeroDto": {
+        "type": "object",
+        "properties": {
+          "eyebrow": {
+            "type": "string",
+            "maxLength": 100,
+            "example": "أكاديمية"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "example": "مرحباً بكم في أكاديميتنا"
+          },
+          "subtitle": {
+            "type": "string",
+            "maxLength": 300,
+            "example": "نعلّم الأجيال القادمة"
+          },
+          "imageUrl": {
+            "type": "string"
+          },
+          "primaryCta": {
+            "$ref": "#/components/schemas/LandingCtaDto"
+          },
+          "secondaryCta": {
+            "$ref": "#/components/schemas/LandingCtaDto"
+          }
+        },
+        "required": [
+          "title",
+          "primaryCta"
+        ]
+      },
+      "LandingStatDto": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 200,
+            "example": "عدد الطلاب"
+          },
+          "value": {
+            "type": "string",
+            "maxLength": 100,
+            "example": "500"
+          }
+        },
+        "required": [
+          "label",
+          "value"
+        ]
+      },
+      "LandingAboutDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "example": "عن الأكاديمية"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 5000,
+            "example": "نحن مؤسسة تعليمية..."
+          },
+          "imageUrl": {
+            "type": "string"
+          },
+          "stats": {
+            "maxItems": 6,
+            "example": [
+              {
+                "label": "عدد الطلاب",
+                "value": "500"
+              }
+            ],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LandingStatDto"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "body"
+        ]
+      },
+      "LandingFeaturedCoursesDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "example": "دوراتنا"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 300,
+            "example": "اختر من بين دوراتنا المتميزة"
+          },
+          "mode": {
+            "enum": [
+              "MANUAL",
+              "LATEST",
+              "NONE"
+            ],
+            "type": "string",
+            "example": "LATEST"
+          },
+          "courseIds": {
+            "example": [],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "mode",
+          "courseIds"
+        ]
+      },
+      "LandingFeatureDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 100,
+            "example": "تعلم تفاعلي"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500,
+            "example": "نستخدم أحدث أساليب التعليم"
+          },
+          "icon": {
+            "enum": [
+              "book",
+              "calendar",
+              "chat",
+              "certificate",
+              "target",
+              "video"
+            ],
+            "type": "string",
+            "example": "book"
+          }
+        },
+        "required": [
+          "title",
+          "description"
+        ]
+      },
+      "LandingTestimonialDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "example": "أحمد محمد"
+          },
+          "quote": {
+            "type": "string",
+            "maxLength": 1000,
+            "example": "تجربة رائعة جداً"
+          },
+          "role": {
+            "type": "string",
+            "maxLength": 100,
+            "example": "طالب"
+          },
+          "avatarUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "quote"
+        ]
+      },
+      "LandingFaqDto": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string",
+            "maxLength": 300,
+            "example": "ما هي رسوم التسجيل؟"
+          },
+          "answer": {
+            "type": "string",
+            "maxLength": 2000,
+            "example": "التسجيل مجاني تماماً"
+          }
+        },
+        "required": [
+          "question",
+          "answer"
+        ]
+      },
+      "LandingSocialLinkDto": {
+        "type": "object",
+        "properties": {
+          "platform": {
+            "enum": [
+              "facebook",
+              "instagram",
+              "youtube",
+              "tiktok",
+              "whatsapp",
+              "telegram",
+              "website"
+            ],
+            "type": "string",
+            "example": "facebook"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 50,
+            "example": "فيسبوك"
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 500,
+            "example": "https://facebook.com/myacademy"
+          }
+        },
+        "required": [
+          "platform",
+          "url"
+        ]
+      },
+      "LandingContactDto": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string",
+            "maxLength": 20,
+            "example": "+201234567890"
+          },
+          "whatsapp": {
+            "type": "string",
+            "maxLength": 20,
+            "example": "+201234567890"
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 200,
+            "example": "info@academy.com"
+          },
+          "address": {
+            "type": "string",
+            "maxLength": 300,
+            "example": "القاهرة، مصر"
+          }
+        }
+      },
+      "LandingContentDto": {
+        "type": "object",
+        "properties": {
+          "template": {
+            "type": "string",
+            "enum": [
+              "classic-academy"
+            ],
+            "example": "classic-academy"
+          },
+          "hero": {
+            "$ref": "#/components/schemas/LandingHeroDto"
+          },
+          "about": {
+            "$ref": "#/components/schemas/LandingAboutDto"
+          },
+          "featuredCourses": {
+            "$ref": "#/components/schemas/LandingFeaturedCoursesDto"
+          },
+          "features": {
+            "maxItems": 12,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LandingFeatureDto"
+            }
+          },
+          "testimonials": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LandingTestimonialDto"
+            }
+          },
+          "faqs": {
+            "maxItems": 30,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LandingFaqDto"
+            }
+          },
+          "socialLinks": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LandingSocialLinkDto"
+            }
+          },
+          "contact": {
+            "$ref": "#/components/schemas/LandingContactDto"
+          }
+        },
+        "required": [
+          "template",
+          "hero",
+          "featuredCourses"
+        ]
+      },
+      "LandingValidationDto": {
+        "type": "object",
+        "properties": {
+          "canPublish": {
+            "type": "boolean"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "canPublish",
+          "warnings",
+          "errors"
+        ]
+      },
+      "LandingResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "DRAFT",
+              "PUBLISHED"
+            ],
+            "type": "string"
+          },
+          "seoTitle": {
+            "type": "string",
+            "nullable": true
+          },
+          "seoDescription": {
+            "type": "string",
+            "nullable": true
+          },
+          "ogImageUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "content": {
+            "$ref": "#/components/schemas/LandingContentDto"
+          },
+          "validation": {
+            "$ref": "#/components/schemas/LandingValidationDto"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "publishedAt": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "content",
+          "validation",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "UpdateLandingDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "enum": [
+              "DRAFT",
+              "PUBLISHED"
+            ],
+            "type": "string"
+          },
+          "locale": {
+            "type": "string"
+          },
+          "seoTitle": {
+            "type": "string"
+          },
+          "seoDescription": {
+            "type": "string"
+          },
+          "ogImageUrl": {
+            "type": "string"
+          },
+          "content": {
+            "$ref": "#/components/schemas/LandingContentDto"
+          }
+        }
+      },
+      "PublicInstanceDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "subdomain": {
+            "type": "string"
+          },
+          "customDomain": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "subdomain"
+        ]
+      },
+      "PublicBrandDto": {
+        "type": "object",
+        "properties": {
+          "logoUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "primaryColor": {
+            "type": "string"
+          },
+          "secondaryColor": {
+            "type": "string"
+          },
+          "fontFamily": {
+            "type": "string"
+          },
+          "whiteLabelEnabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "primaryColor",
+          "secondaryColor",
+          "fontFamily",
+          "whiteLabelEnabled"
+        ]
+      },
+      "PublicLandingDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "PUBLISHED"
+            ]
+          },
+          "seoTitle": {
+            "type": "string",
+            "nullable": true
+          },
+          "seoDescription": {
+            "type": "string",
+            "nullable": true
+          },
+          "ogImageUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "content": {
+            "$ref": "#/components/schemas/LandingContentDto"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "publishedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "content",
+          "updatedAt",
+          "publishedAt"
+        ]
+      },
+      "PublicCourseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "price": {
+            "type": "number"
+          },
+          "groupId": {
+            "type": "string"
+          },
+          "groupName": {
+            "type": "string"
+          },
+          "registrationMode": {
+            "enum": [
+              "OPEN",
+              "CLOSED"
+            ],
+            "type": "string"
+          },
+          "studentCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "price",
+          "groupId",
+          "groupName",
+          "registrationMode"
+        ]
+      },
+      "LandingPublicResponseDto": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "$ref": "#/components/schemas/PublicInstanceDto"
+          },
+          "brand": {
+            "$ref": "#/components/schemas/PublicBrandDto"
+          },
+          "landing": {
+            "$ref": "#/components/schemas/PublicLandingDto"
+          },
+          "courses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicCourseDto"
+            }
+          }
+        },
+        "required": [
+          "instance",
+          "brand",
+          "landing",
+          "courses"
         ]
       },
       "JoinGroupDto": {

@@ -50,7 +50,7 @@ export class BrandService {
       throw new NotFoundException('Brand not found');
     }
 
-    if (dto.customDomain !== undefined) {
+    if (dto.customDomain) {
       await this.tierFeatureService.requireFeature(instanceId, 'customDomain');
     }
 

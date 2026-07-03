@@ -10,10 +10,27 @@ import { JoinGroupDto } from './chat/dto/join-group.dto';
 import { SendMessageDto } from './chat/dto/send-message.dto';
 import { TypingDto } from './chat/dto/typing.dto';
 import cookieParser from 'cookie-parser';
+import cors from 'cors';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const logger = new Logger('Bootstrap');
+
+  app.use(
+    cors({
+      origin(origin, callback) {
+        if (!origin) return callback(null, true);
+        if (
+          origin === 'http://localhost:3001' ||
+          origin.endsWith('.localhost:3001')
+        ) {
+          return callback(null, true);
+        }
+        callback(null, false);
+      },
+      credentials: true,
+    }),
+  );
 
   app.use(cookieParser());
 
@@ -30,16 +47,13 @@ async function bootstrap() {
   app.setViewEngine('ejs');
   app.setBaseViewsDir(resolve(process.cwd(), 'src', 'admin', 'views'));
 
-  const corsOrigins = process.env.CORS_ORIGINS?.split(',') ?? [
-    'http://localhost:3001',
-  ];
-  app.enableCors({
-    origin: corsOrigins,
-    credentials: true,
+  app.useStaticAssets(resolve(process.cwd(), 'src', 'admin', 'public'), {
+    prefix: '/admin/static/',
   });
-  app.useStaticAssets(resolve(process.cwd(), 'src', 'admin', 'public'), { prefix: '/admin/static/' });
 
-  app.setGlobalPrefix('api', { exclude: ['admin', 'admin/*path', 'api/admin', 'api/admin/*path'] });
+  app.setGlobalPrefix('api', {
+    exclude: ['admin', 'admin/*path', 'api/admin', 'api/admin/*path'],
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({

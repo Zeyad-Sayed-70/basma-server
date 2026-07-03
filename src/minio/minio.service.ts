@@ -1,4 +1,9 @@
-import { Injectable, OnModuleInit, Logger, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  Logger,
+  ForbiddenException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as Minio from 'minio';
 import { TierFeatureService } from '../common/services/tier-feature.service';
@@ -115,6 +120,7 @@ export class MinioService implements OnModuleInit {
       { _sum: brandSum },
       { _sum: chatSum },
       { _sum: submissionSum },
+      { _sum: courseSum },
     ] = await Promise.all([
       this.prisma.agentSpaceFile.aggregate({
         where: { instanceId },
@@ -144,6 +150,10 @@ export class MinioService implements OnModuleInit {
         where: { instanceId },
         _sum: { fileSize: true },
       }),
+      this.prisma.course.aggregate({
+        where: { instanceId },
+        _sum: { imageFileSize: true },
+      }),
     ]);
 
     const totalBytes =
@@ -153,7 +163,8 @@ export class MinioService implements OnModuleInit {
       (imageSum.fileSize ?? 0) +
       (brandSum.logoFileSize ?? 0) +
       (chatSum.fileSize ?? 0) +
-      (submissionSum.fileSize ?? 0);
+      (submissionSum.fileSize ?? 0) +
+      (courseSum.imageFileSize ?? 0);
 
     const limitBytes = limitMB * 1048576;
 

@@ -18,6 +18,12 @@ export class CourseResponseDto {
   @ApiProperty({ example: 0, description: 'Course price in EGP' })
   price: number;
 
+  @ApiPropertyOptional({ description: 'Course image URL' })
+  imageUrl?: string;
+
+  @ApiPropertyOptional({ description: 'Course image file size in bytes' })
+  imageFileSize?: number;
+
   @ApiProperty({ example: 'clx...', description: 'Group ID' })
   groupId: string;
 

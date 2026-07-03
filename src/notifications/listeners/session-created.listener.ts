@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '../../prisma/prisma.service';
+import { TierFeatureService } from '../../common/services/tier-feature.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 
 @Injectable()
@@ -10,6 +11,7 @@ export class SessionCreatedListener {
   constructor(
     private readonly prisma: PrismaService,
     private readonly whatsAppService: WhatsAppService,
+    private readonly tierFeatureService: TierFeatureService,
   ) {}
 
   @OnEvent('session.created')
@@ -31,6 +33,15 @@ export class SessionCreatedListener {
       });
 
       if (pref && !pref.enabled) return;
+
+      try {
+        await this.tierFeatureService.requireFeature(
+          payload.instanceId,
+          'sessionNotifications',
+        );
+      } catch {
+        return;
+      }
 
       if (!this.whatsAppService.isConnected(payload.instanceId)) return;
 

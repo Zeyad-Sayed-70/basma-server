@@ -30,6 +30,15 @@ async function main() {
     include: { teacher: true },
   });
 
+  const notificationTypes = ['SESSION_REMINDER', 'QUIZ_GRADED', 'ASSIGNMENT_DUE', 'CUSTOM'] as const;
+  for (const type of notificationTypes) {
+    await prisma.notificationPreference.upsert({
+      where: { instanceId_type: { instanceId: instance.id, type } },
+      update: {},
+      create: { type, enabled: true, instanceId: instance.id },
+    });
+  }
+
   console.log('Seed — demo instance created:', instance.subdomain);
 
   const adminEmail = process.env.ADMIN_EMAIL ?? 'admin@basma.app';
