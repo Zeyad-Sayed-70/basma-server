@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>بصمة — لوحة التحكم</title>
+  <link rel="stylesheet" href="/admin/static/admin.css">
+</head>
+<body>
+  <div class="admin-layout">
+    <%- include('partials/sidebar') %>
+    <div class="main-content">
+      <div class="header-bar">
+        <h1>لوحة التحكم</h1>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="number"><%= stats?.totalInstances ?? 0 %></div>
+          <div class="label">إجمالي المنصات</div>
+        </div>
+        <div class="stat-card">
+          <div class="number"><%= stats?.totalTeachers ?? 0 %></div>
+          <div class="label">المدرسون</div>
+        </div>
+        <div class="stat-card">
+          <div class="number"><%= stats?.totalStudents ?? 0 %></div>
+          <div class="label">الطلاب</div>
+        </div>
+        <div class="stat-card">
+          <div class="number"><%= stats?.totalGroups ?? 0 %></div>
+          <div class="label">المجموعات</div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>توزيع الباقات</h3>
+        <table>
+          <tr>
+            <th>الباقة</th>
+            <th>العدد</th>
+          </tr>
+          <tr>
+            <td><span class="badge badge-mubtadi">مبتدئ</span></td>
+            <td><%= stats?.tierBreakdown?.MUBTADI ?? 0 %></td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-muhtarif">محترف</span></td>
+            <td><%= stats?.tierBreakdown?.MUHTARIF ?? 0 %></td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-khebir">خبير</span></td>
+            <td><%= stats?.tierBreakdown?.KHEBIR ?? 0 %></td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-hout">حوت</span></td>
+            <td><%= stats?.tierBreakdown?.HOUT ?? 0 %></td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

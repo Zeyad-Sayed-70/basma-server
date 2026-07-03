@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { MinioService } from '../minio/minio.service';
 import { TenantContext } from '../common/context/tenant-context';
+import { TierFeatureService } from '../common/services/tier-feature.service';
 import { UpdateBrandDto } from './dto/update-brand.dto';
 import { BrandPublicResponseDto } from './dto/brand-public-response.dto';
 
@@ -14,6 +15,7 @@ export class BrandService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly minio: MinioService,
+    private readonly tierFeatureService: TierFeatureService,
   ) {}
 
   private getInstanceId(): string {
@@ -48,16 +50,8 @@ export class BrandService {
       throw new NotFoundException('Brand not found');
     }
 
-    if (dto.whiteLabelEnabled === true) {
-      const instance = await this.prisma.instance.findUnique({
-        where: { id: instanceId },
-        select: { tier: true },
-      });
-      if (instance && instance.tier === 'FREE') {
-        throw new ForbiddenException(
-          'White-label branding is not available on the Free tier. Please upgrade your plan.',
-        );
-      }
+    if (dto.customDomain !== undefined) {
+      await this.tierFeatureService.requireFeature(instanceId, 'customDomain');
     }
 
     const brand = await this.prisma.brand.update({
@@ -111,7 +105,7 @@ export class BrandService {
 
     const brand = await this.prisma.brand.update({
       where: { id: existing.id },
-      data: { logoUrl },
+      data: { logoUrl, logoFileSize: file.buffer.length },
     });
 
     return {
@@ -140,7 +134,7 @@ export class BrandService {
 
     const brand = await this.prisma.brand.update({
       where: { id: existing.id },
-      data: { logoUrl: null },
+      data: { logoUrl: null, logoFileSize: null },
     });
 
     return {

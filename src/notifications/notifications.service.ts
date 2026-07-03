@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContext } from '../common/context/tenant-context';
+import { TierFeatureService } from '../common/services/tier-feature.service';
 import { WhatsAppService } from './whatsapp/whatsapp.service';
 import {
   CreateNotificationDto,
@@ -20,6 +21,7 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly whatsAppService: WhatsAppService,
+    private readonly tierFeatureService: TierFeatureService,
   ) {}
 
   private getInstanceId(): string {
@@ -30,6 +32,23 @@ export class NotificationsService {
 
   async create(dto: CreateNotificationDto) {
     const instanceId = this.getInstanceId();
+
+    await this.tierFeatureService.requireFeature(
+      instanceId,
+      'sessionNotifications',
+    );
+
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    const notifsThisMonth = await this.prisma.notification.count({
+      where: { instanceId, createdAt: { gte: startOfMonth } },
+    });
+    await this.tierFeatureService.checkResource(
+      instanceId,
+      'whatsappNotifsPerMonth',
+      notifsThisMonth,
+    );
 
     const notification = await this.prisma.notification.create({
       data: {
@@ -158,6 +177,23 @@ export class NotificationsService {
 
   async sendAnnouncement(dto: SendAnnouncementDto) {
     const instanceId = this.getInstanceId();
+
+    await this.tierFeatureService.requireFeature(
+      instanceId,
+      'sessionNotifications',
+    );
+
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    const notifsThisMonth = await this.prisma.notification.count({
+      where: { instanceId, createdAt: { gte: startOfMonth } },
+    });
+    await this.tierFeatureService.checkResource(
+      instanceId,
+      'whatsappNotifsPerMonth',
+      notifsThisMonth,
+    );
 
     const students = await this.prisma.student.findMany({
       where: {

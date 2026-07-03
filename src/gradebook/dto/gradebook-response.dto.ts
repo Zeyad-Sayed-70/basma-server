@@ -42,7 +42,10 @@ class GradebookAssignmentScore {
   })
   grade: number | null;
 
-  @ApiProperty({ example: 100, description: 'Maximum marks / total degree for this assignment' })
+  @ApiProperty({
+    example: 100,
+    description: 'Maximum marks / total degree for this assignment',
+  })
   totalMarks: number;
 
   @ApiPropertyOptional({

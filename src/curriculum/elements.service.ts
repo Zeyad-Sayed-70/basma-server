@@ -239,8 +239,8 @@ export class ElementsService {
             ? bundles.some((b) => b.container === 'mp4')
               ? 'mp4'
               : 'webm'
-            : (raw as { preferredContainer?: string }).preferredContainer ??
-              'mp4'
+            : ((raw as { preferredContainer?: string }).preferredContainer ??
+              'mp4')
         ) as 'mp4' | 'webm';
 
         return {
@@ -333,9 +333,7 @@ export class ElementsService {
     const url = track === 'audio' ? entry.audioUrl : entry.videoUrl;
 
     if (!url) {
-      throw new NotFoundException(
-        `No ${track} URL for quality "${quality}"`,
-      );
+      throw new NotFoundException(`No ${track} URL for quality "${quality}"`);
     }
 
     const reqHeaders = res.req?.headers ?? {};
@@ -347,7 +345,13 @@ export class ElementsService {
       headers.range = range;
     }
 
-    for (const key of ['user-agent', 'accept', 'accept-language', 'origin', 'referer']) {
+    for (const key of [
+      'user-agent',
+      'accept',
+      'accept-language',
+      'origin',
+      'referer',
+    ]) {
       const val = reqHeaders[key];
       if (val && !Array.isArray(val)) {
         headers[key] = val;

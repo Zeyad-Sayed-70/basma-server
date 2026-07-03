@@ -7,6 +7,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CoursesService } from '../courses/courses.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContext } from '../common/context/tenant-context';
+import { TierFeatureService } from '../common/services/tier-feature.service';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { UpdateSessionDto } from './dto/update-session.dto';
 
@@ -15,6 +16,7 @@ export class SessionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly coursesService: CoursesService,
+    private readonly tierFeatureService: TierFeatureService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -31,6 +33,18 @@ export class SessionsService {
       where: { id: dto.courseId, instanceId },
     });
     if (!course) throw new NotFoundException('Course not found');
+
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    const sessionsThisMonth = await this.prisma.session.count({
+      where: { instanceId, createdAt: { gte: startOfMonth } },
+    });
+    await this.tierFeatureService.checkResource(
+      instanceId,
+      'sessionsPerMonth',
+      sessionsThisMonth,
+    );
 
     const session = await this.prisma.session.create({
       data: {

@@ -2,6 +2,7 @@ import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { BullModule } from '@nestjs/bullmq';
+import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
 import { CommonModule } from './common/common.module';
 import { HealthModule } from './health/health.module';
@@ -22,7 +23,9 @@ import { AgentSpaceModule } from './agent-space/agent-space.module';
 import { AgentStudentDataModule } from './agent-student-data/agent-student-data.module';
 import { AiAgentModule } from './ai-agent/ai-agent.module';
 import { CurriculumModule } from './curriculum/curriculum.module';
+import { AdminModule } from './admin/admin.module';
 import { TenantMiddleware } from './common/context/tenant.middleware';
+import { TierExpiryGuard } from './common/guards/tier-expiry.guard';
 
 @Module({
   imports: [
@@ -57,6 +60,13 @@ import { TenantMiddleware } from './common/context/tenant.middleware';
     AgentStudentDataModule,
     AiAgentModule,
     CurriculumModule,
+    AdminModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: TierExpiryGuard,
+    },
   ],
 })
 export class AppModule implements NestModule {

@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContext } from '../common/context/tenant-context';
-import { TIER_LIMITS } from '../common/constants/tier-limits';
+import { TierFeatureService } from '../common/services/tier-feature.service';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import type {
@@ -18,7 +18,10 @@ import type {
 
 @Injectable()
 export class StudentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tierFeatureService: TierFeatureService,
+  ) {}
 
   private getInstanceId(): string {
     const id = TenantContext.getInstanceId();
@@ -26,24 +29,22 @@ export class StudentsService {
     return id;
   }
 
-  private async enforceStudentLimit(instanceId: string): Promise<number> {
-    const instance = await this.prisma.instance.findUnique({
-      where: { id: instanceId },
-      include: { _count: { select: { students: true } } },
-    });
-    if (!instance) throw new NotFoundException('Instance not found');
-
-    const tier = instance.tier;
-    const limit = TIER_LIMITS[tier]?.students ?? Infinity;
-
-    return {
-      instance,
-      limit,
-      currentCount: instance._count.students,
-    } as unknown as number;
+  private async checkStudentLimit(
+    instanceId: string,
+    currentCount?: number,
+  ): Promise<{ isOverLimit: boolean; limit: number }> {
+    const count =
+      currentCount ??
+      (await this.prisma.student.count({ where: { instanceId } }));
+    const limits = await this.tierFeatureService.getLimits(instanceId);
+    return { isOverLimit: count >= limits.students, limit: limits.students };
   }
 
-  private async autoEnrollFreeCourses(studentId: string, groupId: string, instanceId: string) {
+  private async autoEnrollFreeCourses(
+    studentId: string,
+    groupId: string,
+    instanceId: string,
+  ) {
     const freeCourses = await this.prisma.course.findMany({
       where: { groupId, instanceId, price: 0 },
       select: { id: true },
@@ -68,15 +69,13 @@ export class StudentsService {
     });
     if (!group) throw new NotFoundException('Group not found');
 
-    const instance = await this.prisma.instance.findUnique({
-      where: { id: instanceId },
-      include: { _count: { select: { students: true } } },
+    const currentCount = await this.prisma.student.count({
+      where: { instanceId },
     });
-    if (!instance) throw new NotFoundException('Instance not found');
-
-    const tier = instance.tier;
-    const limit = TIER_LIMITS[tier]?.students ?? Infinity;
-    const isOverLimit = instance._count.students >= limit;
+    const { isOverLimit } = await this.checkStudentLimit(
+      instanceId,
+      currentCount,
+    );
 
     if (dto.email) {
       const existingEmail = await this.prisma.student.findUnique({
@@ -122,11 +121,7 @@ export class StudentsService {
       orderBy: { createdAt: 'desc' },
     });
 
-    const instance = await this.prisma.instance.findUnique({
-      where: { id: instanceId },
-    });
-    const tier = instance?.tier ?? 'FREE';
-    const limit = TIER_LIMITS[tier]?.students ?? Infinity;
+    const limits = await this.tierFeatureService.getLimits(instanceId);
 
     const active = students.filter((s) => s.status === 'ACTIVE').length;
     const inactive = students.filter((s) => s.status === 'INACTIVE').length;
@@ -146,7 +141,7 @@ export class StudentsService {
     return {
       data,
       total: students.length,
-      summary: { active, inactive, limit },
+      summary: { active, inactive, limit: limits.students },
     };
   }
 
@@ -222,14 +217,7 @@ export class StudentsService {
     });
     if (!group) throw new NotFoundException('Group not found');
 
-    const instance = await this.prisma.instance.findUnique({
-      where: { id: instanceId },
-      include: { _count: { select: { students: true } } },
-    });
-    if (!instance) throw new NotFoundException('Instance not found');
-
-    const tier = instance.tier;
-    const limit = TIER_LIMITS[tier]?.students ?? Infinity;
+    await this.tierFeatureService.requireFeature(instanceId, 'bulkImport');
 
     let imported = 0;
     let inactive = 0;
@@ -256,7 +244,10 @@ export class StudentsService {
       const currentCount = await this.prisma.student.count({
         where: { instanceId },
       });
-      const isOverLimit = currentCount >= limit;
+      const { isOverLimit } = await this.checkStudentLimit(
+        instanceId,
+        currentCount,
+      );
 
       const student = await this.prisma.student.create({
         data: {
@@ -322,15 +313,13 @@ export class StudentsService {
     }
 
     const instanceId = group.instanceId;
-    const instance = await this.prisma.instance.findUnique({
-      where: { id: instanceId },
-      include: { _count: { select: { students: true } } },
+    const currentCount = await this.prisma.student.count({
+      where: { instanceId },
     });
-    if (!instance) throw new NotFoundException('Instance not found');
-
-    const tier = instance.tier;
-    const limit = TIER_LIMITS[tier]?.students ?? Infinity;
-    const isOverLimit = instance._count.students >= limit;
+    const { isOverLimit } = await this.checkStudentLimit(
+      instanceId,
+      currentCount,
+    );
 
     if (dto.email) {
       const existingEmail = await this.prisma.student.findUnique({

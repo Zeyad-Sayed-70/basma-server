@@ -57,7 +57,8 @@ export class ProgressService {
       where: { studentId_elementId: { studentId, elementId } },
     });
 
-    let status: 'COMPLETED' | 'IN_PROGRESS' = progressPercent >= 95 ? 'COMPLETED' : 'IN_PROGRESS';
+    let status: 'COMPLETED' | 'IN_PROGRESS' =
+      progressPercent >= 95 ? 'COMPLETED' : 'IN_PROGRESS';
     let completedAt = status === 'COMPLETED' ? new Date() : null;
 
     if (existing?.status === 'COMPLETED') {

@@ -4,7 +4,8 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class GradeSubmissionDto {
   @ApiProperty({
     example: 85,
-    description: 'Grade / score for the submission (out of assignment maxGrade, default 100)',
+    description:
+      'Grade / score for the submission (out of assignment maxGrade, default 100)',
   })
   @IsNumber()
   @Min(0)

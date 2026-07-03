@@ -1,0 +1,8 @@
+<div class="sidebar">
+  <h2>بصمة</h2>
+  <nav>
+    <a href="/admin">الإحصائيات</a>
+    <a href="/admin/instances">المدرسون</a>
+    <a href="/api/admin/logout" onclick="event.preventDefault(); fetch('/api/admin/logout', {method:'POST'}).then(()=>window.location='/admin/login')">تسجيل الخروج</a>
+  </nav>
+</div>

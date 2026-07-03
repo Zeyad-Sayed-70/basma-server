@@ -9,6 +9,7 @@ import { CoursesService } from '../courses/courses.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MinioService } from '../minio/minio.service';
 import { TenantContext } from '../common/context/tenant-context';
+import { TierFeatureService } from '../common/services/tier-feature.service';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { UpdateAssignmentDto } from './dto/update-assignment.dto';
 import { GradeSubmissionDto } from './dto/grade-submission.dto';
@@ -19,6 +20,7 @@ export class AssignmentsService {
     private readonly prisma: PrismaService,
     private readonly coursesService: CoursesService,
     private readonly minio: MinioService,
+    private readonly tierFeatureService: TierFeatureService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -35,6 +37,15 @@ export class AssignmentsService {
       where: { id: dto.courseId, instanceId },
     });
     if (!course) throw new NotFoundException('Course not found');
+
+    const assignmentsCount = await this.prisma.assignment.count({
+      where: { instanceId },
+    });
+    await this.tierFeatureService.checkResource(
+      instanceId,
+      'assignments',
+      assignmentsCount,
+    );
 
     return this.prisma.assignment.create({
       data: {
@@ -180,6 +191,7 @@ export class AssignmentsService {
         assignmentId,
         content,
         fileUrl,
+        fileSize: file?.buffer.length,
         instanceId,
       },
     });

@@ -33,13 +33,7 @@ export class StreamAuthGuard implements CanActivate {
     }
 
     try {
-      const payload = this.jwtService.verify(token) as {
-        sub: string;
-        email: string;
-        instanceId: string;
-        role: string;
-        name?: string;
-      };
+      const payload = this.jwtService.verify(token);
 
       request.user = {
         id: payload.sub,

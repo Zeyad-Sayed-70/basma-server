@@ -118,6 +118,7 @@ export class ChatService {
         senderId,
         senderRole: senderRole.toUpperCase() as 'TEACHER' | 'STUDENT',
         fileUrl,
+        fileSize: file.buffer.length,
         groupId,
         instanceId,
       },

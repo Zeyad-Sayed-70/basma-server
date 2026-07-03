@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>بصمة — تفاصيل المنصة</title>
+  <link rel="stylesheet" href="/admin/static/admin.css">
+</head>
+<body>
+  <div class="admin-layout">
+    <%- include('partials/sidebar') %>
+    <div class="main-content">
+      <div class="header-bar">
+        <h1><%= instance.name %></h1>
+        <a href="/admin/instances" class="btn btn-primary">عودة</a>
+      </div>
+      <div class="card">
+        <h3>معلومات المنصة</h3>
+        <table>
+          <tr><td>النطاق</td><td><%= instance.subdomain %></td></tr>
+          <tr><td>الباقة</td><td><span class="badge badge-<%= instance.tier.toLowerCase() %>"><%= instance.tierDisplay.ar %></span></td></tr>
+          <tr><td>المدرس</td><td><%= instance.teacher?.name ?? '—' %> (<%= instance.teacher?.email ?? '—' %>)</td></tr>
+          <tr><td>انتهاء الباقة</td><td><%= instance.tierExpiresAt ? new Date(instance.tierExpiresAt).toLocaleDateString('ar-EG') : 'غير محدد' %></td></tr>
+          <tr><td>تاريخ التجديد</td><td><%= instance.tierRenewedAt ? new Date(instance.tierRenewedAt).toLocaleDateString('ar-EG') : '—' %></td></tr>
+          <tr>
+            <td>حالة الباقة</td>
+            <td>
+              <% if (instance.expiry?.expired) { %>
+                <span class="badge badge-expired">منتهية</span>
+              <% } else { %>
+                <span style="color:#166534">سارية (<%= instance.expiry?.daysRemaining ?? '—' %> يوم متبقي)</span>
+              <% } %>
+            </td>
+          </tr>
+        </table>
+      </div>
+      <div class="card">
+        <h3>الاستخدام</h3>
+        <table>
+          <tr>
+            <th>المورد</th>
+            <th>المستخدم</th>
+            <th>الحد</th>
+            <th>النسبة</th>
+          </tr>
+          <% Object.entries(usage).forEach(([key, val]) => { %>
+          <tr>
+            <td><%= key %></td>
+            <td><%= val.currentGB ?? val.current ?? val.currentMB %><%= key === 'fileStorage' ? ' GB' : '' %></td>
+            <td><%= val.limit === Infinity ? '∞' : val.limitGB ?? val.limit %><%= key === 'fileStorage' ? ' GB' : '' %></td>
+            <td>
+              <div class="usage-bar">
+                <div class="usage-bar-fill <%= val.percent > 80 ? 'high' : val.percent > 50 ? 'med' : 'low' %>" style="width:<%= Math.min(val.percent, 100) %>%"></div>
+              </div>
+              <%= val.percent %>%
+            </td>
+          </tr>
+          <% }) %>
+        </table>
+      </div>
+      <div class="card">
+        <h3>تغيير الباقة</h3>
+        <form id="tierForm" style="max-width:400px">
+          <label>الباقة الجديدة</label>
+          <select name="tier" id="newTier">
+            <% tiers.forEach(t => { %>
+              <option value="<%= t %>" <%= t === instance.tier ? 'disabled' : '' %>><%= tierDisplayNames[t].ar %> (<%= t %>)</option>
+            <% }) %>
+          </select>
+          <label>المدة (شهور)</label>
+          <select name="periodMonths" id="periodMonths">
+            <option value="1">شهر</option>
+            <option value="6">6 شهور</option>
+            <option value="12">12 شهر</option>
+          </select>
+          <label>المبلغ المدفوع (قرش)</label>
+          <input type="number" name="amountPaid" id="amountPaid" placeholder="مثلاً 35000">
+          <div style="font-size:12px;color:#666;margin-bottom:12px">السعر: شهر = <span id="monthlyPrice">—</span> | 6 شهور = <span id="halfYearlyPrice">—</span> | 12 شهر = <span id="yearlyPrice">—</span></div>
+          <button type="submit" class="btn btn-primary">تغيير الباقة</button>
+        </form>
+        <div id="tierResult" style="margin-top:12px;display:none"></div>
+      </div>
+      <div class="card">
+        <h3>تجديد الباقة</h3>
+        <form id="renewForm" style="max-width:400px">
+          <label>مدة التجديد (شهور)</label>
+          <select name="periodMonths" id="renewPeriodMonths">
+            <option value="1">شهر</option>
+            <option value="6">6 شهور</option>
+            <option value="12">12 شهر</option>
+          </select>
+          <label>المبلغ المدفوع (قرش)</label>
+          <input type="number" name="amountPaid" id="renewAmountPaid" placeholder="مثلاً 35000">
+          <button type="submit" class="btn btn-primary">تجديد</button>
+        </form>
+        <div id="renewResult" style="margin-top:12px;display:none"></div>
+      </div>
+      <div class="card">
+        <h3>سجل التغييرات</h3>
+        <table>
+          <tr>
+            <th>التاريخ</th>
+            <th>من</th>
+            <th>إلى</th>
+            <th>المدة</th>
+            <th>المبلغ</th>
+          </tr>
+          <% if (logs.length === 0) { %>
+          <tr><td colspan="5" style="text-align:center;padding:24px">لا يوجد سجل</td></tr>
+          <% } %>
+          <% logs.forEach(log => { %>
+          <tr>
+            <td><%= new Date(log.createdAt).toLocaleDateString('ar-EG') %></td>
+            <td><%= log.fromTier %></td>
+            <td><%= log.toTier %></td>
+            <td><%= log.periodMonths ? log.periodMonths + ' شهر' : '—' %></td>
+            <td><%= log.amountPaid ? (log.amountPaid / 100).toFixed(2) + ' ج.م' : '—' %></td>
+          </tr>
+          <% }) %>
+        </table>
+      </div>
+    </div>
+  </div>
+  <script>
+    const prices = <%- JSON.stringify(tierPricing) %>;
+    document.getElementById('newTier').addEventListener('change', updatePricing);
+    document.getElementById('periodMonths').addEventListener('change', updatePricing);
+    function updatePricing() {
+      const tier = document.getElementById('newTier').value;
+      const p = prices[tier];
+      if (p) {
+        document.getElementById('monthlyPrice').textContent = (p.monthly / 100).toFixed(2) + ' ج.م';
+        document.getElementById('halfYearlyPrice').textContent = (p.halfYearly / 100).toFixed(2) + ' ج.م';
+        document.getElementById('yearlyPrice').textContent = (p.yearly / 100).toFixed(2) + ' ج.م';
+      }
+    }
+    document.getElementById('tierForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const res = await fetch('/api/admin/instances/<%= instance.id %>/tier', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tier: document.getElementById('newTier').value,
+          periodMonths: parseInt(document.getElementById('periodMonths').value),
+          amountPaid: parseInt(document.getElementById('amountPaid').value) || null
+        })
+      });
+      const div = document.getElementById('tierResult');
+      div.style.display = 'block';
+      if (res.ok) {
+        div.className = 'flash flash-success';
+        div.textContent = 'تم تغيير الباقة بنجاح. سيتم تحديث الصفحة...';
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        const err = await res.json();
+        div.className = 'flash flash-error';
+        div.textContent = err.message || 'حدث خطأ';
+      }
+    });
+    document.getElementById('renewForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const res = await fetch('/api/admin/instances/<%= instance.id %>/renew', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          periodMonths: parseInt(document.getElementById('renewPeriodMonths').value),
+          amountPaid: parseInt(document.getElementById('renewAmountPaid').value) || null
+        })
+      });
+      const div = document.getElementById('renewResult');
+      div.style.display = 'block';
+      if (res.ok) {
+        div.className = 'flash flash-success';
+        div.textContent = 'تم تجديد الباقة بنجاح. سيتم تحديث الصفحة...';
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        const err = await res.json();
+        div.className = 'flash flash-error';
+        div.textContent = err.message || 'حدث خطأ';
+      }
+    });
+  </script>
+</body>
+</html>

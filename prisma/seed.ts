@@ -10,7 +10,7 @@ async function main() {
     create: {
       name: 'Demo School',
       subdomain: 'demo',
-      tier: Tier.FREE,
+      tier: Tier.MUBTADI,
       brand: {
         create: {
           primaryColor: '#2563eb',
@@ -30,7 +30,23 @@ async function main() {
     include: { teacher: true },
   });
 
-  console.log('Seed complete — demo instance created:', instance.subdomain);
+  console.log('Seed — demo instance created:', instance.subdomain);
+
+  const adminEmail = process.env.ADMIN_EMAIL ?? 'admin@basma.app';
+  const adminPassword = process.env.ADMIN_PASSWORD ?? 'Admin@123';
+  const adminName = process.env.ADMIN_NAME ?? 'Admin';
+
+  const admin = await prisma.admin.upsert({
+    where: { email: adminEmail },
+    update: { name: adminName },
+    create: {
+      email: adminEmail,
+      passwordHash: await bcrypt.hash(adminPassword, 10),
+      name: adminName,
+    },
+  });
+
+  console.log('Seed — admin created:', admin.email);
 }
 
 main()

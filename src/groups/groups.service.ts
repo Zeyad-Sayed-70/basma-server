@@ -6,14 +6,17 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContext } from '../common/context/tenant-context';
-import { TIER_LIMITS } from '../common/constants/tier-limits';
+import { TierFeatureService } from '../common/services/tier-feature.service';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
 import * as crypto from 'crypto';
 
 @Injectable()
 export class GroupsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tierFeatureService: TierFeatureService,
+  ) {}
 
   private getInstanceId(): string {
     const id = TenantContext.getInstanceId();
@@ -23,19 +26,14 @@ export class GroupsService {
 
   async create(dto: CreateGroupDto) {
     const instanceId = this.getInstanceId();
-    const instance = await this.prisma.instance.findUnique({
-      where: { id: instanceId },
-      include: { _count: { select: { groups: true } } },
+    const groupsCount = await this.prisma.group.count({
+      where: { instanceId },
     });
-    if (!instance) throw new NotFoundException('Instance not found');
-
-    const tier = instance.tier;
-    const limit = TIER_LIMITS[tier]?.groups ?? Infinity;
-    if (instance._count.groups >= limit) {
-      throw new ForbiddenException(
-        `Your current plan (${tier}) allows a maximum of ${limit} group(s). Upgrade your plan to create more.`,
-      );
-    }
+    await this.tierFeatureService.checkResource(
+      instanceId,
+      'groups',
+      groupsCount,
+    );
 
     const existing = await this.prisma.group.findUnique({
       where: { instanceId_name: { instanceId, name: dto.name } },
@@ -65,11 +63,7 @@ export class GroupsService {
       orderBy: { createdAt: 'desc' },
     });
 
-    const instance = await this.prisma.instance.findUnique({
-      where: { id: instanceId },
-    });
-    const tier = instance?.tier ?? 'FREE';
-    const limits = { ...TIER_LIMITS[tier] };
+    const limits = await this.tierFeatureService.getLimits(instanceId);
 
     const data = groups.map((g) => ({
       id: g.id,

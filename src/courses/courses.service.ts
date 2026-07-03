@@ -7,13 +7,17 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContext } from '../common/context/tenant-context';
+import { TierFeatureService } from '../common/services/tier-feature.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { CreateEnrollmentDto } from './dto/create-enrollment.dto';
 
 @Injectable()
 export class CoursesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tierFeatureService: TierFeatureService,
+  ) {}
 
   private getInstanceId(): string {
     const id = TenantContext.getInstanceId();
@@ -28,6 +32,15 @@ export class CoursesService {
       where: { id: dto.groupId, instanceId },
     });
     if (!group) throw new NotFoundException('Group not found');
+
+    const coursesCount = await this.prisma.course.count({
+      where: { instanceId },
+    });
+    await this.tierFeatureService.checkResource(
+      instanceId,
+      'courses',
+      coursesCount,
+    );
 
     const course = await this.prisma.course.create({
       data: {

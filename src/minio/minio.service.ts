@@ -1,6 +1,10 @@
-import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
+import { Injectable, OnModuleInit, Logger, ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as Minio from 'minio';
+import { TierFeatureService } from '../common/services/tier-feature.service';
+import { TenantContext } from '../common/context/tenant-context';
+import { PrismaService } from '../prisma/prisma.service';
+import { TIER_LIMITS } from '../common/constants/tier-limits';
 
 @Injectable()
 export class MinioService implements OnModuleInit {
@@ -9,7 +13,11 @@ export class MinioService implements OnModuleInit {
   private readonly bucket: string;
   private readonly endpoint: string;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
+    private readonly tierFeatureService: TierFeatureService,
+  ) {
     const ep = configService.getOrThrow<string>('MINIO_ENDPOINT');
     const [host, portStr] = ep.split(':');
     const port = portStr ? parseInt(portStr, 10) : 9000;
@@ -71,6 +79,12 @@ export class MinioService implements OnModuleInit {
     mimeType: string,
   ): Promise<string> {
     this.checkReady();
+
+    const instanceId = TenantContext.getInstanceId();
+    if (instanceId) {
+      await this.checkStorageLimit(instanceId, buffer.length);
+    }
+
     await this.client.putObject(
       this.bucket,
       objectPath,
@@ -81,6 +95,73 @@ export class MinioService implements OnModuleInit {
       },
     );
     return objectPath;
+  }
+
+  private async checkStorageLimit(instanceId: string, newFileSize: number) {
+    const instance = await this.prisma.instance.findUnique({
+      where: { id: instanceId },
+      select: { tier: true },
+    });
+    if (!instance) return;
+
+    const limitMB = TIER_LIMITS[instance.tier].fileStorageMB;
+    if (limitMB === Infinity) return;
+
+    const [
+      { _sum: agentSum },
+      { _sum: videoSum },
+      { _sum: fileSum },
+      { _sum: imageSum },
+      { _sum: brandSum },
+      { _sum: chatSum },
+      { _sum: submissionSum },
+    ] = await Promise.all([
+      this.prisma.agentSpaceFile.aggregate({
+        where: { instanceId },
+        _sum: { fileSize: true },
+      }),
+      this.prisma.curriculumVideo.aggregate({
+        where: { instanceId },
+        _sum: { fileSize: true },
+      }),
+      this.prisma.curriculumFile.aggregate({
+        where: { instanceId },
+        _sum: { fileSize: true },
+      }),
+      this.prisma.curriculumImage.aggregate({
+        where: { instanceId },
+        _sum: { fileSize: true },
+      }),
+      this.prisma.brand.aggregate({
+        where: { instanceId },
+        _sum: { logoFileSize: true },
+      }),
+      this.prisma.chatMessage.aggregate({
+        where: { instanceId },
+        _sum: { fileSize: true },
+      }),
+      this.prisma.studentAssignmentSubmission.aggregate({
+        where: { instanceId },
+        _sum: { fileSize: true },
+      }),
+    ]);
+
+    const totalBytes =
+      (agentSum.fileSize ?? 0) +
+      (videoSum.fileSize ?? 0) +
+      (fileSum.fileSize ?? 0) +
+      (imageSum.fileSize ?? 0) +
+      (brandSum.logoFileSize ?? 0) +
+      (chatSum.fileSize ?? 0) +
+      (submissionSum.fileSize ?? 0);
+
+    const limitBytes = limitMB * 1048576;
+
+    if (totalBytes + newFileSize > limitBytes) {
+      throw new ForbiddenException(
+        `File storage limit exceeded (${limitMB} MB). Delete existing files or upgrade your plan.`,
+      );
+    }
   }
 
   async deleteObject(objectPath: string): Promise<void> {

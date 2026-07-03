@@ -19,12 +19,11 @@ export class TenantMiddleware implements NestMiddleware {
     const data: TenantData = { instanceId: '' };
 
     const queryToken = req.query.token;
-    const rawToken =
-      req.headers.authorization?.startsWith('Bearer ')
-        ? req.headers.authorization.slice(7)
-        : typeof queryToken === 'string'
-          ? queryToken
-          : null;
+    const rawToken = req.headers.authorization?.startsWith('Bearer ')
+      ? req.headers.authorization.slice(7)
+      : typeof queryToken === 'string'
+        ? queryToken
+        : null;
 
     if (rawToken) {
       try {

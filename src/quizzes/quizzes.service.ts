@@ -8,6 +8,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CoursesService } from '../courses/courses.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContext } from '../common/context/tenant-context';
+import { TierFeatureService } from '../common/services/tier-feature.service';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
 import { CreateQuestionDto } from './dto/create-question.dto';
@@ -19,6 +20,7 @@ export class QuizzesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly coursesService: CoursesService,
+    private readonly tierFeatureService: TierFeatureService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -35,6 +37,15 @@ export class QuizzesService {
       where: { id: dto.courseId, instanceId },
     });
     if (!course) throw new NotFoundException('Course not found');
+
+    const quizzesCount = await this.prisma.quiz.count({
+      where: { instanceId },
+    });
+    await this.tierFeatureService.checkResource(
+      instanceId,
+      'quizzes',
+      quizzesCount,
+    );
 
     return this.prisma.quiz.create({
       data: {

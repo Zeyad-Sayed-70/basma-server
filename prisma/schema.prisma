@@ -8,10 +8,10 @@ datasource db {
 }
 
 enum Tier {
-  FREE
-  MID
-  BIG
-  HUGE
+  MUBTADI
+  MUHTARIF
+  KHEBIR
+  HOUT
 }
 
 enum RegistrationMode {
@@ -110,13 +110,15 @@ enum VideoJobStatus {
 }
 
 model Instance {
-  id        String   @id @default(cuid())
-  name      String
-  subdomain String   @unique
-  tier      Tier     @default(FREE)
-  settings  Json     @default("{}")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String    @id @default(cuid())
+  name           String
+  subdomain      String    @unique
+  tier           Tier      @default(MUBTADI)
+  tierExpiresAt  DateTime?
+  tierRenewedAt  DateTime?
+  settings       Json      @default("{}")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   teacher       Teacher?
   brand         Brand?
@@ -140,6 +142,8 @@ model Instance {
   whatsappSession         WhatsAppSession?
   notificationPreferences NotificationPreference[]
   curricula               Curriculum[]
+
+  tierChangeLogs TierChangeLog[]
 
   @@map("instances")
 }
@@ -189,6 +193,7 @@ model Teacher {
 model Brand {
   id                String   @id @default(cuid())
   logoUrl           String?
+  logoFileSize      Int?
   primaryColor      String   @default("#2563eb")
   secondaryColor    String   @default("#1e40af")
   fontFamily        String   @default("Cairo")
@@ -397,6 +402,7 @@ model StudentAssignmentSubmission {
   assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   content      String?
   fileUrl      String?
+  fileSize     Int?
   grade        Int?
   feedback     String?
   submittedAt  DateTime   @default(now())
@@ -514,6 +520,7 @@ model ChatMessage {
   senderId   String
   senderRole ChatSenderRole
   fileUrl    String?
+  fileSize   Int?
   groupId    String
   group      Group          @relation(fields: [groupId], references: [id], onDelete: Cascade)
   instanceId String
@@ -793,6 +800,32 @@ model VideoJob {
   @@index([instanceId, status])
   @@index([bundleExpiresAt])
   @@map("video_jobs")
+}
+
+model Admin {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("admins")
+}
+
+model TierChangeLog {
+  id           String   @id @default(cuid())
+  instanceId   String
+  instance     Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  fromTier     Tier
+  toTier       Tier
+  periodMonths Int?
+  amountPaid   Int?
+  changedBy    String
+  createdAt    DateTime @default(now())
+
+  @@index([instanceId])
+  @@map("tier_change_logs")
 }
 
 model YoutubeChannelAuth {

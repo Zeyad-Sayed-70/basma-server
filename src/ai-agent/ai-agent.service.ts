@@ -7,6 +7,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { OpencodeService } from './opencode.service';
+import { TierFeatureService } from '../common/services/tier-feature.service';
 
 interface TextPart {
   type: 'text';
@@ -29,6 +30,7 @@ export class AiAgentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly opencodeService: OpencodeService,
+    private readonly tierFeatureService: TierFeatureService,
   ) {}
 
   async getConversations(studentId: string, instanceId: string) {
@@ -54,6 +56,8 @@ export class AiAgentService {
     instanceId: string,
     title?: string,
   ) {
+    await this.tierFeatureService.requireFeature(instanceId, 'aiAgent');
+
     const student = await this.prisma.student.findUnique({
       where: { id: studentId },
     });
@@ -163,6 +167,7 @@ You are an AI teaching assistant for the teacher **${teacher.name}**.
     studentId: string,
     content: string,
   ) {
+    await this.tierFeatureService.requireFeature(instanceId, 'aiAgent');
     const conv = await this.getConversation(conversationId, instanceId);
     if (conv.studentId !== studentId) {
       throw new ForbiddenException('This conversation does not belong to you');

@@ -1,16 +1,34 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { writeFileSync } from 'fs';
 import { resolve } from 'path';
+import { Request, Response, NextFunction } from 'express';
 import { JoinGroupDto } from './chat/dto/join-group.dto';
 import { SendMessageDto } from './chat/dto/send-message.dto';
 import { TypingDto } from './chat/dto/typing.dto';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const logger = new Logger('Bootstrap');
+
+  app.use(cookieParser());
+
+  app.use((req: Request, _res: Response, next: NextFunction) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> })
+      .cookies;
+    const token = cookies?.['admin_token'];
+    if (token && req.path.startsWith('/admin')) {
+      req.headers['authorization'] = `Bearer ${token}`;
+    }
+    next();
+  });
+
+  app.setViewEngine('ejs');
+  app.setBaseViewsDir(resolve(process.cwd(), 'src', 'admin', 'views'));
 
   const corsOrigins = process.env.CORS_ORIGINS?.split(',') ?? [
     'http://localhost:3001',
@@ -19,7 +37,9 @@ async function bootstrap() {
     origin: corsOrigins,
     credentials: true,
   });
-  app.setGlobalPrefix('api');
+  app.useStaticAssets(resolve(process.cwd(), 'src', 'admin', 'public'), { prefix: '/admin/static/' });
+
+  app.setGlobalPrefix('api', { exclude: ['admin', 'admin/*path', 'api/admin', 'api/admin/*path'] });
 
   app.useGlobalPipes(
     new ValidationPipe({

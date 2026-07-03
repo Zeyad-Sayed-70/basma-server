@@ -116,7 +116,10 @@ export class ElementsController {
               properties: {
                 id: { type: 'string', example: 'clx...' },
                 title: { type: 'string', example: 'Introduction Video' },
-                videoUrl: { type: 'string', example: 'https://minio.example.com/...' },
+                videoUrl: {
+                  type: 'string',
+                  example: 'https://minio.example.com/...',
+                },
                 mimeType: { type: 'string', example: 'video/mp4' },
                 fileSize: { type: 'integer', example: 52428800 },
                 durationSeconds: { type: 'integer', example: 300 },
@@ -124,7 +127,7 @@ export class ElementsController {
             },
           },
         },
-        job: { '$ref': '#/components/schemas/VideoJobResponseDto' },
+        job: { $ref: '#/components/schemas/VideoJobResponseDto' },
       },
     },
   })
@@ -220,7 +223,7 @@ export class ElementsController {
           type: 'object',
           properties: {
             kind: { type: 'string', example: 'bundle' },
-            bundle: { '$ref': '#/components/schemas/StreamBundleResponseDto' },
+            bundle: { $ref: '#/components/schemas/StreamBundleResponseDto' },
           },
         },
         {
@@ -268,7 +271,12 @@ export class ElementsController {
   @ApiParam({ name: 'id', description: 'Element ID' })
   @ApiParam({ name: 'quality', description: 'Quality label e.g. 720p' })
   @ApiParam({ name: 'track', description: 'Track type: video or audio' })
-  @ApiQuery({ name: 'container', required: false, description: 'Container format (mp4, webm) — defaults to preferredContainer' })
+  @ApiQuery({
+    name: 'container',
+    required: false,
+    description:
+      'Container format (mp4, webm) — defaults to preferredContainer',
+  })
   @ApiResponse({ status: 200, description: 'Media stream' })
   @ApiResponse({ status: 206, description: 'Partial content (Range request)' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -607,12 +615,15 @@ export class ElementsController {
           properties: {
             id: { type: 'string', example: 'clx...' },
             title: { type: 'string', example: 'Introduction Video' },
-            videoUrl: { type: 'string', example: 'https://minio.example.com/...' },
+            videoUrl: {
+              type: 'string',
+              example: 'https://minio.example.com/...',
+            },
             mimeType: { type: 'string', example: 'video/mp4' },
             fileSize: { type: 'integer', example: 52428800 },
           },
         },
-        job: { '$ref': '#/components/schemas/VideoJobResponseDto' },
+        job: { $ref: '#/components/schemas/VideoJobResponseDto' },
       },
     },
   })

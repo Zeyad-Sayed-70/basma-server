@@ -42,8 +42,7 @@ export class BundleService {
     const info = await this.ytdlp.getVideoInfo(youtubeUrl);
     const formats = info.formats;
 
-    const direct = (f: YtFormat) =>
-      f.protocol?.startsWith('http');
+    const direct = (f: YtFormat) => f.protocol?.startsWith('http');
 
     const mp4Video = formats.filter(
       (f) =>

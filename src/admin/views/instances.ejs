@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>بصمة — المدرسون</title>
+  <link rel="stylesheet" href="/admin/static/admin.css">
+</head>
+<body>
+  <div class="admin-layout">
+    <%- include('partials/sidebar') %>
+    <div class="main-content">
+      <div class="header-bar">
+        <h1>المدرسون</h1>
+        <form method="GET" action="/admin/instances" style="display:flex;gap:8px">
+          <input type="text" name="search" class="search-box" placeholder="بحث بالاسم أو النطاق..." value="<%= typeof search !== 'undefined' ? search : '' %>">
+          <button type="submit" class="btn btn-primary">بحث</button>
+        </form>
+      </div>
+      <div class="card">
+        <table>
+          <tr>
+            <th>الاسم</th>
+            <th>النطاق</th>
+            <th>الباقة</th>
+            <th>المجموعات</th>
+            <th>الطلاب</th>
+            <th>الكورسات</th>
+            <th>انتهاء الباقة</th>
+            <th></th>
+          </tr>
+          <% if (instances.length === 0) { %>
+          <tr><td colspan="8" style="text-align:center;padding:24px">لا توجد نتائج</td></tr>
+          <% } %>
+          <% instances.forEach(inst => { %>
+          <tr>
+            <td><%= inst.name %></td>
+            <td><%= inst.subdomain %></td>
+            <td><span class="badge badge-<%= inst.tier.toLowerCase() %>"><%= inst.tierDisplay.ar %></span></td>
+            <td><%= inst.counts.groups %></td>
+            <td><%= inst.counts.students %></td>
+            <td><%= inst.counts.courses %></td>
+            <td><%= inst.tierExpiresAt ? new Date(inst.tierExpiresAt).toLocaleDateString('ar-EG') : '—' %></td>
+            <td><a href="/admin/instances/<%= inst.id %>" class="btn btn-primary btn-sm">تفاصيل</a></td>
+          </tr>
+          <% }) %>
+        </table>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

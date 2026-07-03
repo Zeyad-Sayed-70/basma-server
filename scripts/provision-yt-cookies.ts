@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import * as readline from 'node:readline';
-import type { BrowserContext, Cookie } from 'playwright-core';
+import type { Browser, BrowserContext, Cookie } from 'playwright-core';
 
 type CamoufoxFnType = (opts: {
   headless?: boolean;
@@ -44,6 +44,7 @@ async function main() {
     user_data_dir: PROFILE_DIR,
     viewport: null,
   });
+  const browser = ctx.browser()!;
 
   const page = await ctx.newPage();
   await page.goto('https://www.youtube.com/', { waitUntil: 'networkidle' });
@@ -77,7 +78,7 @@ async function main() {
 
   console.log(`Saved ${ytCookies.length} cookies to ${COOKIES_FILE}`);
 
-  await ctx.close();
+  await browser.close();
   rl.close();
 }
 

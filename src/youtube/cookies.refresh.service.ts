@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
-import type { BrowserContext, Cookie, Page } from 'playwright-core';
+import type { Browser, BrowserContext, Cookie, Page } from 'playwright-core';
 
 type CamoufoxFn = (opts: {
   headless?: boolean;
@@ -35,6 +35,8 @@ export class CookiesRefreshService implements OnModuleDestroy {
   private readonly cookiesPath: string;
   private readonly profileDir: string;
   private readonly enabled: boolean;
+  private activeBrowser: Browser | null = null;
+  private refreshing = false;
 
   constructor(private readonly config: ConfigService) {
     this.cookiesPath =
@@ -60,6 +62,12 @@ export class CookiesRefreshService implements OnModuleDestroy {
       return { ok: false, count: 0 };
     }
 
+    if (this.refreshing) {
+      this.logger.warn('cookies.refresh.skipped — already in progress');
+      return { ok: false, count: 0 };
+    }
+    this.refreshing = true;
+
     let ctx: BrowserContext | undefined;
     try {
       const Camoufox = await getCamoufox();
@@ -68,6 +76,7 @@ export class CookiesRefreshService implements OnModuleDestroy {
         user_data_dir: this.profileDir,
         viewport: null,
       });
+      this.activeBrowser = ctx.browser();
 
       const page = await ctx.newPage();
       await page.goto('https://www.youtube.com/', {
@@ -111,7 +120,6 @@ export class CookiesRefreshService implements OnModuleDestroy {
         `cookies.refresh.success count=${cookies.length} ageSec=${ageSec}`,
       );
 
-      await ctx.close();
       return { ok: true, count: cookies.length, ageSec };
     } catch (err) {
       this.logger.warn(`cookies.refresh.failed ${(err as Error).message}`);
@@ -120,13 +128,11 @@ export class CookiesRefreshService implements OnModuleDestroy {
         if (pages.length > 0) {
           await this.saveScreenshot(pages[0], 'error').catch(() => {});
         }
-        try {
-          await ctx.close();
-        } catch {
-          /* best-effort */
-        }
       }
       return { ok: false, count: 0 };
+    } finally {
+      await this.closeBrowser();
+      this.refreshing = false;
     }
   }
 
@@ -166,7 +172,18 @@ export class CookiesRefreshService implements OnModuleDestroy {
     }
   }
 
-  onModuleDestroy() {
-    /* no persistent browser to clean up */
+  async onModuleDestroy() {
+    await this.closeBrowser();
+  }
+
+  private async closeBrowser() {
+    if (this.activeBrowser) {
+      try {
+        await this.activeBrowser.close();
+      } catch {
+        /* best-effort */
+      }
+      this.activeBrowser = null;
+    }
   }
 }
