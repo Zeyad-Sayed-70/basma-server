@@ -56,6 +56,17 @@ jobs:
               echo "WARNING: .env created from template — edit it with real secrets and restart"
             fi
 
+            # Ensure infra services are running
+            if ! nc -z 127.0.0.1 5433 2>/dev/null; then
+              echo "Starting Docker infrastructure..."
+              docker compose -f deploy/docker-compose.infra.yml up -d
+              echo "Waiting for PostgreSQL to be ready..."
+              for i in $(seq 1 30); do
+                nc -z 127.0.0.1 5433 2>/dev/null && break
+                sleep 1
+              done
+            fi
+
             npm ci
             npx prisma generate
             npx prisma migrate deploy
