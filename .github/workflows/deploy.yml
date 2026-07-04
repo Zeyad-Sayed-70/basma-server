@@ -39,7 +39,7 @@ jobs:
           tar_tmp_path: /tmp/
           tar_exec: tar
           overwrite: true
-          exclude: '.git,node_modules,dist,.next,*.log'
+          exclude: '.git,node_modules,dist,.next,*.log,.env'
 
       - name: Build & restart on VPS
         uses: appleboy/ssh-action@v1.2.2
@@ -51,17 +51,20 @@ jobs:
             set -e
             cd /opt/basma-app
 
-            # Ensure infra services are running
-            if ! nc -z 127.0.0.1 5433 2>/dev/null; then
-              echo "Starting Docker infrastructure (fresh)..."
-              # First deploy or infra was reset — set up .env and clear stale volumes
+            # Ensure .env exists (SCP excludes it, so restore on every deploy)
+            if [ ! -f .env ]; then
               cp deploy/.env.production.example .env
-              echo ".env created from template — edit secrets later"
+              echo ".env restored from template"
+            fi
+
+            # Ensure infra services are running
+            if ! ss -tlnp | grep -q ':5433 '; then
+              echo "Starting Docker infrastructure (fresh)..."
               docker compose -f deploy/docker-compose.infra.yml down -v 2>/dev/null || true
               docker compose -f deploy/docker-compose.infra.yml up -d
               echo "Waiting for PostgreSQL to be ready..."
               for i in $(seq 1 30); do
-                nc -z 127.0.0.1 5433 2>/dev/null && break
+                ss -tlnp | grep -q ':5433 ' && break
                 sleep 2
               done
             fi
