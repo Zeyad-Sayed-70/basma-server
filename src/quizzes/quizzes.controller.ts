@@ -40,6 +40,7 @@ import {
   QuestionListResponseDto,
 } from './dto/question-response.dto';
 import { SubmitQuizAttemptDto } from './dto/submit-quiz-attempt.dto';
+import { GradeTheoryAnswersDto } from './dto/grade-theory-answers.dto';
 import {
   QuizAttemptResponseDto,
   AttemptListResponseDto,
@@ -336,5 +337,34 @@ export class QuizzesController {
     @Param('studentId') studentId: string,
   ) {
     return this.quizzesService.findStudentAttempt(id, studentId);
+  }
+
+  @Patch(':id/attempts/:studentId/grade')
+  @Roles('teacher')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Grade theory answers',
+    description:
+      'Grades a student\'s theory question answers for a quiz. ' +
+      'Accepts an array of questionId and marksEarned pairs. ' +
+      'Updates the attempt score and marks for each theory answer. ' +
+      'If all answers are now graded, a quiz.graded event is emitted and the student is notified.',
+  })
+  @ApiParam({ name: 'id', description: 'Quiz ID' })
+  @ApiParam({ name: 'studentId', description: 'Student ID' })
+  @ApiBody({ type: GradeTheoryAnswersDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Theory answers graded successfully',
+    type: QuizAttemptResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Quiz or attempt not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async gradeTheoryAnswers(
+    @Param('id') id: string,
+    @Param('studentId') studentId: string,
+    @Body() dto: GradeTheoryAnswersDto,
+  ) {
+    return this.quizzesService.gradeTheoryAnswers(id, studentId, dto);
   }
 }

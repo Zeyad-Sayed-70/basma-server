@@ -1382,6 +1382,56 @@
         ]
       }
     },
+    "/api/courses/{id}/enroll": {
+      "post": {
+        "description": "Allows a student to self-enroll in a free course (price = 0). The student must belong to the same group as the course. Idempotent — if already enrolled, returns the existing enrollment.",
+        "operationId": "CoursesController_selfEnroll",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Course ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successfully enrolled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Course is not free"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Student does not have access to this course"
+          },
+          "404": {
+            "description": "Course not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Self-enroll in a free course (student)",
+        "tags": [
+          "Courses"
+        ]
+      }
+    },
     "/api/courses/{courseId}/enrollments/{studentId}": {
       "delete": {
         "description": "Removes a student's enrollment from a course. Does not delete the student or course — only the enrollment link.",
@@ -1691,7 +1741,7 @@
         ]
       },
       "patch": {
-        "description": "Updates brand colors, font family, custom domain, or white-label toggle. White-label requires a paid tier.",
+        "description": "Updates brand colors, font family, custom domain, or white-label toggle. Setting a custom domain generates a verification token and resets verification state.",
         "operationId": "BrandController_update",
         "parameters": [],
         "requestBody": {
@@ -1805,6 +1855,93 @@
           }
         ],
         "summary": "Remove brand logo",
+        "tags": [
+          "Brand"
+        ]
+      }
+    },
+    "/api/brand/domain/verify": {
+      "post": {
+        "description": "Checks that the TXT record \"_basma.<domain>\" contains the verification token. On success, marks the domain as verified. Returns immediately with the result.",
+        "operationId": "BrandController_verifyDomain",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Domain verified successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DomainVerifyResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DNS verification failed or no domain configured"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Verify custom domain ownership via DNS TXT record",
+        "tags": [
+          "Brand"
+        ]
+      }
+    },
+    "/api/brand/domain/status": {
+      "get": {
+        "description": "Returns the current custom domain, verification state, DNS instructions, and verification token.",
+        "operationId": "BrandController_getDomainStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Domain status retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DomainStatusResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get custom domain verification status",
+        "tags": [
+          "Brand"
+        ]
+      }
+    },
+    "/api/brand/domain": {
+      "delete": {
+        "description": "Removes the custom domain and resets verification state. The instance will fall back to its subdomain. After removal, the previous custom domain becomes available for other instances to claim.",
+        "operationId": "BrandController_removeDomain",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Custom domain removed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove custom domain",
         "tags": [
           "Brand"
         ]
@@ -2413,6 +2550,69 @@
           }
         ],
         "summary": "Get a specific student attempt",
+        "tags": [
+          "Quizzes"
+        ]
+      }
+    },
+    "/api/quizzes/{id}/attempts/{studentId}/grade": {
+      "patch": {
+        "description": "Grades a student's theory question answers for a quiz. Accepts an array of questionId and marksEarned pairs. Updates the attempt score and marks for each theory answer. If all answers are now graded, a quiz.graded event is emitted and the student is notified.",
+        "operationId": "QuizzesController_gradeTheoryAnswers",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Quiz ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "description": "Student ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GradeTheoryAnswersDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Theory answers graded successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuizAttemptResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Quiz or attempt not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Grade theory answers",
         "tags": [
           "Quizzes"
         ]
@@ -7144,6 +7344,36 @@
           "Landing (Public)"
         ]
       }
+    },
+    "/api/domain-check": {
+      "get": {
+        "description": "Returns 204 if the domain belongs to a verified brand. Returns 404 if not found or unverified.",
+        "operationId": "DomainCheckController_check",
+        "parameters": [
+          {
+            "name": "domain",
+            "required": true,
+            "in": "query",
+            "description": "The domain to check",
+            "schema": {
+              "example": "myschool.com",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Domain is verified"
+          },
+          "404": {
+            "description": "Domain not found or not verified"
+          }
+        },
+        "summary": "Check if a custom domain is verified (for Caddy on_demand_tls)",
+        "tags": [
+          "Domain Check"
+        ]
+      }
     }
   },
   "info": {
@@ -8457,6 +8687,18 @@
             "example": "myschool.example.com",
             "description": "Custom domain"
           },
+          "customDomainVerifiedAt": {
+            "type": "string",
+            "nullable": true,
+            "example": "2026-07-03T12:00:00.000Z",
+            "description": "When the custom domain was DNS-verified (null if not verified)"
+          },
+          "customDomainVerifyToken": {
+            "type": "string",
+            "nullable": true,
+            "example": "a1b2c3d4e5f6g7h8",
+            "description": "Verification token to place in the TXT record \"_basma.<domain>\" (present right after PATCH, cleared after verification)"
+          },
           "whiteLabelEnabled": {
             "type": "boolean",
             "example": false,
@@ -8509,14 +8751,77 @@
           },
           "customDomain": {
             "type": "string",
+            "nullable": true,
             "example": "myschool.example.com",
-            "description": "Custom domain for the platform"
+            "description": "Custom domain for the platform. Set to empty string or null to remove."
           },
           "whiteLabelEnabled": {
             "type": "boolean",
             "description": "Enable white-label (remove \"Powered by Basma\" branding). Requires paid tier."
           }
         }
+      },
+      "DomainVerifyResponseDto": {
+        "type": "object",
+        "properties": {
+          "verified": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the domain verification succeeded"
+          },
+          "customDomain": {
+            "type": "string",
+            "example": "myschool.com",
+            "description": "The verified custom domain"
+          },
+          "verifiedAt": {
+            "type": "string",
+            "example": "2026-07-03T12:00:00.000Z",
+            "description": "Timestamp of successful verification"
+          }
+        },
+        "required": [
+          "verified",
+          "customDomain",
+          "verifiedAt"
+        ]
+      },
+      "DomainStatusResponseDto": {
+        "type": "object",
+        "properties": {
+          "customDomain": {
+            "type": "string",
+            "nullable": true,
+            "example": "myschool.com",
+            "description": "Current custom domain (null if none)"
+          },
+          "verified": {
+            "type": "boolean",
+            "example": false,
+            "description": "Whether the domain has passed DNS verification"
+          },
+          "verifiedAt": {
+            "type": "string",
+            "nullable": true,
+            "example": "2026-07-03T12:00:00.000Z",
+            "description": "When the domain was verified (null if not verified)"
+          },
+          "verifyToken": {
+            "type": "string",
+            "nullable": true,
+            "example": "a1b2c3d4e5f6g7h8",
+            "description": "The verification token to place in the TXT record"
+          },
+          "dnsInstructions": {
+            "type": "string",
+            "nullable": true,
+            "example": "Add a TXT record for \"_basma.myschool.com\" with value \"a1b2c3d4e5f6g7h8\"",
+            "description": "Human-readable DNS setup instructions"
+          }
+        },
+        "required": [
+          "verified"
+        ]
       },
       "BrandPublicResponseDto": {
         "type": "object",
@@ -8999,8 +9304,9 @@
           },
           "marksEarned": {
             "type": "number",
+            "nullable": true,
             "example": 5,
-            "description": "Marks earned for this question"
+            "description": "Marks earned for this question (null if ungraded theory)"
           }
         },
         "required": [
@@ -9077,6 +9383,48 @@
         "required": [
           "data",
           "total"
+        ]
+      },
+      "GradeEntry": {
+        "type": "object",
+        "properties": {
+          "questionId": {
+            "type": "string",
+            "example": "clx...",
+            "description": "Question ID"
+          },
+          "marksEarned": {
+            "type": "number",
+            "minimum": 0,
+            "example": 3,
+            "description": "Marks to award for this question"
+          }
+        },
+        "required": [
+          "questionId",
+          "marksEarned"
+        ]
+      },
+      "GradeTheoryAnswersDto": {
+        "type": "object",
+        "properties": {
+          "answers": {
+            "minItems": 1,
+            "example": [
+              {
+                "questionId": "clx...",
+                "marksEarned": 3
+              }
+            ],
+            "description": "Array of question grades to update",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GradeEntry"
+            }
+          }
+        },
+        "required": [
+          "answers"
         ]
       },
       "CreateAssignmentDto": {
@@ -11732,6 +12080,10 @@
           },
           "price": {
             "type": "number"
+          },
+          "imageUrl": {
+            "type": "string",
+            "nullable": true
           },
           "groupId": {
             "type": "string"

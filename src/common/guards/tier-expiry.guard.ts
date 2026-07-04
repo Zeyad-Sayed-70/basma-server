@@ -19,6 +19,7 @@ const EXCLUDED_PATHS = [
   '/api/brand/public',
   '/api/landing/public',
   '/api/ws-test',
+  '/api/domain-check',
 ];
 
 const EXCLUDED_PREFIXES = ['/api/auth/', '/api/admin/', '/admin/'];

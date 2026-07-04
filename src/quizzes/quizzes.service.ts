@@ -14,6 +14,7 @@ import { UpdateQuizDto } from './dto/update-quiz.dto';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import { SubmitQuizAttemptDto } from './dto/submit-quiz-attempt.dto';
+import { GradeTheoryAnswersDto } from './dto/grade-theory-answers.dto';
 
 @Injectable()
 export class QuizzesService {
@@ -283,7 +284,7 @@ export class QuizzesService {
       questionId: string;
       answer: string;
       correct: boolean | null;
-      marksEarned: number;
+      marksEarned: number | null;
     }> = [];
 
     for (const entry of dto.answers) {
@@ -291,13 +292,14 @@ export class QuizzesService {
       if (!question) continue;
 
       let correct: boolean | null = null;
-      let marksEarned = 0;
+      let marksEarned: number | null = 0;
 
       if (question.type === 'MCQ') {
         correct = question.correctAnswer === entry.answer;
         marksEarned = correct ? question.marks : 0;
         totalScore += marksEarned;
       } else {
+        marksEarned = null;
         allGraded = false;
       }
 
@@ -384,6 +386,91 @@ export class QuizzesService {
       score: attempt.score,
       answers: attempt.answers,
       submittedAt: attempt.submittedAt.toISOString(),
+    };
+  }
+
+  async gradeTheoryAnswers(
+    quizId: string,
+    studentId: string,
+    dto: GradeTheoryAnswersDto,
+  ) {
+    const instanceId = this.getInstanceId();
+
+    const quiz = await this.prisma.quiz.findFirst({
+      where: { id: quizId, instanceId },
+      include: { questions: true },
+    });
+    if (!quiz) throw new NotFoundException('Quiz not found');
+
+    const attempt = await this.prisma.studentQuizAttempt.findUnique({
+      where: { studentId_quizId: { studentId, quizId } },
+    });
+    if (!attempt) throw new NotFoundException('Attempt not found');
+
+    if (attempt.instanceId !== instanceId) {
+      throw new NotFoundException('Attempt not found');
+    }
+
+    const existingAnswers = (attempt.answers as Array<{
+      questionId: string;
+      answer: string;
+      correct: boolean | null;
+      marksEarned: number | null;
+    }>) ?? [];
+
+    const gradeMap = new Map(dto.answers.map((g) => [g.questionId, g.marksEarned]));
+
+    const questionMap = new Map(quiz.questions.map((q) => [q.id, q]));
+
+    const updatedAnswers = existingAnswers.map((entry) => {
+      if (gradeMap.has(entry.questionId)) {
+        const question = questionMap.get(entry.questionId);
+        if (question && question.type === 'THEORY') {
+          return {
+            ...entry,
+            correct: true,
+            marksEarned: gradeMap.get(entry.questionId)!,
+          };
+        }
+      }
+      return entry;
+    });
+
+    const totalScore = updatedAnswers.reduce(
+      (sum, entry) => sum + (entry.marksEarned ?? 0),
+      0,
+    );
+
+    const allGraded = updatedAnswers.every(
+      (entry) => entry.correct !== null && entry.marksEarned !== null,
+    );
+
+    const updatedAttempt = await this.prisma.studentQuizAttempt.update({
+      where: { studentId_quizId: { studentId, quizId } },
+      data: {
+        score: totalScore,
+        answers: updatedAnswers,
+      },
+    });
+
+    if (allGraded) {
+      this.eventEmitter.emit('quiz.graded', {
+        quizId,
+        quizTitle: quiz.title,
+        studentId,
+        score: totalScore,
+        totalMarks: quiz.totalMarks,
+        instanceId,
+      });
+    }
+
+    return {
+      id: updatedAttempt.id,
+      studentId: updatedAttempt.studentId,
+      quizId: updatedAttempt.quizId,
+      score: updatedAttempt.score,
+      answers: updatedAttempt.answers,
+      submittedAt: updatedAttempt.submittedAt.toISOString(),
     };
   }
 }

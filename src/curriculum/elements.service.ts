@@ -144,6 +144,14 @@ export class ElementsService {
       throw new BadRequestException('Can only retry a failed job');
     }
 
+    if (job.youtubeVideoId) {
+      await this.videoJobsProducer.enqueueBundle(elementId, job.youtubeVideoId);
+      this.logger.log(`bundle.retry elementId=${elementId}`);
+    } else if (job.fileObjectKey) {
+      await this.videoJobsProducer.enqueueUpload(elementId, instanceId);
+      this.logger.log(`upload.retry elementId=${elementId}`);
+    }
+
     const updated = await this.prisma.videoJob.update({
       where: { id: job.id },
       data: {
@@ -154,15 +162,8 @@ export class ElementsService {
         finishedAt: null,
         bundleJson: Prisma.JsonNull,
         bundleExpiresAt: null,
-        youtubeVideoId: null,
       },
     });
-
-    if (job.fileObjectKey) {
-      await this.videoJobsProducer.enqueueUpload(elementId, instanceId);
-    }
-
-    this.logger.log(`video.retry elementId=${elementId}`);
 
     return VideoJobResponseDto.from(updated);
   }
@@ -234,14 +235,7 @@ export class ElementsService {
             }>)
           : (raw as { bundles: Array<any>; preferredContainer?: string })
               .bundles;
-        const preferredContainer = (
-          Array.isArray(raw)
-            ? bundles.some((b) => b.container === 'mp4')
-              ? 'mp4'
-              : 'webm'
-            : ((raw as { preferredContainer?: string }).preferredContainer ??
-              'mp4')
-        ) as 'mp4' | 'webm';
+        const preferredContainer = 'mp4' as const;
 
         return {
           kind: 'bundle',
@@ -358,40 +352,51 @@ export class ElementsService {
       }
     }
 
-    const response = await fetch(url, { headers });
+    try {
+      const response = await fetch(url, { headers });
 
-    if (!response.ok && response.status !== 206) {
-      throw new Error(`Upstream returned ${response.status}`);
-    }
+      if (!response.ok && response.status !== 206) {
+        throw new Error(`Upstream returned ${response.status}`);
+      }
 
-    const contentType =
-      response.headers.get('content-type') ??
-      (track === 'video' ? 'video/mp4' : 'audio/mp4');
-    const contentLength = response.headers.get('content-length');
-    const contentRange = response.headers.get('content-range');
+      const contentType =
+        response.headers.get('content-type') ??
+        (track === 'video' ? 'video/mp4' : 'audio/mp4');
+      const contentLength = response.headers.get('content-length');
+      const contentRange = response.headers.get('content-range');
 
-    res.setHeader('Content-Type', contentType);
-    if (contentLength) res.setHeader('Content-Length', contentLength);
-    if (contentRange) res.setHeader('Content-Range', contentRange);
-    res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Content-Type', contentType);
+      if (contentLength) res.setHeader('Content-Length', contentLength);
+      if (contentRange) res.setHeader('Content-Range', contentRange);
+      res.setHeader('Accept-Ranges', 'bytes');
 
-    res.status(response.status);
+      res.status(response.status);
 
-    if (response.body) {
-      const reader = response.body.getReader();
-      const pump = () => {
-        reader.read().then(({ done, value }) => {
-          if (done) {
-            res.end();
-            return;
-          }
-          res.write(value);
-          pump();
-        });
-      };
-      pump();
-    } else {
-      res.end();
+      if (response.body) {
+        const reader = response.body.getReader();
+        const pump = () => {
+          reader.read().then(({ done, value }) => {
+            if (done) {
+              res.end();
+              return;
+            }
+            res.write(value);
+            pump();
+          }).catch(() => {
+            if (!res.destroyed) res.end();
+          });
+        };
+        pump();
+      } else {
+        res.end();
+      }
+    } catch (error) {
+      this.logger.error(`Failed to proxy stream: ${(error as Error).message}`);
+      if (!res.headersSent) {
+        res.status(502).json({ error: 'Failed to fetch upstream stream' });
+      } else if (!res.destroyed) {
+        res.end();
+      }
     }
   }
 

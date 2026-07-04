@@ -197,18 +197,20 @@ model Teacher {
 }
 
 model Brand {
-  id                String   @id @default(cuid())
-  logoUrl           String?
-  logoFileSize      Int?
-  primaryColor      String   @default("#2563eb")
-  secondaryColor    String   @default("#1e40af")
-  fontFamily        String   @default("Cairo")
-  customDomain      String?
-  whiteLabelEnabled Boolean  @default(false)
-  instanceId        String   @unique
-  instance          Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                      String    @id @default(cuid())
+  logoUrl                 String?
+  logoFileSize            Int?
+  primaryColor            String    @default("#2563eb")
+  secondaryColor          String    @default("#1e40af")
+  fontFamily              String    @default("Cairo")
+  customDomain            String?   @unique
+  customDomainVerifiedAt  DateTime?
+  customDomainVerifyToken String?
+  whiteLabelEnabled       Boolean   @default(false)
+  instanceId              String    @unique
+  instance                Instance  @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
   @@map("brands")
 }

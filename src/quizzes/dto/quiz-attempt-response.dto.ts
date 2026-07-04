@@ -13,8 +13,11 @@ class AttemptAnswerDetail {
   })
   correct: boolean | null;
 
-  @ApiProperty({ example: 5, description: 'Marks earned for this question' })
-  marksEarned: number;
+  @ApiProperty({
+    example: 5,
+    description: 'Marks earned for this question (null if ungraded theory)',
+  })
+  marksEarned: number | null;
 }
 
 export class QuizAttemptResponseDto {

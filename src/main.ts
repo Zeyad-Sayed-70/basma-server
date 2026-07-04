@@ -16,21 +16,57 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const logger = new Logger('Bootstrap');
 
-  app.use(
-    cors({
-      origin(origin, callback) {
-        if (!origin) return callback(null, true);
-        if (
-          origin === 'http://localhost:3001' ||
-          origin.endsWith('.localhost:3001')
-        ) {
-          return callback(null, true);
+  app.set('trust proxy', 'loopback,linklocal,uniquelocal');
+
+  const frontendBaseUrl =
+    process.env.FRONTEND_BASE_URL ?? 'http://localhost:3001';
+  const adminBaseUrl =
+    process.env.ADMIN_BASE_URL ?? 'http://localhost:3001/admin';
+  const appBaseDomain = process.env.APP_BASE_DOMAIN ?? 'basma.app';
+
+  const corsMiddleware = cors({
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
+      if (
+        origin === frontendBaseUrl ||
+        origin === adminBaseUrl ||
+        origin === 'http://localhost:3001' ||
+        origin.endsWith('.localhost:3001') ||
+        origin.endsWith('.' + appBaseDomain)
+      ) {
+        return callback(null, true);
+      }
+      callback(null, false);
+    },
+    credentials: true,
+  });
+
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const origin = req.headers['origin'];
+    if (origin) {
+      try {
+        const originHost = new URL(origin).hostname;
+        if (originHost === req.hostname) {
+          res.setHeader('Access-Control-Allow-Origin', origin);
+          res.setHeader('Access-Control-Allow-Credentials', 'true');
+          if (req.method === 'OPTIONS') {
+            res.setHeader(
+              'Access-Control-Allow-Methods',
+              'GET,HEAD,PUT,PATCH,POST,DELETE',
+            );
+            res.setHeader(
+              'Access-Control-Allow-Headers',
+              'Content-Type,Authorization',
+            );
+            return res.status(204).end();
+          }
         }
-        callback(null, false);
-      },
-      credentials: true,
-    }),
-  );
+      } catch {
+        // invalid origin URL
+      }
+    }
+    corsMiddleware(req, res, next);
+  });
 
   app.use(cookieParser());
 
@@ -38,7 +74,10 @@ async function bootstrap() {
     const cookies = (req as unknown as { cookies?: Record<string, string> })
       .cookies;
     const token = cookies?.['admin_token'];
-    if (token && req.path.startsWith('/admin')) {
+    if (
+      token &&
+      (req.path.startsWith('/admin') || req.path.startsWith('/api/admin'))
+    ) {
       req.headers['authorization'] = `Bearer ${token}`;
     }
     next();

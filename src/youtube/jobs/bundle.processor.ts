@@ -41,6 +41,13 @@ export class BundleProcessor extends WorkerHost {
       const url = `https://www.youtube.com/watch?v=${youtubeVideoId}`;
       const result = await this.bundleService.build(url);
 
+      if (result.bundles.length === 0) {
+        throw new Error(
+          'No downloadable video formats found. ' +
+            'The video may be private, removed, region-blocked, or DRM-protected.',
+        );
+      }
+
       const bundleJson = {
         bundles: result.bundles,
         preferredContainer: result.preferredContainer,
@@ -76,7 +83,7 @@ export class BundleProcessor extends WorkerHost {
         await this.cookiesRefresh.refresh();
       }
 
-      const retryAttempt = job.data.retryAttempt ?? 0;
+      const retryAttempt = job.attemptsMade ?? 0;
       if (retryAttempt < 2) {
         throw err;
       }

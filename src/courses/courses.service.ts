@@ -261,6 +261,49 @@ export class CoursesService {
     });
   }
 
+  async selfEnroll(courseId: string, studentId: string) {
+    const instanceId = this.getInstanceId();
+
+    const course = await this.prisma.course.findFirst({
+      where: { id: courseId, instanceId },
+    });
+    if (!course) throw new NotFoundException('Course not found');
+
+    if (course.price !== 0) {
+      throw new BadRequestException(
+        'This course is not free. Use the payment flow to enroll.',
+      );
+    }
+
+    const student = await this.prisma.student.findFirst({
+      where: { id: studentId, instanceId, groupId: course.groupId },
+    });
+    if (!student) {
+      throw new ForbiddenException(
+        'Student does not have access to this course',
+      );
+    }
+
+    const enrollment = await this.prisma.courseEnrollment.upsert({
+      where: {
+        studentId_courseId: { studentId, courseId },
+      },
+      update: {},
+      create: { studentId, courseId, instanceId },
+      include: {
+        student: { select: { id: true, name: true, email: true } },
+      },
+    });
+
+    return {
+      id: enrollment.id,
+      courseId: enrollment.courseId,
+      studentId: enrollment.studentId,
+      student: enrollment.student,
+      enrolledAt: enrollment.enrolledAt.toISOString(),
+    };
+  }
+
   async enroll(id: string, dto: CreateEnrollmentDto) {
     const instanceId = this.getInstanceId();
 

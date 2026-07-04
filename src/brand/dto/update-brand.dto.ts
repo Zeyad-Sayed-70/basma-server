@@ -28,11 +28,12 @@ export class UpdateBrandDto {
 
   @ApiPropertyOptional({
     example: 'myschool.example.com',
-    description: 'Custom domain for the platform',
+    description:
+      'Custom domain for the platform. Set to empty string or null to remove.',
   })
   @IsString()
   @IsOptional()
-  customDomain?: string;
+  customDomain?: string | null;
 
   @ApiPropertyOptional({
     description:

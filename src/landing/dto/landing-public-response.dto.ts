@@ -68,6 +68,9 @@ class PublicCourseDto {
   @ApiProperty()
   price: number;
 
+  @ApiPropertyOptional()
+  imageUrl?: string | null;
+
   @ApiProperty()
   groupId: string;
 

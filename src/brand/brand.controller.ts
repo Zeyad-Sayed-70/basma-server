@@ -22,6 +22,8 @@ import {
 import { BrandService } from './brand.service';
 import { UpdateBrandDto } from './dto/update-brand.dto';
 import { BrandResponseDto } from './dto/brand-response.dto';
+import { DomainStatusResponseDto } from './dto/domain-status-response.dto';
+import { DomainVerifyResponseDto } from './dto/domain-verify-response.dto';
 
 @ApiTags('Brand')
 @ApiBearerAuth()
@@ -50,7 +52,7 @@ export class BrandController {
   @ApiOperation({
     summary: 'Update brand settings',
     description:
-      'Updates brand colors, font family, custom domain, or white-label toggle. White-label requires a paid tier.',
+      'Updates brand colors, font family, custom domain, or white-label toggle. Setting a custom domain generates a verification token and resets verification state.',
   })
   @ApiResponse({
     status: 200,
@@ -109,5 +111,54 @@ export class BrandController {
   @ApiResponse({ status: 404, description: 'Brand not found' })
   async removeLogo() {
     return this.brandService.removeLogo();
+  }
+
+  @Post('domain/verify')
+  @ApiOperation({
+    summary: 'Verify custom domain ownership via DNS TXT record',
+    description:
+      'Checks that the TXT record "_basma.<domain>" contains the verification token. On success, marks the domain as verified. Returns immediately with the result.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Domain verified successfully',
+    type: DomainVerifyResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'DNS verification failed or no domain configured',
+  })
+  async verifyDomain() {
+    return this.brandService.verifyDomain();
+  }
+
+  @Get('domain/status')
+  @ApiOperation({
+    summary: 'Get custom domain verification status',
+    description:
+      'Returns the current custom domain, verification state, DNS instructions, and verification token.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Domain status retrieved',
+    type: DomainStatusResponseDto,
+  })
+  async getDomainStatus() {
+    return this.brandService.getDomainStatus();
+  }
+
+  @Delete('domain')
+  @ApiOperation({
+    summary: 'Remove custom domain',
+    description:
+      'Removes the custom domain and resets verification state. The instance will fall back to its subdomain. After removal, the previous custom domain becomes available for other instances to claim.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Custom domain removed',
+    type: BrandResponseDto,
+  })
+  async removeDomain() {
+    return this.brandService.removeDomain();
   }
 }

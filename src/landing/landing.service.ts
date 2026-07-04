@@ -271,6 +271,7 @@ export class LandingService {
         title: c.title,
         description: c.description,
         price: c.price,
+        imageUrl: c.imageUrl,
         groupId: g.id,
         groupName: g.name,
         registrationMode: g.registrationMode,
@@ -307,7 +308,10 @@ export class LandingService {
 
   async findPublicByDomain(domain: string): Promise<LandingPublicResponseDto> {
     const brand = await this.prisma.brand.findFirst({
-      where: { customDomain: domain },
+      where: {
+        customDomain: domain,
+        customDomainVerifiedAt: { not: null },
+      },
       include: {
         instance: {
           include: {
@@ -348,6 +352,7 @@ export class LandingService {
         title: c.title,
         description: c.description,
         price: c.price,
+        imageUrl: c.imageUrl,
         groupId: g.id,
         groupName: g.name,
         registrationMode: g.registrationMode,

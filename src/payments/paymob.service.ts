@@ -75,59 +75,71 @@ export class PaymobService {
       body.extras = params.extras;
     }
 
-    const res = await fetch(`${this.baseUrl}/v1/intention/`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Token ${secretKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
+    try {
+      const res = await fetch(`${this.baseUrl}/v1/intention/`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Token ${secretKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      this.logger.error(
-        `Paymob createIntention failed (${res.status}): ${errorText}`,
-      );
-      throw new BadRequestException(
-        `Payment provider error: ${res.statusText}`,
-      );
+      if (!res.ok) {
+        const errorText = await res.text();
+        this.logger.error(
+          `Paymob createIntention failed (${res.status}): ${errorText}`,
+        );
+        throw new BadRequestException(
+          `Payment provider error: ${res.statusText}`,
+        );
+      }
+
+      const data = (await res.json()) as Record<string, unknown>;
+
+      return {
+        id: String(data.id ?? ''),
+        intentionOrderId: String(data.intention_order_id ?? ''),
+        clientSecret: String(data.client_secret ?? ''),
+      };
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+      this.logger.error(`Paymob createIntention network error: ${(error as Error).message}`);
+      throw new BadRequestException('Payment provider unreachable');
     }
-
-    const data = (await res.json()) as Record<string, unknown>;
-
-    return {
-      id: String(data.id ?? ''),
-      intentionOrderId: String(data.intention_order_id ?? ''),
-      clientSecret: String(data.client_secret ?? ''),
-    };
   }
 
   async refund(
     secretKey: string,
     params: RefundParams,
   ): Promise<Record<string, unknown>> {
-    const res = await fetch(
-      `${this.baseUrl}/api/acceptance/void_refund/refund`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Token ${secretKey}`,
-          'Content-Type': 'application/json',
+    try {
+      const res = await fetch(
+        `${this.baseUrl}/api/acceptance/void_refund/refund`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Token ${secretKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            transaction_id: params.transactionId,
+            amount_cents: String(params.amountCents),
+          }),
         },
-        body: JSON.stringify({
-          transaction_id: params.transactionId,
-          amount_cents: String(params.amountCents),
-        }),
-      },
-    );
+      );
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      this.logger.error(`Paymob refund failed (${res.status}): ${errorText}`);
-      throw new BadRequestException(`Refund failed: ${res.statusText}`);
+      if (!res.ok) {
+        const errorText = await res.text();
+        this.logger.error(`Paymob refund failed (${res.status}): ${errorText}`);
+        throw new BadRequestException(`Refund failed: ${res.statusText}`);
+      }
+
+      return res.json() as Promise<Record<string, unknown>>;
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+      this.logger.error(`Paymob refund network error: ${(error as Error).message}`);
+      throw new BadRequestException('Payment provider unreachable');
     }
-
-    return res.json() as Promise<Record<string, unknown>>;
   }
 }

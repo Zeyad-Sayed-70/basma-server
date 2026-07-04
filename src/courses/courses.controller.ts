@@ -37,7 +37,10 @@ import {
   CourseListResponseDto,
 } from './dto/course-response.dto';
 import { CreateEnrollmentDto } from './dto/create-enrollment.dto';
-import { EnrollmentListResponseDto } from './dto/enrollment-response.dto';
+import {
+  EnrollmentResponseDto,
+  EnrollmentListResponseDto,
+} from './dto/enrollment-response.dto';
 
 @ApiTags('Courses')
 @ApiBearerAuth()
@@ -224,6 +227,39 @@ export class CoursesController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async enroll(@Param('id') id: string, @Body() dto: CreateEnrollmentDto) {
     return this.coursesService.enroll(id, dto);
+  }
+
+  @Post(':id/enroll')
+  @Roles('student')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Self-enroll in a free course (student)',
+    description:
+      'Allows a student to self-enroll in a free course (price = 0). ' +
+      'The student must belong to the same group as the course. ' +
+      'Idempotent — if already enrolled, returns the existing enrollment.',
+  })
+  @ApiParam({ name: 'id', description: 'Course ID' })
+  @ApiResponse({
+    status: 201,
+    description: 'Successfully enrolled',
+    type: EnrollmentResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Course is not free',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Student does not have access to this course',
+  })
+  @ApiResponse({ status: 404, description: 'Course not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async selfEnroll(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.coursesService.selfEnroll(id, user.id);
   }
 
   @Delete(':courseId/enrollments/:studentId')

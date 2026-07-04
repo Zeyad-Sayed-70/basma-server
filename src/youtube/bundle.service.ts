@@ -111,8 +111,7 @@ export class BundleService {
 
     bundles.sort((a, b) => b.height - a.height);
 
-    const preferredContainer: 'mp4' | 'webm' =
-      mp4Video.length > 0 ? 'mp4' : 'webm';
+    const preferredContainer: 'mp4' | 'webm' = 'mp4';
 
     this.logger.log(
       `bundle.pairs_selected count=${bundles.length} container=${preferredContainer}`,

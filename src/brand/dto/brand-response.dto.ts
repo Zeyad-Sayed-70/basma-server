@@ -25,6 +25,20 @@ export class BrandResponseDto {
   })
   customDomain: string | null;
 
+  @ApiPropertyOptional({
+    example: '2026-07-03T12:00:00.000Z',
+    description:
+      'When the custom domain was DNS-verified (null if not verified)',
+  })
+  customDomainVerifiedAt: string | null;
+
+  @ApiPropertyOptional({
+    example: 'a1b2c3d4e5f6g7h8',
+    description:
+      'Verification token to place in the TXT record "_basma.<domain>" (present right after PATCH, cleared after verification)',
+  })
+  customDomainVerifyToken: string | null;
+
   @ApiProperty({
     example: false,
     description: 'Whether white-label is enabled (removes Basma branding)',
