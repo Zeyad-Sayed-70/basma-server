@@ -17,6 +17,7 @@ export class MinioService implements OnModuleInit {
   private readonly client: Minio.Client;
   private readonly bucket: string;
   private readonly endpoint: string;
+  private readonly publicUrl: string;
 
   constructor(
     private readonly configService: ConfigService,
@@ -30,6 +31,10 @@ export class MinioService implements OnModuleInit {
       configService.get<string>('MINIO_USE_SSL', 'false') === 'true';
     this.endpoint = ep;
     this.bucket = configService.getOrThrow<string>('MINIO_BUCKET');
+    this.publicUrl = configService.get<string>(
+      'MINIO_PUBLIC_URL',
+      `http://${this.endpoint}/${this.bucket}`,
+    );
 
     this.client = new Minio.Client({
       endPoint: host,
@@ -181,9 +186,6 @@ export class MinioService implements OnModuleInit {
   }
 
   getObjectUrl(objectPath: string): string {
-    const useSSL =
-      this.configService.get<string>('MINIO_USE_SSL', 'false') === 'true';
-    const protocol = useSSL ? 'https' : 'http';
-    return `${protocol}://${this.endpoint}/${this.bucket}/${objectPath}`;
+    return `${this.publicUrl}/${objectPath}`;
   }
 }

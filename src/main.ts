@@ -23,14 +23,20 @@ async function bootstrap() {
   const adminBaseUrl =
     process.env.ADMIN_BASE_URL ?? 'http://localhost:3001/admin';
   const appBaseDomain = process.env.APP_BASE_DOMAIN ?? 'basma.app';
+  const frontendWwwUrl = `https://www.${appBaseDomain}`;
+
+  const allowedOrigins = new Set([
+    frontendBaseUrl,
+    adminBaseUrl,
+    'http://localhost:3001',
+    frontendWwwUrl,
+  ]);
 
   const corsMiddleware = cors({
     origin(origin, callback) {
       if (!origin) return callback(null, true);
       if (
-        origin === frontendBaseUrl ||
-        origin === adminBaseUrl ||
-        origin === 'http://localhost:3001' ||
+        allowedOrigins.has(origin) ||
         origin.endsWith('.localhost:3001') ||
         origin.endsWith('.' + appBaseDomain)
       ) {
