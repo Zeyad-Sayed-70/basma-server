@@ -51,19 +51,18 @@ jobs:
             set -e
             cd /opt/basma-app
 
-            if [ ! -f .env ]; then
-              cp deploy/.env.production.example .env
-              echo "WARNING: .env created from template — edit it with real secrets and restart"
-            fi
-
             # Ensure infra services are running
             if ! nc -z 127.0.0.1 5433 2>/dev/null; then
-              echo "Starting Docker infrastructure..."
+              echo "Starting Docker infrastructure (fresh)..."
+              # First deploy or infra was reset — set up .env and clear stale volumes
+              cp deploy/.env.production.example .env
+              echo ".env created from template — edit secrets later"
+              docker compose -f deploy/docker-compose.infra.yml down -v 2>/dev/null || true
               docker compose -f deploy/docker-compose.infra.yml up -d
               echo "Waiting for PostgreSQL to be ready..."
               for i in $(seq 1 30); do
                 nc -z 127.0.0.1 5433 2>/dev/null && break
-                sleep 1
+                sleep 2
               done
             fi
 
