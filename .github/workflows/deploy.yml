@@ -24,8 +24,15 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             set -e
+            if [ ! -d /opt/basma-app ]; then
+              git clone https://github.com/${{ github.repository }}.git /opt/basma-app
+            fi
             cd /opt/basma-app
-            git pull origin main
+            if [ ! -f .env ]; then
+              cp deploy/.env.production.example .env
+              echo "WARNING: .env created from template — edit it with real secrets and restart"
+            fi
+            git pull origin master
             npm ci
             npx prisma generate
             npx prisma migrate deploy
