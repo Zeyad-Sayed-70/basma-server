@@ -2,13 +2,15 @@ name: Deploy Backend
 
 on:
   push:
-    branches: [master]
+    branches: [master, main]
     paths:
+      - '.github/workflows/deploy.yml'
       - 'src/**'
       - 'prisma/**'
       - 'package.json'
       - 'package-lock.json'
       - 'ecosystem.config.js'
+      - 'deploy/**'
 
 jobs:
   deploy:
