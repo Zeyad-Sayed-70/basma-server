@@ -77,7 +77,7 @@ export class BundleService {
       mp4Video.length > 0 ? 'mp4' : 'webm',
     );
     if (!bestAudio) {
-      this.logger.warn('bundle.no_audio_found');
+      this.logger.warn('bundle.no_separate_audio_stream will_use_combined_format');
     }
 
     const containers: Array<'mp4' | 'webm'> = ['mp4', 'webm'];
@@ -95,16 +95,30 @@ export class BundleService {
         if (candidates.length === 0) continue;
 
         const picked = candidates[0];
+
+        let audioUrl: string;
+        let bitrateAudio: number;
+        if (audioForCont) {
+          audioUrl = audioForCont.url;
+          bitrateAudio = audioForCont.tbr ?? 0;
+        } else if (picked.acodec && picked.acodec !== 'none') {
+          audioUrl = picked.url;
+          bitrateAudio = picked.tbr ?? 0;
+        } else {
+          audioUrl = '';
+          bitrateAudio = 0;
+        }
+
         bundles.push({
           quality: bucket.label,
           container: cont,
           height: picked.height!,
           width: picked.width!,
           videoUrl: picked.url,
-          audioUrl: audioForCont?.url ?? '',
+          audioUrl,
           expiresAt: new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString(),
           bitrateVideo: picked.tbr ?? 0,
-          bitrateAudio: audioForCont?.tbr ?? 0,
+          bitrateAudio,
         });
       }
     }
