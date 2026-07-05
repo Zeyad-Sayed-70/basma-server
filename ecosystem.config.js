@@ -19,5 +19,23 @@ module.exports = {
       kill_timeout: 10000,
       listen_timeout: 8000,
     },
+    {
+      name: 'opencode-server',
+      script: 'opencode',
+      args: 'serve --hostname 127.0.0.1 --port 4096',
+      interpreter: 'none',
+      instances: 1,
+      exec_mode: 'fork',
+      env: {
+        OPENCODE_SERVER_PASSWORD: '',
+      },
+      max_memory_restart: '2G',
+      error_file: 'logs/opencode-error.log',
+      out_file: 'logs/opencode-out.log',
+      merge_logs: true,
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      watch: false,
+      kill_timeout: 30000,
+    },
   ],
 };
