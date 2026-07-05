@@ -59,7 +59,7 @@ export class VideoJobsProducer {
       { elementId, youtubeVideoId } satisfies BundleJobData,
       {
         jobId,
-        attempts: 6,
+        attempts: 11,
         backoff: { type: 'exponential', delay: 30_000 },
         removeOnComplete: 100,
         removeOnFail: 500,

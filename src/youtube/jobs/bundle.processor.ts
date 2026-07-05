@@ -48,6 +48,16 @@ export class BundleProcessor extends WorkerHost {
         );
       }
 
+      const hasMissingVideo = result.bundles.some((b) => !b.videoUrl);
+      const hasMissingAudio = result.bundles.some((b) => !b.audioUrl);
+
+      if (hasMissingVideo) {
+        throw new Error('Incomplete bundle: no video stream found');
+      }
+      if (hasMissingAudio) {
+        throw new Error('Incomplete bundle: no audio stream found');
+      }
+
       const bundleJson = {
         bundles: result.bundles,
         preferredContainer: result.preferredContainer,
@@ -84,7 +94,7 @@ export class BundleProcessor extends WorkerHost {
       }
 
       const retryAttempt = job.attemptsMade ?? 0;
-      if (retryAttempt < 2) {
+      if (retryAttempt < 10) {
         throw err;
       }
 
