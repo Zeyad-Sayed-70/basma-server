@@ -108,7 +108,7 @@ jobs:
             # ─── 9. Prisma ──────────────────────────────────────────
             echo "--- Running Prisma ---"
             npx prisma generate
-            npx prisma migrate deploy
+            npx prisma db push
 
             # ─── 10. Build ──────────────────────────────────────────
             echo "--- Building NestJS ---"
