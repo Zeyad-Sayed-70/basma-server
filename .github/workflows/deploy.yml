@@ -39,7 +39,7 @@ jobs:
           tar_tmp_path: /tmp/
           tar_exec: tar
           overwrite: true
-          exclude: '.git,node_modules,dist,.next,*.log,.env,*.tsbuildinfo'
+          exclude: '.git,node_modules,dist,.next,*.log,.env,*.tsbuildinfo,data'
 
       - name: Build & restart on VPS
         uses: appleboy/ssh-action@v1.2.2
