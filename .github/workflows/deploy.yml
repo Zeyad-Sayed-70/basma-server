@@ -26,6 +26,17 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: mkdir -p /opt/basma-app
 
+      - name: Clean target (preserve data dir, .env, logs)
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /opt/basma-app
+            find . -maxdepth 1 -not -name 'data' -not -name '.env' -not -name 'logs' -not -name '.' -exec rm -rf {} + 2>/dev/null || true
+            mkdir -p data tmp/uploads
+
       - name: Copy code to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -35,7 +46,7 @@ jobs:
           source: '.'
           target: /opt/basma-app
           strip_components: 0
-          rm: true
+          rm: false
           tar_tmp_path: /tmp/
           tar_exec: tar
           overwrite: true
