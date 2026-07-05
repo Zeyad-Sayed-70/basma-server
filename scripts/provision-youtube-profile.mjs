@@ -13,9 +13,7 @@ async function main() {
   fs.mkdirSync(profileDir, { recursive: true });
   console.log(`Profile directory: ${profileDir}`);
 
-  const mod = await import(
-    path.join(root, 'node_modules', 'camoufox-js')
-  );
+  const mod = await import('camoufox-js');
   const Camoufox = mod.Camoufox;
 
   console.log('\nLaunching browser (non-headless)...');
