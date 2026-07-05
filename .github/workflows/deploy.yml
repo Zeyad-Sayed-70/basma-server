@@ -114,6 +114,17 @@ jobs:
             echo "--- Building NestJS ---"
             NODE_OPTIONS="--max-old-space-size=4096" npm run build
 
+            # Verify build output exists
+            if [ ! -f dist/main.js ]; then
+              echo "ERROR: Build failed — dist/main.js not found!"
+              ls -la dist/ 2>/dev/null || echo "(dist directory missing)"
+              exit 1
+            fi
+
+            # Copy EJS views and static assets for admin panel
+            cp -r src/admin/views dist/admin/views
+            cp -r src/admin/public dist/admin/public
+
             # ─── 11. Start / restart ────────────────────────────────
             echo "--- Starting PM2 ---"
             pm2 restart basma-api 2>/dev/null || pm2 start ecosystem.config.js --only basma-api

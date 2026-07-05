@@ -4,10 +4,6 @@
   "sourceRoot": "src",
   "compilerOptions": {
     "deleteOutDir": true,
-    "plugins": ["@nestjs/swagger"],
-    "assets": [
-      { "include": "admin/views/**/*", "outDir": "./dist", "watchAssets": true },
-      { "include": "admin/public/**/*", "outDir": "./dist", "watchAssets": true }
-    ]
+    "plugins": ["@nestjs/swagger"]
   }
 }
