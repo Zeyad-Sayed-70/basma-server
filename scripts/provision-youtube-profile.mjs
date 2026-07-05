@@ -2,13 +2,6 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
-import type { BrowserContext } from 'playwright-core';
-
-type CamoufoxFn = (opts: {
-  headless?: boolean;
-  user_data_dir?: string;
-  [key: string]: unknown;
-}) => Promise<BrowserContext>;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -20,9 +13,10 @@ async function main() {
   fs.mkdirSync(profileDir, { recursive: true });
   console.log(`Profile directory: ${profileDir}`);
 
-  const { Camoufox } = (await import(
+  const mod = await import(
     path.join(root, 'node_modules', 'camoufox-js')
-  )) as { Camoufox: CamoufoxFn };
+  );
+  const Camoufox = mod.Camoufox;
 
   console.log('\nLaunching browser (non-headless)...');
   console.log('A browser window will open. Please:');
@@ -47,7 +41,7 @@ async function main() {
     output: process.stdout,
   });
 
-  await new Promise<void>((resolve) => {
+  await new Promise((resolve) => {
     rl.question('Press Enter after signing in to YouTube...', () => {
       rl.close();
       resolve();
@@ -57,7 +51,7 @@ async function main() {
   console.log('\nSaving profile and closing browser...');
   await ctx.close();
 
-  console.log('\n✓ Profile saved successfully!');
+  console.log('\nProfile saved successfully!');
   console.log('  You can now restart the API: pm2 restart basma-api');
 }
 
