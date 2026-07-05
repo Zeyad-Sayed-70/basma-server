@@ -39,7 +39,7 @@ jobs:
           tar_tmp_path: /tmp/
           tar_exec: tar
           overwrite: true
-          exclude: '.git,node_modules,dist,.next,*.log,.env'
+          exclude: '.git,node_modules,dist,.next,*.log,.env,*.tsbuildinfo'
 
       - name: Build & restart on VPS
         uses: appleboy/ssh-action@v1.2.2
@@ -112,14 +112,14 @@ jobs:
 
             # ─── 10. Build ──────────────────────────────────────────
             echo "--- Building NestJS ---"
-            # Clear stale incremental cache from local machine
             rm -f tsconfig.build.tsbuildinfo
+            rm -rf dist
             NODE_OPTIONS="--max-old-space-size=4096" npm run build
 
-            # Verify build output exists
+            # Verify build output
             if [ ! -f dist/main.js ]; then
               echo "ERROR: Build failed — dist/main.js not found!"
-              ls -la dist/ 2>/dev/null || echo "(dist directory missing)"
+              find dist -name "*.js" 2>/dev/null | head -20 || echo "(dist directory missing)"
               exit 1
             fi
 
