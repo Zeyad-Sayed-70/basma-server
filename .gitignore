@@ -5,6 +5,7 @@ dist/
 .DS_Store
 coverage/
 .tmp/
+*.tsbuildinfo
 
 # YouTube video pipeline — secure assets
 data/*

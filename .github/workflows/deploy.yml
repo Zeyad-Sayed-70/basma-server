@@ -112,6 +112,8 @@ jobs:
 
             # ─── 10. Build ──────────────────────────────────────────
             echo "--- Building NestJS ---"
+            # Clear stale incremental cache from local machine
+            rm -f tsconfig.build.tsbuildinfo
             NODE_OPTIONS="--max-old-space-size=4096" npm run build
 
             # Verify build output exists
