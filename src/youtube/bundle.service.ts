@@ -24,6 +24,7 @@ export interface VideoBundle {
   expiresAt: string;
   bitrateVideo: number;
   bitrateAudio: number;
+  httpHeaders: Record<string, string> | null;
 }
 
 export interface BundleBuildResult {
@@ -119,6 +120,7 @@ export class BundleService {
           expiresAt: new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString(),
           bitrateVideo: picked.tbr ?? 0,
           bitrateAudio,
+          httpHeaders: picked.http_headers ?? null,
         });
       }
     }

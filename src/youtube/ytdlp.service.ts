@@ -39,11 +39,14 @@ export interface YtVideoInfo {
 export class YtdlpService {
   private readonly logger = new Logger(YtdlpService.name);
   private readonly cookiesPath: string;
+  private readonly forceIpv4: boolean;
 
   constructor(private readonly config: ConfigService) {
     this.cookiesPath =
       this.config.get<string>('YT_COOKIES_FILE') ??
       path.join(process.cwd(), 'data', 'yt-cookies.txt');
+    this.forceIpv4 =
+      this.config.get<string>('YT_FORCE_IPV4', 'true') === 'true';
   }
 
   private getCookiesArg(): string[] {
@@ -97,6 +100,7 @@ export class YtdlpService {
       '--dump-json',
       '--skip-download',
       '--no-warnings',
+      ...(this.forceIpv4 ? ['--force-ipv4'] : []),
       ...cookies,
       url,
     ];

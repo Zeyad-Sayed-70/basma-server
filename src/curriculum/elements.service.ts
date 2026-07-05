@@ -232,6 +232,7 @@ export class ElementsService {
               expiresAt: string;
               bitrateVideo: number;
               bitrateAudio: number;
+              httpHeaders: Record<string, string> | null;
             }>)
           : (raw as { bundles: Array<any>; preferredContainer?: string })
               .bundles;
@@ -339,21 +340,52 @@ export class ElementsService {
       headers.range = range;
     }
 
-    for (const key of [
-      'user-agent',
-      'accept',
-      'accept-language',
-      'origin',
-      'referer',
-    ]) {
-      const val = reqHeaders[key];
-      if (val && !Array.isArray(val)) {
-        headers[key] = val;
+    const storedHeaders = (entry as any).httpHeaders;
+    if (storedHeaders && typeof storedHeaders === 'object') {
+      for (const key of [
+        'user-agent',
+        'accept',
+        'origin',
+        'referer',
+      ]) {
+        const val = storedHeaders[key];
+        if (val && typeof val === 'string') {
+          headers[key] = val;
+        }
       }
     }
 
     try {
       const response = await fetch(url, { headers });
+
+      if (response.status === 403) {
+        this.logger.warn(
+          `stream.403 elementId=${elementId} quality=${quality} track=${track} — invalidating bundle`,
+        );
+        await this.prisma.videoJob.updateMany({
+          where: { elementId },
+          data: {
+            bundleJson: Prisma.JsonNull,
+            bundleExpiresAt: null,
+          },
+        });
+        const job = await this.prisma.videoJob.findFirst({
+          where: { elementId },
+        });
+        if (job?.youtubeVideoId) {
+          await this.videoJobsProducer.enqueueBundle(
+            elementId,
+            job.youtubeVideoId,
+          );
+        }
+        if (!res.headersSent) {
+          res.status(503).json({
+            error: 'Stream expired, rebuilding',
+            retryAfter: 5,
+          });
+        }
+        return;
+      }
 
       if (!response.ok && response.status !== 206) {
         throw new Error(`Upstream returned ${response.status}`);
