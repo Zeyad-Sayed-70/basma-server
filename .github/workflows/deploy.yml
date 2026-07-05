@@ -51,15 +51,26 @@ jobs:
             set -e
             cd /opt/basma-app
 
-            # Ensure .env exists (SCP excludes it, so restore on every deploy)
+            # ─── 1. System dependencies ─────────────────────────────
+            echo "--- Installing system dependencies ---"
+            apt-get update -qq
+            apt-get install -y -qq \
+              build-essential python3 make gcc g++ \
+              yt-dlp \
+              libnss3 libnspr4 libatk1.0-0t64 libatk-bridge2.0-0t64 \
+              libcups2t64 libdrm2 libdbus-1-3 libxkbcommon0 \
+              libxcomposite1 libxdamage1 libxrandr2 libgbm1 \
+              libpango-1.0-0 libcairo2 libasound2t64 2>/dev/null || true
+
+            # ─── 2. Environment file ────────────────────────────────
             if [ ! -f .env ]; then
               cp deploy/.env.production.example .env
-              echo ".env restored from template"
+              echo ".env restored from template — edit secrets later"
             fi
 
-            # Ensure infra services are running
+            # ─── 3. Docker infrastructure ───────────────────────────
             if ! ss -tlnp | grep -q ':5433 '; then
-              echo "Starting Docker infrastructure (fresh)..."
+              echo "--- Starting Docker infrastructure ---"
               docker compose -f deploy/docker-compose.infra.yml down -v 2>/dev/null || true
               docker compose -f deploy/docker-compose.infra.yml up -d
               echo "Waiting for PostgreSQL to be ready..."
@@ -69,9 +80,41 @@ jobs:
               done
             fi
 
-            npm ci
+            # ─── 4. Swap for memory-heavy build ─────────────────────
+            if [ "$(free -m | awk '/^Swap:/ { print $2 }')" -lt 1024 ]; then
+              echo "--- Adding 2G swap ---"
+              fallocate -l 2G /swapfile 2>/dev/null || true
+              chmod 600 /swapfile 2>/dev/null || true
+              mkswap /swapfile 2>/dev/null || true
+              swapon /swapfile 2>/dev/null || true
+            fi
+
+            # ─── 5. Node modules (skip native compiles) ──────────────
+            echo "--- Installing npm packages ---"
+            npm ci --ignore-scripts 2>/dev/null || npm install --ignore-scripts
+
+            # ─── 6. Camoufox patch (replace better-sqlite3 with sql.js) ─
+            echo "--- Applying camoufox patch ---"
+            node scripts/apply-camoufox-patch.mjs
+
+            # ─── 7. Playwright browser for camoufox ─────────────────
+            echo "--- Installing Playwright browser ---"
+            npx playwright install-deps chromium 2>/dev/null || true
+            npx playwright install chromium 2>/dev/null || true
+
+            # ─── 8. Data directories ────────────────────────────────
+            mkdir -p data tmp/uploads
+
+            # ─── 9. Prisma ──────────────────────────────────────────
+            echo "--- Running Prisma ---"
             npx prisma generate
             npx prisma migrate deploy
-            npm run build
-            pm2 restart basma-api || pm2 start ecosystem.config.js --only basma-api
+
+            # ─── 10. Build ──────────────────────────────────────────
+            echo "--- Building NestJS ---"
+            NODE_OPTIONS="--max-old-space-size=4096" npm run build
+
+            # ─── 11. Start / restart ────────────────────────────────
+            echo "--- Starting PM2 ---"
+            pm2 restart basma-api 2>/dev/null || pm2 start ecosystem.config.js --only basma-api
             pm2 save
