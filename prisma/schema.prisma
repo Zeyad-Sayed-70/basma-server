@@ -148,8 +148,10 @@ model Instance {
   notificationPreferences NotificationPreference[]
   curricula               Curriculum[]
 
-  landingPage     LandingPage?
-  tierChangeLogs TierChangeLog[]
+  landingPage           LandingPage?
+  tierChangeLogs        TierChangeLog[]
+  onboardingAnswers     Json?               @map("onboarding_answers")
+  onboardingCompleted   Boolean             @default(false) @map("onboarding_completed")
 
   @@map("instances")
 }

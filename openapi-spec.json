@@ -7374,6 +7374,166 @@
           "Domain Check"
         ]
       }
+    },
+    "/api/onboarding": {
+      "get": {
+        "description": "Returns whether onboarding is completed, saved answers, and whether landing content has been generated.",
+        "operationId": "OnboardingController_getStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Onboarding status retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingStatusDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get onboarding status",
+        "tags": [
+          "Onboarding"
+        ]
+      }
+    },
+    "/api/onboarding/answers": {
+      "put": {
+        "description": "Saves the teacher onboarding form answers. Can be called multiple times (partial updates).",
+        "operationId": "OnboardingController_saveAnswers",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveAnswersDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Answers saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingStatusDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Save onboarding answers",
+        "tags": [
+          "Onboarding"
+        ]
+      }
+    },
+    "/api/onboarding/generate": {
+      "post": {
+        "description": "Uses AI to generate landing page content, SEO fields, and brand settings from the saved onboarding answers. Returns a preview.",
+        "operationId": "OnboardingController_generate",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Landing page content generated"
+          },
+          "400": {
+            "description": "Missing answers or AI error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Generate landing page from answers",
+        "tags": [
+          "Onboarding"
+        ]
+      }
+    },
+    "/api/onboarding/publish": {
+      "post": {
+        "description": "Publishes the generated landing page and marks onboarding as completed.",
+        "operationId": "OnboardingController_publish",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Page published, onboarding completed"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Publish landing page and complete onboarding",
+        "tags": [
+          "Onboarding"
+        ]
+      }
+    },
+    "/api/onboarding/skip": {
+      "post": {
+        "description": "Marks onboarding as completed without generating any landing page content.",
+        "operationId": "OnboardingController_skip",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Onboarding skipped"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Skip onboarding",
+        "tags": [
+          "Onboarding"
+        ]
+      }
+    },
+    "/api/tasks": {
+      "get": {
+        "description": "Returns a checklist of tasks for the teacher to get started. Each task is automatically marked complete based on live data.",
+        "operationId": "TasksController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Tasks retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TasksListResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get getting-started tasks",
+        "tags": [
+          "Tasks"
+        ]
+      }
     }
   },
   "info": {
@@ -12135,6 +12295,179 @@
           "brand",
           "landing",
           "courses"
+        ]
+      },
+      "ContactMethodDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "enum": [
+              "phone",
+              "whatsapp",
+              "email"
+            ],
+            "type": "string",
+            "example": "whatsapp"
+          },
+          "value": {
+            "type": "string",
+            "maxLength": 100,
+            "example": "+201234567890"
+          }
+        },
+        "required": [
+          "type",
+          "value"
+        ]
+      },
+      "SaveAnswersDto": {
+        "type": "object",
+        "properties": {
+          "subjects": {
+            "maxItems": 20,
+            "example": [
+              "الرياضيات",
+              "الفيزياء"
+            ],
+            "description": "المواد اللي بيدرسها",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "audience": {
+            "type": "string",
+            "maxLength": 500,
+            "example": "طلاب ثانوية عامة",
+            "description": "الجمهور المستهدف"
+          },
+          "uniqueSellingPoint": {
+            "type": "string",
+            "maxLength": 1000,
+            "example": "بشرح بأسلوب مبسط وربط بالحياة العملية",
+            "description": "إيه اللي يميزك كمدرس"
+          },
+          "location": {
+            "type": "string",
+            "maxLength": 300,
+            "example": "القاهرة، مصر",
+            "description": "مكان الأكاديمية"
+          },
+          "contactMethod": {
+            "description": "وسيلة التواصل المفضلة",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ContactMethodDto"
+              }
+            ]
+          },
+          "primaryColor": {
+            "type": "string",
+            "pattern": "^#?([0-9A-F]{3}|[0-9A-F]{4}|[0-9A-F]{6}|[0-9A-F]{8})$",
+            "example": "#2563eb",
+            "description": "اللون الأساسي"
+          },
+          "heroImageUrl": {
+            "type": "string",
+            "description": "رابط صورة الهيرو"
+          },
+          "aboutImageUrl": {
+            "type": "string",
+            "description": "رابط صورة قسم \"عن الأكاديمية\""
+          }
+        },
+        "required": [
+          "subjects",
+          "audience",
+          "uniqueSellingPoint",
+          "primaryColor"
+        ]
+      },
+      "OnboardingStatusDto": {
+        "type": "object",
+        "properties": {
+          "completed": {
+            "type": "boolean",
+            "description": "هل اكتمل الأونبوردينغ"
+          },
+          "answers": {
+            "nullable": true,
+            "description": "الإجابات المحفوظة (إن وجدت)",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SaveAnswersDto"
+              }
+            ]
+          },
+          "generated": {
+            "type": "boolean",
+            "description": "هل تم توليد الصفحة"
+          }
+        },
+        "required": [
+          "completed",
+          "generated"
+        ]
+      },
+      "TaskItemDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "example": "create_first_group"
+          },
+          "labelAr": {
+            "type": "string",
+            "example": "أنشئ أول مجموعة"
+          },
+          "labelEn": {
+            "type": "string",
+            "example": "Create your first group"
+          },
+          "icon": {
+            "type": "string",
+            "example": "users"
+          },
+          "action": {
+            "type": "string",
+            "example": "/dashboard/groups"
+          },
+          "completed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "labelAr",
+          "labelEn",
+          "icon",
+          "action",
+          "completed"
+        ]
+      },
+      "TasksListResponseDto": {
+        "type": "object",
+        "properties": {
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskItemDto"
+            }
+          },
+          "completedCount": {
+            "type": "number",
+            "example": 3
+          },
+          "totalCount": {
+            "type": "number",
+            "example": 8
+          }
+        },
+        "required": [
+          "tasks",
+          "completedCount",
+          "totalCount"
         ]
       },
       "JoinGroupDto": {
