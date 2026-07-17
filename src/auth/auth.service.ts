@@ -36,7 +36,7 @@ export class AuthService {
     return actions;
   }
 
-  private teacherToResponse(teacher: any, instance?: any) {
+  private teacherToResponse(teacher: any) {
     const responses = {
       id: teacher.id,
       email: teacher.email,
