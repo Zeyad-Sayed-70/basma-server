@@ -26,8 +26,10 @@ import { CurriculumModule } from './curriculum/curriculum.module';
 import { AdminModule } from './admin/admin.module';
 import { LandingModule } from './landing/landing.module';
 import { DomainCheckModule } from './domain-check/domain-check.module';
+import { FeedbackModule } from './feedback/feedback.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { TasksModule } from './tasks/tasks.module';
+import { MeetingsModule } from './meetings/meetings.module';
 import { TenantMiddleware } from './common/context/tenant.middleware';
 import { TierExpiryGuard } from './common/guards/tier-expiry.guard';
 
@@ -67,8 +69,10 @@ import { TierExpiryGuard } from './common/guards/tier-expiry.guard';
     AdminModule,
     LandingModule,
     DomainCheckModule,
+    FeedbackModule,
     OnboardingModule,
     TasksModule,
+    MeetingsModule,
   ],
   providers: [
     {

@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.0",
   "paths": {
-    "/api/health": {
+    "/health": {
       "get": {
         "operationId": "HealthController_check",
         "parameters": [],
@@ -59,7 +59,7 @@
         ]
       }
     },
-    "/api/auth/signup": {
+    "/auth/signup": {
       "post": {
         "description": "Creates a new teacher instance (tenant) with a brand, teacher profile, and returns JWT tokens. The subdomain is auto-generated from the teacher name if not provided. The instance starts on the FREE tier by default.",
         "operationId": "AuthController_signup",
@@ -98,7 +98,7 @@
         ]
       }
     },
-    "/api/auth/login": {
+    "/auth/login": {
       "post": {
         "description": "Authenticates a teacher using their email and password. Returns access and refresh JWT tokens upon successful authentication.",
         "operationId": "AuthController_login",
@@ -134,7 +134,7 @@
         ]
       }
     },
-    "/api/auth/refresh": {
+    "/auth/refresh": {
       "post": {
         "description": "Exchange a valid refresh token for a new access token and refresh token pair. Refresh tokens are valid for 30 days.",
         "operationId": "AuthController_refresh",
@@ -170,7 +170,7 @@
         ]
       }
     },
-    "/api/auth/me": {
+    "/auth/me": {
       "get": {
         "description": "Returns the authenticated teacher&#39;s profile including instance tier, subdomain, and account metadata. Requires a valid JWT token in the Authorization header.",
         "operationId": "AuthController_me",
@@ -201,7 +201,48 @@
         ]
       }
     },
-    "/api/auth/student/signup": {
+    "/auth/profile": {
+      "patch": {
+        "description": "Updates the authenticated teacher&#39;s profile (e.g., phone number). Returns the updated profile with any remaining required actions.",
+        "operationId": "AuthController_updateProfile",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTeacherProfileDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — invalid or missing token"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update teacher profile",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/auth/student/signup": {
       "post": {
         "description": "Allows a student to join a group and get a JWT. If the code is a valid group ID and the group is in OPEN mode, the student joins directly. If the code is an invitation code (from a CLOSED group), the student joins via invitation. If the student email already exists, a new JWT is returned (idempotent re-auth). An optional password can be set during signup to enable future email+password login. Returns access and refresh JWT tokens for student API access.",
         "operationId": "AuthController_studentSignup",
@@ -240,7 +281,7 @@
         ]
       }
     },
-    "/api/auth/student/login": {
+    "/auth/student/login": {
       "post": {
         "description": "Authenticates a student using their email and password. The student must have set a password during signup. Returns access and refresh JWT tokens upon successful authentication. Use this endpoint to sign in from another device after initial signup.",
         "operationId": "AuthController_studentLogin",
@@ -276,7 +317,7 @@
         ]
       }
     },
-    "/api/auth/student/me": {
+    "/auth/student/me": {
       "get": {
         "description": "Returns the authenticated student's profile including group info. Requires a valid student JWT token in the Authorization header.",
         "operationId": "AuthController_studentMe",
@@ -307,7 +348,7 @@
         ]
       }
     },
-    "/api/groups": {
+    "/groups": {
       "post": {
         "description": "Creates a group scoped to the authenticated teacher's instance. Enforces tier limits: FREE plan allows only 1 group. Group names must be unique within the instance.",
         "operationId": "GroupsController_create",
@@ -383,7 +424,7 @@
         ]
       }
     },
-    "/api/groups/{id}": {
+    "/groups/{id}": {
       "get": {
         "description": "Returns a single group with student counts.",
         "operationId": "GroupsController_findOne",
@@ -517,7 +558,7 @@
         ]
       }
     },
-    "/api/groups/{id}/invitation-code": {
+    "/groups/{id}/invitation-code": {
       "post": {
         "description": "Generates a new unique invitation code for the group. When registration mode is CLOSED, students can only join using this code. Generating a new code invalidates the previous one.",
         "operationId": "GroupsController_generateInvitationCode",
@@ -613,7 +654,7 @@
         ]
       }
     },
-    "/api/students": {
+    "/students": {
       "post": {
         "description": "Adds a student to a group within the teacher's instance. If the instance has reached its tier student limit, the student is created as INACTIVE. Email is unique within the instance.",
         "operationId": "StudentsController_create",
@@ -699,7 +740,7 @@
         ]
       }
     },
-    "/api/students/export": {
+    "/students/export": {
       "get": {
         "description": "Downloads all students (optionally filtered by group) as a CSV file. Columns: name, email, phone, status, groupId, createdAt.",
         "operationId": "StudentsController_exportCsv",
@@ -739,7 +780,7 @@
         ]
       }
     },
-    "/api/students/import": {
+    "/students/import": {
       "post": {
         "description": "Imports multiple students into a group in one request. Students beyond the tier limit are created as INACTIVE. Duplicate emails within the instance are skipped.",
         "operationId": "StudentsController_bulkImport",
@@ -783,7 +824,7 @@
         ]
       }
     },
-    "/api/students/redeem-invitation": {
+    "/students/redeem-invitation": {
       "post": {
         "description": "Allows a student to join a group using an invitation code. No authentication required — this is a public endpoint. The group must be in CLOSED registration mode. Students beyond the tier limit are created as INACTIVE.",
         "operationId": "StudentsController_redeemInvitation",
@@ -854,7 +895,7 @@
         ]
       }
     },
-    "/api/students/{id}": {
+    "/students/{id}": {
       "get": {
         "description": "Returns a single student's details.",
         "operationId": "StudentsController_findOne",
@@ -988,7 +1029,7 @@
         ]
       }
     },
-    "/api/courses": {
+    "/courses": {
       "post": {
         "description": "Creates a course within a group. All sessions, quizzes, assignments, and enrollments will be scoped to this course. Courses are tenant-isolated — only visible within the teacher's instance.",
         "operationId": "CoursesController_create",
@@ -1071,7 +1112,7 @@
         ]
       }
     },
-    "/api/courses/{id}": {
+    "/courses/{id}": {
       "get": {
         "description": "Returns a single course with its details and enrolled student count. Includes sessions, quizzes, and assignments counts.",
         "operationId": "CoursesController_findOne",
@@ -1202,7 +1243,7 @@
         ]
       }
     },
-    "/api/courses/{id}/image": {
+    "/courses/{id}/image": {
       "post": {
         "operationId": "CoursesController_uploadImage",
         "parameters": [
@@ -1283,7 +1324,7 @@
         ]
       }
     },
-    "/api/courses/{id}/enrollments": {
+    "/courses/{id}/enrollments": {
       "post": {
         "description": "Enrolls one or more students in a course. Students must belong to the same group as the course. Duplicate enrollments are silently ignored (idempotent).",
         "operationId": "CoursesController_enroll",
@@ -1382,7 +1423,7 @@
         ]
       }
     },
-    "/api/courses/{id}/enroll": {
+    "/courses/{id}/enroll": {
       "post": {
         "description": "Allows a student to self-enroll in a free course (price = 0). The student must belong to the same group as the course. Idempotent — if already enrolled, returns the existing enrollment.",
         "operationId": "CoursesController_selfEnroll",
@@ -1432,7 +1473,7 @@
         ]
       }
     },
-    "/api/courses/{courseId}/enrollments/{studentId}": {
+    "/courses/{courseId}/enrollments/{studentId}": {
       "delete": {
         "description": "Removes a student's enrollment from a course. Does not delete the student or course — only the enrollment link.",
         "operationId": "CoursesController_unenroll",
@@ -1478,7 +1519,7 @@
         ]
       }
     },
-    "/api/sessions": {
+    "/sessions": {
       "post": {
         "description": "Creates a session within a course. Supports both LOCAL (in-person) and ONLINE (virtual) session types. For LOCAL sessions, provide a location. For ONLINE sessions, provide platform and meetingUrl. Session creation triggers a notification event (handled by the notification system).",
         "operationId": "SessionsController_create",
@@ -1579,7 +1620,7 @@
         ]
       }
     },
-    "/api/sessions/{id}": {
+    "/sessions/{id}": {
       "get": {
         "description": "Returns a single session with full details including type-specific fields (location for LOCAL, platform/meetingUrl for ONLINE).",
         "operationId": "SessionsController_findOne",
@@ -1710,7 +1751,7 @@
         ]
       }
     },
-    "/api/brand": {
+    "/brand": {
       "get": {
         "description": "Returns the brand configuration (colors, font, logo, white-label status) for the current instance.",
         "operationId": "BrandController_find",
@@ -1783,7 +1824,7 @@
         ]
       }
     },
-    "/api/brand/logo": {
+    "/brand/logo": {
       "post": {
         "description": "Uploads a logo image to MinIO storage and updates the brand logo URL.",
         "operationId": "BrandController_uploadLogo",
@@ -1860,7 +1901,7 @@
         ]
       }
     },
-    "/api/brand/domain/verify": {
+    "/brand/domain/verify": {
       "post": {
         "description": "Checks that the TXT record \"_basma.<domain>\" contains the verification token. On success, marks the domain as verified. Returns immediately with the result.",
         "operationId": "BrandController_verifyDomain",
@@ -1891,7 +1932,7 @@
         ]
       }
     },
-    "/api/brand/domain/status": {
+    "/brand/domain/status": {
       "get": {
         "description": "Returns the current custom domain, verification state, DNS instructions, and verification token.",
         "operationId": "BrandController_getDomainStatus",
@@ -1919,7 +1960,7 @@
         ]
       }
     },
-    "/api/brand/domain": {
+    "/brand/domain": {
       "delete": {
         "description": "Removes the custom domain and resets verification state. The instance will fall back to its subdomain. After removal, the previous custom domain becomes available for other instances to claim.",
         "operationId": "BrandController_removeDomain",
@@ -1947,7 +1988,7 @@
         ]
       }
     },
-    "/api/brand/public/{subdomain}": {
+    "/brand/public/{subdomain}": {
       "get": {
         "description": "Returns public brand settings (logo, colors, font) for anonymous visitors. Used to render the teacher's public-facing site.",
         "operationId": "BrandPublicController_findBySubdomain",
@@ -1984,7 +2025,7 @@
         ]
       }
     },
-    "/api/quizzes": {
+    "/quizzes": {
       "post": {
         "description": "Creates a quiz within a course. Quiz totalMarks should equal the sum of all question marks. Quizzes are tenant-isolated — only visible within the teacher's instance.",
         "operationId": "QuizzesController_create",
@@ -2067,7 +2108,7 @@
         ]
       }
     },
-    "/api/quizzes/{id}": {
+    "/quizzes/{id}": {
       "get": {
         "description": "Returns a single quiz with all its questions. Includes question details, types, options, and correct answers.",
         "operationId": "QuizzesController_findOne",
@@ -2198,7 +2239,7 @@
         ]
       }
     },
-    "/api/quizzes/{id}/questions": {
+    "/quizzes/{id}/questions": {
       "post": {
         "description": "Adds a new question to an existing quiz. Supports MCQ (multiple choice) and THEORY (written answer) types. For MCQ, provide options array and correctAnswer for auto-grading. For THEORY, no correctAnswer is needed (teacher grades manually).",
         "operationId": "QuizzesController_addQuestion",
@@ -2294,7 +2335,7 @@
         ]
       }
     },
-    "/api/quizzes/{quizId}/questions/{questionId}": {
+    "/quizzes/{quizId}/questions/{questionId}": {
       "patch": {
         "description": "Updates a question's text, type, options, correct answer, or marks. Only fields provided in the request body will be updated.",
         "operationId": "QuizzesController_updateQuestion",
@@ -2401,7 +2442,7 @@
         ]
       }
     },
-    "/api/quizzes/{id}/submit": {
+    "/quizzes/{id}/submit": {
       "post": {
         "description": "Submits a student's answers for a quiz. MCQ questions are auto-graded immediately — score is calculated. THEORY questions are left ungraded (teacher must grade manually). Each student can only submit once per quiz (unique constraint). The answers array must contain one entry per question in the quiz.",
         "operationId": "QuizzesController_submit",
@@ -2458,7 +2499,7 @@
         ]
       }
     },
-    "/api/quizzes/{id}/attempts": {
+    "/quizzes/{id}/attempts": {
       "get": {
         "description": "Returns all student attempts for a quiz. Shows each student's score, answers, and submission time. Use this to review student performance on a quiz.",
         "operationId": "QuizzesController_findAttempts",
@@ -2502,7 +2543,7 @@
         ]
       }
     },
-    "/api/quizzes/{id}/attempts/{studentId}": {
+    "/quizzes/{id}/attempts/{studentId}": {
       "get": {
         "description": "Returns a single student's attempt for a quiz with full details. Shows each answer, whether it was correct (MCQ), and marks earned.",
         "operationId": "QuizzesController_findStudentAttempt",
@@ -2555,7 +2596,7 @@
         ]
       }
     },
-    "/api/quizzes/{id}/attempts/{studentId}/grade": {
+    "/quizzes/{id}/attempts/{studentId}/grade": {
       "patch": {
         "description": "Grades a student's theory question answers for a quiz. Accepts an array of questionId and marksEarned pairs. Updates the attempt score and marks for each theory answer. If all answers are now graded, a quiz.graded event is emitted and the student is notified.",
         "operationId": "QuizzesController_gradeTheoryAnswers",
@@ -2618,7 +2659,7 @@
         ]
       }
     },
-    "/api/assignments": {
+    "/assignments": {
       "post": {
         "description": "Creates an assignment within a course. Students can submit text and/or file attachments. An optional due date can be set for submission deadline.",
         "operationId": "AssignmentsController_create",
@@ -2701,7 +2742,7 @@
         ]
       }
     },
-    "/api/assignments/{id}": {
+    "/assignments/{id}": {
       "get": {
         "description": "Returns a single assignment with full details including due date and description.",
         "operationId": "AssignmentsController_findOne",
@@ -2832,7 +2873,7 @@
         ]
       }
     },
-    "/api/assignments/{id}/submissions": {
+    "/assignments/{id}/submissions": {
       "post": {
         "description": "Submits a student's work for an assignment. Supports both text content and file upload. File is uploaded to MinIO storage and a URL is stored with the submission. Each student can only submit once per assignment (use PATCH to update).",
         "operationId": "AssignmentsController_submit",
@@ -2942,7 +2983,7 @@
         ]
       }
     },
-    "/api/assignments/{id}/submissions/{studentId}": {
+    "/assignments/{id}/submissions/{studentId}": {
       "get": {
         "description": "Returns a single student's submission for an assignment. Shows content, file URL, grade, and feedback.",
         "operationId": "AssignmentsController_findSubmission",
@@ -2995,7 +3036,7 @@
         ]
       }
     },
-    "/api/assignments/{assignmentId}/submissions/{studentId}/grade": {
+    "/assignments/{assignmentId}/submissions/{studentId}/grade": {
       "patch": {
         "description": "Grades a student's submission with a score and optional feedback. Grade should be on the same scale as the assignment (e.g., out of 20). Feedback is visible to the student.",
         "operationId": "AssignmentsController_grade",
@@ -3058,7 +3099,7 @@
         ]
       }
     },
-    "/api/gradebook/courses/{courseId}": {
+    "/gradebook/courses/{courseId}": {
       "get": {
         "description": "Returns a complete gradebook for a course. Shows all enrolled students with their quiz scores, assignment grades, and overall percentage. Quiz scores are auto-graded (MCQ) or null (theory pending). Assignment grades are null until the teacher grades them.",
         "operationId": "GradebookController_getCourseGradebook",
@@ -3102,7 +3143,7 @@
         ]
       }
     },
-    "/api/gradebook/groups/{groupId}": {
+    "/gradebook/groups/{groupId}": {
       "get": {
         "description": "Returns an aggregated gradebook for an entire group. Combines quiz and assignment results across all courses in the group. Shows each student's performance across all courses.",
         "operationId": "GradebookController_getGroupGradebook",
@@ -3146,7 +3187,7 @@
         ]
       }
     },
-    "/api/gradebook/students/{studentId}": {
+    "/gradebook/students/{studentId}": {
       "get": {
         "description": "Returns a single student's performance across all courses. Shows all quiz attempts with scores and all assignment submissions with grades. Includes overall percentage across all graded items.",
         "operationId": "GradebookController_getStudentGradebook",
@@ -3190,7 +3231,7 @@
         ]
       }
     },
-    "/api/notifications": {
+    "/notifications": {
       "post": {
         "operationId": "NotificationsController_create",
         "parameters": [],
@@ -3289,7 +3330,7 @@
         ]
       }
     },
-    "/api/notifications/stats": {
+    "/notifications/stats": {
       "get": {
         "operationId": "NotificationsController_getStats",
         "parameters": [],
@@ -3312,7 +3353,7 @@
         ]
       }
     },
-    "/api/notifications/preferences": {
+    "/notifications/preferences": {
       "get": {
         "operationId": "NotificationsController_getPreferences",
         "parameters": [],
@@ -3335,7 +3376,7 @@
         ]
       }
     },
-    "/api/notifications/preferences/{type}": {
+    "/notifications/preferences/{type}": {
       "patch": {
         "operationId": "NotificationsController_updatePreference",
         "parameters": [
@@ -3384,7 +3425,7 @@
         ]
       }
     },
-    "/api/notifications/announce": {
+    "/notifications/announce": {
       "post": {
         "operationId": "NotificationsController_sendAnnouncement",
         "parameters": [],
@@ -3417,7 +3458,7 @@
         ]
       }
     },
-    "/api/notifications/whatsapp/connect": {
+    "/notifications/whatsapp/connect": {
       "post": {
         "description": "Initiates a WhatsApp WebJS connection. Use method=qr to get a QR code (scan with WhatsApp mobile app). Use method=pairing with a phone number for code-based pairing. After connecting, check GET /whatsapp/status for connection state.",
         "operationId": "NotificationsController_connectWhatsApp",
@@ -3454,7 +3495,7 @@
         ]
       }
     },
-    "/api/notifications/whatsapp/status": {
+    "/notifications/whatsapp/status": {
       "get": {
         "operationId": "NotificationsController_getWhatsAppStatus",
         "parameters": [],
@@ -3477,7 +3518,7 @@
         ]
       }
     },
-    "/api/notifications/whatsapp/qr": {
+    "/notifications/whatsapp/qr": {
       "get": {
         "operationId": "NotificationsController_getQR",
         "parameters": [],
@@ -3500,7 +3541,7 @@
         ]
       }
     },
-    "/api/notifications/whatsapp/disconnect": {
+    "/notifications/whatsapp/disconnect": {
       "delete": {
         "operationId": "NotificationsController_disconnectWhatsApp",
         "parameters": [],
@@ -3523,7 +3564,7 @@
         ]
       }
     },
-    "/api/notifications/{id}": {
+    "/notifications/{id}": {
       "get": {
         "operationId": "NotificationsController_findOne",
         "parameters": [
@@ -3559,7 +3600,7 @@
         ]
       }
     },
-    "/api/payments/paymob/configure": {
+    "/payments/paymob/configure": {
       "post": {
         "description": "Saves the teacher's Paymob credentials (Model A — per-teacher Paymob account). The secret key and HMAC secret are AES-256-GCM encrypted at rest before storage. Call this once after the teacher creates their Paymob account and obtains their test/live credentials. Use PUT semantics — calling again overwrites the existing configuration.",
         "operationId": "PaymentsController_configurePaymob",
@@ -3606,7 +3647,7 @@
         ]
       }
     },
-    "/api/payments/paymob/config": {
+    "/payments/paymob/config": {
       "get": {
         "description": "Returns the current Paymob configuration for this instance. Secret keys are masked for security (only first 4 + last 4 chars visible). Returns isConfigured: false if no configuration exists yet.",
         "operationId": "PaymentsController_getPaymobConfig",
@@ -3669,7 +3710,7 @@
         ]
       }
     },
-    "/api/payments/pay": {
+    "/payments/pay": {
       "post": {
         "description": "Creates a Paymob payment intention and returns a checkout URL. The student must NOT already be enrolled in the course, and the course must have price > 0. If a pending payment already exists with a valid clientSecret, the existing checkout URL is returned instead of creating a new intention. Only one pending payment per student per course is allowed at a time — cancel the old one first via POST /payments/:id/cancel. The returned checkoutUrl should be opened in a browser to redirect to Paymob Unified Checkout. The webhook will update the payment status and auto-enroll the student when payment succeeds.",
         "operationId": "PaymentsController_initiatePayment",
@@ -3719,7 +3760,7 @@
         ]
       }
     },
-    "/api/payments": {
+    "/payments": {
       "post": {
         "description": "Records a payment that was collected outside Paymob (cash, bank transfer, etc.). This creates a Payment record with status = PAID directly — no Paymob intention is created. Use this for offline payments your teacher collects manually from students.",
         "operationId": "PaymentsController_createManual",
@@ -3853,7 +3894,7 @@
         ]
       }
     },
-    "/api/payments/stats": {
+    "/payments/stats": {
       "get": {
         "description": "Returns aggregate payment statistics for this instance: counts of paid/pending/refunded payments and total revenue.",
         "operationId": "PaymentsController_getStats",
@@ -3884,7 +3925,7 @@
         ]
       }
     },
-    "/api/payments/{id}": {
+    "/payments/{id}": {
       "get": {
         "description": "Returns full details for a single payment, including student info, course info, all Paymob correlation IDs, and the checkout URL (if applicable). Students can only access their own payments.",
         "operationId": "PaymentsController_findOne",
@@ -3929,7 +3970,7 @@
         ]
       }
     },
-    "/api/payments/{id}/cancel": {
+    "/payments/{id}/cancel": {
       "post": {
         "description": "Cancels a PENDING or PROCESSING payment. Students can only cancel their own payments. Teachers can cancel any payment in their instance. Once cancelled, the student can re-initiate payment for the same course.",
         "operationId": "PaymentsController_cancelPayment",
@@ -3989,7 +4030,7 @@
         ]
       }
     },
-    "/api/payments/{id}/refund": {
+    "/payments/{id}/refund": {
       "post": {
         "description": "Initiates a refund for a paid payment through Paymob. The payment must have status = PAID and a Paymob transaction ID. Partial refunds are supported by specifying amountCents less than the original amount. The final refund status (REFUNDED / PARTIALLY_REFUNDED) is updated via webhook callback.",
         "operationId": "PaymentsController_refund",
@@ -4057,7 +4098,7 @@
         ]
       }
     },
-    "/api/payments/webhook/paymob/{instanceId}": {
+    "/payments/webhook/paymob/{instanceId}": {
       "post": {
         "description": "**This is the source of truth for payment status.**\n\nPaymob calls this endpoint after a transaction completes (success, failure, refund, void). The request body is HMAC-SHA512 signed using the instance's HMAC secret.\n\n**Security:**\n- The endpoint is public (no JWT) — security relies entirely on HMAC verification\n- If HMAC is invalid, the request is rejected with 401\n- The webhook is idempotent — replaying the same payload does not double-process\n\n**How to test:**\n1. Expose your local server via ngrok: `ngrok http 3000`\n2. Set `PAYMOB_WEBHOOK_BASE_URL` to your ngrok URL\n3. Configure the instance's `notification_url` per-intention (done automatically)\n4. Complete a test payment — Paymob will POST to this endpoint\n\nAlternatively, use Paymob's Webhook Testing Tool in the dashboard to simulate callbacks.",
         "operationId": "PaymentsPublicController_handlePaymobWebhook",
@@ -4071,12 +4112,6 @@
               "example": "clxq8a2b30001jf08m3n4o5p6",
               "type": "string"
             }
-          },
-          {
-            "name": "hmac",
-            "required": false,
-            "in": "query",
-            "schema": {}
           }
         ],
         "requestBody": {
@@ -4111,7 +4146,7 @@
         ]
       }
     },
-    "/api/payments/return": {
+    "/payments/return": {
       "get": {
         "description": "Paymob redirects the student's browser here after the checkout flow completes. **This is NOT the source of truth for payment status.**\n\nThe redirect contains query params (paymentId, success) that are purely for UX. The actual payment status is confirmed via the POST webhook at /payments/webhook/paymob/:instanceId.\n\nThe student is redirected to the frontend with the status in the URL.",
         "operationId": "PaymentsPublicController_handleReturn",
@@ -4144,7 +4179,7 @@
         ]
       }
     },
-    "/api/chat/groups/{groupId}/messages": {
+    "/chat/groups/{groupId}/messages": {
       "get": {
         "description": "Returns paginated chat messages. Use cursor for infinite scroll.",
         "operationId": "ChatController_getMessages",
@@ -4203,7 +4238,7 @@
         ]
       }
     },
-    "/api/chat/groups/{groupId}/files": {
+    "/chat/groups/{groupId}/files": {
       "post": {
         "description": "Uploads a file and creates a chat message with file URL. Max 10MB.",
         "operationId": "ChatController_uploadFile",
@@ -4261,7 +4296,7 @@
         ]
       }
     },
-    "/api/chat/messages/{id}": {
+    "/chat/messages/{id}": {
       "delete": {
         "description": "Teachers can delete any message. Students can delete their own messages.",
         "operationId": "ChatController_deleteMessage",
@@ -4301,7 +4336,7 @@
         ]
       }
     },
-    "/api/chat/unread": {
+    "/chat/unread": {
       "get": {
         "description": "Returns unread message count per group for the current user.",
         "operationId": "ChatController_getUnreadCounts",
@@ -4332,7 +4367,7 @@
         ]
       }
     },
-    "/api/chat/groups/{groupId}/read": {
+    "/chat/groups/{groupId}/read": {
       "patch": {
         "description": "Updates the last-read timestamp for the user in this group.",
         "operationId": "ChatController_markRead",
@@ -4366,7 +4401,7 @@
         ]
       }
     },
-    "/api/agent-space/files": {
+    "/agent-space/files": {
       "get": {
         "operationId": "AgentSpaceController_listFiles",
         "parameters": [
@@ -4431,7 +4466,7 @@
         ]
       }
     },
-    "/api/agent-space/files/{id}": {
+    "/agent-space/files/{id}": {
       "get": {
         "operationId": "AgentSpaceController_getFile",
         "parameters": [
@@ -4524,7 +4559,7 @@
         ]
       }
     },
-    "/api/agent-space/search": {
+    "/agent-space/search": {
       "get": {
         "operationId": "AgentSpaceController_searchContent",
         "parameters": [
@@ -4543,7 +4578,6 @@
             "in": "query",
             "description": "Max results",
             "schema": {
-              "minimum": 1,
               "default": 20,
               "type": "number"
             }
@@ -4565,7 +4599,7 @@
         ]
       }
     },
-    "/api/agent-student-data/{studentId}/notes": {
+    "/agent-student-data/{studentId}/notes": {
       "get": {
         "operationId": "AgentStudentDataController_getNotes",
         "parameters": [
@@ -4610,7 +4644,7 @@
         ]
       }
     },
-    "/api/agent-student-data/notes": {
+    "/agent-student-data/notes": {
       "post": {
         "operationId": "AgentStudentDataController_addNote",
         "parameters": [],
@@ -4640,7 +4674,7 @@
         ]
       }
     },
-    "/api/agent-student-data/{studentId}/profile": {
+    "/agent-student-data/{studentId}/profile": {
       "get": {
         "operationId": "AgentStudentDataController_getProfile",
         "parameters": [
@@ -4655,14 +4689,7 @@
         ],
         "responses": {
           "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
+            "description": ""
           }
         },
         "security": [
@@ -4713,7 +4740,7 @@
         ]
       }
     },
-    "/api/agent-student-data/{studentId}/memory": {
+    "/agent-student-data/{studentId}/memory": {
       "get": {
         "operationId": "AgentStudentDataController_getStudentMemory",
         "parameters": [
@@ -4742,23 +4769,13 @@
         ]
       }
     },
-    "/api/ai-agent/conversations": {
+    "/ai-agent/conversations": {
       "get": {
         "operationId": "AiAgentController_listConversations",
         "parameters": [],
         "responses": {
           "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object"
-                  }
-                }
-              }
-            }
+            "description": ""
           }
         },
         "security": [
@@ -4800,7 +4817,7 @@
         ]
       }
     },
-    "/api/ai-agent/conversations/{id}": {
+    "/ai-agent/conversations/{id}": {
       "get": {
         "operationId": "AiAgentController_getConversation",
         "parameters": [
@@ -4893,7 +4910,7 @@
         ]
       }
     },
-    "/api/ai-agent/conversations/{id}/messages": {
+    "/ai-agent/conversations/{id}/messages": {
       "get": {
         "operationId": "AiAgentController_getMessages",
         "parameters": [
@@ -4967,20 +4984,13 @@
         ]
       }
     },
-    "/api/ai-agent/agent.md": {
+    "/ai-agent/agent.md": {
       "get": {
         "operationId": "AiAgentController_getAgentMd",
         "parameters": [],
         "responses": {
           "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
+            "description": ""
           }
         },
         "security": [
@@ -5012,7 +5022,7 @@
         ]
       }
     },
-    "/api/ai-agent/teacher/conversations": {
+    "/ai-agent/teacher/conversations": {
       "get": {
         "operationId": "AiAgentController_teacherListConversations",
         "parameters": [
@@ -5027,17 +5037,7 @@
         ],
         "responses": {
           "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object"
-                  }
-                }
-              }
-            }
+            "description": ""
           }
         },
         "security": [
@@ -5051,7 +5051,7 @@
         ]
       }
     },
-    "/api/courses/{courseId}/curriculum": {
+    "/courses/{courseId}/curriculum": {
       "post": {
         "description": "Creates a curriculum for a course. Idempotent — returns existing if already created.",
         "operationId": "CurriculumController_create",
@@ -5150,7 +5150,7 @@
         ]
       }
     },
-    "/api/curriculum/{id}": {
+    "/curriculum/{id}": {
       "patch": {
         "operationId": "CurriculumController_update",
         "parameters": [
@@ -5243,7 +5243,7 @@
         ]
       }
     },
-    "/api/curriculum/{id}/elements/video": {
+    "/curriculum/{id}/elements/video": {
       "post": {
         "description": "Uploads a video file and starts asynchronous processing. Returns 202 with element and job status. Poll GET /api/elements/:id/job for job status. Accepted formats: mp4, webm, ogg, mov, avi, mkv.",
         "operationId": "ElementsController_addVideo",
@@ -5392,7 +5392,7 @@
         ]
       }
     },
-    "/api/elements/{id}/job": {
+    "/elements/{id}/job": {
       "get": {
         "description": "Returns the current job status for a video element. Poll this endpoint to track upload progress.",
         "operationId": "ElementsController_getJob",
@@ -5436,7 +5436,7 @@
         ]
       }
     },
-    "/api/elements/{id}/job/retry": {
+    "/elements/{id}/job/retry": {
       "post": {
         "description": "Re-enqueues a failed video upload job.",
         "operationId": "ElementsController_retryJob",
@@ -5486,7 +5486,7 @@
         ]
       }
     },
-    "/api/elements/{id}/stream": {
+    "/elements/{id}/stream": {
       "post": {
         "description": "Returns a bundle of direct stream URLs for all video qualities. If bundle is expired, returns kind=preparing to trigger regeneration. If still uploading, returns kind=uploading. Student must be enrolled in the course.",
         "operationId": "ElementsController_getStream",
@@ -5573,7 +5573,7 @@
         ]
       }
     },
-    "/api/elements/{id}/stream/{quality}/{track}": {
+    "/elements/{id}/stream/{quality}/{track}": {
       "get": {
         "description": "Proxies the video or audio track for a given quality. Supports Range headers for seeking. The actual CDN URL is never exposed to the client.",
         "operationId": "ElementsController_streamMedia",
@@ -5641,7 +5641,7 @@
         ]
       }
     },
-    "/api/curriculum/{id}/elements/file": {
+    "/curriculum/{id}/elements/file": {
       "post": {
         "description": "Uploads a file (PDF, DOCX, etc.) and creates a FILE curriculum element.",
         "operationId": "ElementsController_addFile",
@@ -5720,7 +5720,7 @@
         ]
       }
     },
-    "/api/curriculum/{id}/elements/rich-content": {
+    "/curriculum/{id}/elements/rich-content": {
       "post": {
         "description": "Creates a RICH_CONTENT element with Tiptap-compatible JSON body. Only allowlisted node types are accepted (paragraph, heading, bulletList, orderedList, taskList, blockquote, codeBlock, horizontalRule, image, text).",
         "operationId": "ElementsController_addRichContent",
@@ -5780,7 +5780,7 @@
         ]
       }
     },
-    "/api/curriculum/{id}/elements/quiz/{quizId}": {
+    "/curriculum/{id}/elements/quiz/{quizId}": {
       "post": {
         "operationId": "ElementsController_attachQuiz",
         "parameters": [
@@ -5835,7 +5835,7 @@
         ]
       }
     },
-    "/api/curriculum/{id}/elements/assignment/{assignmentId}": {
+    "/curriculum/{id}/elements/assignment/{assignmentId}": {
       "post": {
         "operationId": "ElementsController_attachAssignment",
         "parameters": [
@@ -5890,7 +5890,7 @@
         ]
       }
     },
-    "/api/curriculum/{id}/elements/session/{sessionId}": {
+    "/curriculum/{id}/elements/session/{sessionId}": {
       "post": {
         "operationId": "ElementsController_attachSession",
         "parameters": [
@@ -5945,7 +5945,7 @@
         ]
       }
     },
-    "/api/curriculum/{id}/elements/upload-image": {
+    "/curriculum/{id}/elements/upload-image": {
       "post": {
         "description": "Uploads an image to the curriculum's image library. Returns a URL that can be embedded in rich content bodyJson.",
         "operationId": "ElementsController_uploadImage",
@@ -6029,7 +6029,7 @@
         ]
       }
     },
-    "/api/curriculum/{id}/reorder": {
+    "/curriculum/{id}/reorder": {
       "post": {
         "description": "Sets a new ordering for all elements in the curriculum. Provide all element IDs in the desired order. The count must match the total number of elements.",
         "operationId": "ElementsController_reorder",
@@ -6082,7 +6082,7 @@
         ]
       }
     },
-    "/api/elements/{id}": {
+    "/elements/{id}": {
       "patch": {
         "description": "Updates element properties like title, required flag, or type-specific fields. For RICH_CONTENT elements, bodyJson can be updated. For VIDEO elements, description can be updated. For FILE elements, fileDescription can be updated.",
         "operationId": "ElementsController_update",
@@ -6180,7 +6180,7 @@
         ]
       }
     },
-    "/api/elements/{id}/replace-video": {
+    "/elements/{id}/replace-video": {
       "patch": {
         "description": "Uploads a new video file to replace the existing one. The old file is deleted from storage. The previous YouTube video is orphaned. A new upload job is started. Poll GET /api/elements/:id/job for progress.",
         "operationId": "ElementsController_replaceVideo",
@@ -6283,7 +6283,7 @@
         ]
       }
     },
-    "/api/elements/{id}/replace-file": {
+    "/elements/{id}/replace-file": {
       "patch": {
         "description": "Uploads a new file to replace the existing one. The old file is deleted from storage. Returns updated file metadata.",
         "operationId": "ElementsController_replaceFile",
@@ -6370,7 +6370,7 @@
         ]
       }
     },
-    "/api/courses/{courseId}/progress": {
+    "/courses/{courseId}/progress": {
       "get": {
         "description": "Returns the overall course progress (percentage, completed/total required elements).",
         "operationId": "ProgressController_getCourseProgress",
@@ -6414,7 +6414,7 @@
         ]
       }
     },
-    "/api/curriculum/{id}/progress": {
+    "/curriculum/{id}/progress": {
       "get": {
         "description": "Returns progress for every element in the curriculum plus aggregated course progress.",
         "operationId": "ProgressController_getCurriculumProgress",
@@ -6458,7 +6458,7 @@
         ]
       }
     },
-    "/api/elements/{id}/progress/start": {
+    "/elements/{id}/progress/start": {
       "post": {
         "description": "Sets the element progress status to IN_PROGRESS. Idempotent — calling again updates the startedAt timestamp.",
         "operationId": "ProgressController_startElement",
@@ -6505,7 +6505,7 @@
         ]
       }
     },
-    "/api/elements/{id}/progress": {
+    "/elements/{id}/progress": {
       "patch": {
         "description": "Updates the progress percentage (0-100). If progressPercent >= 95, status auto-advances to COMPLETED. Triggers course-level progress recomputation.",
         "operationId": "ProgressController_updateProgress",
@@ -6565,7 +6565,7 @@
         ]
       }
     },
-    "/api/elements/{id}/progress/complete": {
+    "/elements/{id}/progress/complete": {
       "post": {
         "description": "Sets the element progress status to COMPLETED with 100%. Triggers course-level progress recomputation.",
         "operationId": "ProgressController_completeElement",
@@ -6612,7 +6612,7 @@
         ]
       }
     },
-    "/api/courses/{courseId}/students/{studentId}/progress": {
+    "/courses/{courseId}/students/{studentId}/progress": {
       "get": {
         "description": "Allows a teacher to view any student's overall progress in a course.",
         "operationId": "ProgressController_getStudentProgress",
@@ -6665,20 +6665,13 @@
         ]
       }
     },
-    "/api/youtube/channel": {
+    "/youtube/channel": {
       "get": {
         "operationId": "YoutubeController_getChannel",
         "parameters": [],
         "responses": {
           "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChannelStatusDto"
-                }
-              }
-            }
+            "description": ""
           }
         },
         "security": [
@@ -6692,7 +6685,7 @@
         ]
       }
     },
-    "/api/youtube/cookies/status": {
+    "/youtube/cookies/status": {
       "get": {
         "operationId": "YoutubeController_getCookiesStatus",
         "parameters": [],
@@ -6712,20 +6705,13 @@
         ]
       }
     },
-    "/api/youtube/oauth/begin": {
+    "/youtube/oauth/begin": {
       "post": {
         "operationId": "OauthController_begin",
         "parameters": [],
         "responses": {
           "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OAuthBeginResponse"
-                }
-              }
-            }
+            "description": ""
           }
         },
         "security": [
@@ -6739,7 +6725,7 @@
         ]
       }
     },
-    "/api/youtube/oauth/callback": {
+    "/youtube/oauth/callback": {
       "post": {
         "operationId": "OauthController_callback",
         "parameters": [],
@@ -6817,7 +6803,7 @@
         "parameters": [
           {
             "name": "search",
-            "required": false,
+            "required": true,
             "in": "query",
             "schema": {
               "type": "string"
@@ -6825,7 +6811,7 @@
           },
           {
             "name": "page",
-            "required": false,
+            "required": true,
             "in": "query",
             "schema": {
               "type": "string"
@@ -6833,7 +6819,7 @@
           },
           {
             "name": "limit",
-            "required": false,
+            "required": true,
             "in": "query",
             "schema": {
               "type": "string"
@@ -6965,6 +6951,76 @@
         ]
       }
     },
+    "/api/admin/feedbacks": {
+      "get": {
+        "operationId": "AdminController_listFeedbacks",
+        "parameters": [
+          {
+            "name": "instanceId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/feedbacks": {
+      "get": {
+        "operationId": "AdminController_feedbacksPage",
+        "parameters": [
+          {
+            "name": "instanceId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
     "/api/admin/stats": {
       "get": {
         "operationId": "AdminController_getStats",
@@ -7013,7 +7069,7 @@
         "parameters": [
           {
             "name": "search",
-            "required": false,
+            "required": true,
             "in": "query",
             "schema": {
               "type": "string"
@@ -7021,7 +7077,7 @@
           },
           {
             "name": "page",
-            "required": false,
+            "required": true,
             "in": "query",
             "schema": {
               "type": "string"
@@ -7061,7 +7117,7 @@
         ]
       }
     },
-    "/api/landing": {
+    "/landing": {
       "get": {
         "description": "Returns the current landing page for the authenticated teacher. Creates a default one if none exists.",
         "operationId": "LandingController_get",
@@ -7128,7 +7184,7 @@
         ]
       }
     },
-    "/api/landing/publish": {
+    "/landing/publish": {
       "post": {
         "description": "Validates required fields and publishes the landing page. Returns validation errors if requirements are not met.",
         "operationId": "LandingController_publish",
@@ -7159,7 +7215,7 @@
         ]
       }
     },
-    "/api/landing/unpublish": {
+    "/landing/unpublish": {
       "post": {
         "description": "Sets landing page status back to draft.",
         "operationId": "LandingController_unpublish",
@@ -7187,7 +7243,7 @@
         ]
       }
     },
-    "/api/landing/reset": {
+    "/landing/reset": {
       "post": {
         "description": "Resets all content, SEO fields, and status to default starter values.",
         "operationId": "LandingController_reset",
@@ -7215,7 +7271,7 @@
         ]
       }
     },
-    "/api/landing/media": {
+    "/landing/media": {
       "post": {
         "description": "Uploads an image file to MinIO storage for use in landing page sections. Returns the public URL.",
         "operationId": "LandingController_uploadMedia",
@@ -7268,7 +7324,7 @@
         ]
       }
     },
-    "/api/landing/public/by-subdomain/{subdomain}": {
+    "/landing/public/by-subdomain/{subdomain}": {
       "get": {
         "description": "Returns combined brand, landing content, and public courses for anonymous visitors. Used to render the teacher's public landing page.",
         "operationId": "LandingPublicController_findBySubdomain",
@@ -7305,7 +7361,7 @@
         ]
       }
     },
-    "/api/landing/public/by-domain/{domain}": {
+    "/landing/public/by-domain/{domain}": {
       "get": {
         "description": "Returns the same combined response as subdomain lookup, but resolved by the custom domain set in brand settings.",
         "operationId": "LandingPublicController_findByDomain",
@@ -7345,7 +7401,7 @@
         ]
       }
     },
-    "/api/domain-check": {
+    "/domain-check": {
       "get": {
         "description": "Returns 204 if the domain belongs to a verified brand. Returns 404 if not found or unverified.",
         "operationId": "DomainCheckController_check",
@@ -7375,7 +7431,48 @@
         ]
       }
     },
-    "/api/onboarding": {
+    "/feedback": {
+      "post": {
+        "description": "Allows teachers and students to submit product feedback. The sender role and name are automatically resolved from the JWT token.",
+        "operationId": "FeedbackController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFeedbackDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Feedback submitted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Submit feedback",
+        "tags": [
+          "Feedback"
+        ]
+      }
+    },
+    "/onboarding": {
       "get": {
         "description": "Returns whether onboarding is completed, saved answers, and whether landing content has been generated.",
         "operationId": "OnboardingController_getStatus",
@@ -7403,7 +7500,7 @@
         ]
       }
     },
-    "/api/onboarding/answers": {
+    "/onboarding/answers": {
       "put": {
         "description": "Saves the teacher onboarding form answers. Can be called multiple times (partial updates).",
         "operationId": "OnboardingController_saveAnswers",
@@ -7441,7 +7538,7 @@
         ]
       }
     },
-    "/api/onboarding/generate": {
+    "/onboarding/generate": {
       "post": {
         "description": "Uses AI to generate landing page content, SEO fields, and brand settings from the saved onboarding answers. Returns a preview.",
         "operationId": "OnboardingController_generate",
@@ -7465,7 +7562,7 @@
         ]
       }
     },
-    "/api/onboarding/publish": {
+    "/onboarding/publish": {
       "post": {
         "description": "Publishes the generated landing page and marks onboarding as completed.",
         "operationId": "OnboardingController_publish",
@@ -7486,7 +7583,7 @@
         ]
       }
     },
-    "/api/onboarding/skip": {
+    "/onboarding/skip": {
       "post": {
         "description": "Marks onboarding as completed without generating any landing page content.",
         "operationId": "OnboardingController_skip",
@@ -7507,7 +7604,7 @@
         ]
       }
     },
-    "/api/tasks": {
+    "/tasks": {
       "get": {
         "description": "Returns a checklist of tasks for the teacher to get started. Each task is automatically marked complete based on live data.",
         "operationId": "TasksController_findAll",
@@ -7534,11 +7631,183 @@
           "Tasks"
         ]
       }
+    },
+    "/meetings": {
+      "post": {
+        "operationId": "MeetingsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMeetingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Meeting request created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeetingResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Time conflict with another meeting"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a meeting request",
+        "tags": [
+          "Meetings"
+        ]
+      },
+      "get": {
+        "operationId": "MeetingsController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeetingListResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List my meeting requests",
+        "tags": [
+          "Meetings"
+        ]
+      }
+    },
+    "/meetings/admin": {
+      "get": {
+        "operationId": "MeetingsController_findAllAdmin",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeetingListResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all meeting requests (admin)",
+        "tags": [
+          "Meetings"
+        ]
+      }
+    },
+    "/meetings/{id}": {
+      "patch": {
+        "operationId": "MeetingsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMeetingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeetingResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update meeting request status/notes (admin)",
+        "tags": [
+          "Meetings"
+        ]
+      },
+      "delete": {
+        "operationId": "MeetingsController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeetingResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Cancel own meeting request",
+        "tags": [
+          "Meetings"
+        ]
+      }
     }
   },
   "info": {
     "title": "Basma API",
-    "description": "Educational platform backend — multi-tenant, white-labeled\n\n---\n\n### WebSocket Chat (`/chat` namespace)\n\n**Protocol**: socket.io | **Auth**: JWT via `socket.handshake.auth.token`\n\n**Client → Server** (ack responses):\n| Event | Payload | Ack |\n|---|---|---|\n| `joinGroup` | `JoinGroupDto` | `{ event: \"joined\", data: { groupId } }` |\n| `leaveGroup` | `JoinGroupDto` | `{ event: \"left\", data: { groupId } }` |\n| `sendMessage` | `SendMessageDto` | `{ event: \"messageSent\", data: Message }` |\n| `typing` | `TypingDto` | `{ event: \"typingAck\", data: { groupId, isTyping } }` |\n\n**Server → Client** (broadcast to `group:{groupId}`):\n| Event | Payload | Description |\n|---|---|---|\n| `newMessage` | `MessageResponseDto` | New message in group |\n| `typingIndicator` | `{ senderId, senderName, senderRole, groupId, isTyping }` | Typing status (excludes sender) |\n| `error` | `{ message: string }` | Error notification |\n\n**Test page**: [`/api/ws-test`](/api/ws-test)",
+    "description": "Educational platform backend — multi-tenant, white-labeled\n\n---\n\n### WebSocket Chat (`/chat` namespace)\n\n**Protocol**: socket.io | **Auth**: JWT via `socket.handshake.auth.token`\n\n**Client → Server** (ack responses):\n| Event | Payload | Ack |\n|---|---|---|\n| `joinGroup` | `JoinGroupDto` | `{ event: \"joined\", data: { groupId } }` |\n| `leaveGroup` | `JoinGroupDto` | `{ event: \"left\", data: { groupId } }` |\n| `sendMessage` | `SendMessageDto` | `{ event: \"messageSent\", data: Message }` |\n| `typing` | `TypingDto` | `{ event: \"typingAck\", data: { groupId, isTyping } }` |\n\n**Server → Client** (broadcast to `group:{groupId}`):\n| Event | Payload | Description |\n|---|---|---|\n| `newMessage` | `MessageResponseDto` | New message in group |\n| `typingIndicator` | `{ senderId, senderName, senderRole, groupId, isTyping }` | Typing status (excludes sender) |\n| `error` | `{ message: string }` | Error notification |",
     "version": "1.0",
     "contact": {}
   },
@@ -7562,21 +7831,23 @@
         "properties": {
           "email": {
             "type": "string",
-            "format": "email",
             "example": "teacher@example.com",
             "description": "Teacher email address"
           },
           "password": {
             "type": "string",
-            "minLength": 8,
             "example": "Demo@123",
             "description": "Password (min 8 characters)"
           },
           "name": {
             "type": "string",
-            "minLength": 2,
             "example": "أحمد محمد",
             "description": "Full name in Arabic or English"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+201234567890",
+            "description": "Phone number"
           },
           "subdomain": {
             "type": "string",
@@ -7585,18 +7856,19 @@
           },
           "lang": {
             "type": "string",
+            "example": "ar",
             "enum": [
               "ar",
               "en"
             ],
-            "example": "ar",
             "description": "Preferred language"
           }
         },
         "required": [
           "email",
           "password",
-          "name"
+          "name",
+          "phone"
         ]
       },
       "TeacherProfile": {
@@ -7614,6 +7886,10 @@
             "type": "string",
             "example": "أحمد محمد"
           },
+          "phone": {
+            "type": "string",
+            "example": "+201234567890"
+          },
           "lang": {
             "type": "string",
             "example": "ar"
@@ -7621,14 +7897,25 @@
           "instanceId": {
             "type": "string",
             "example": "clx..."
+          },
+          "actions": {
+            "example": [
+              "PHONE_NUMBER_REQUIRED"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
           "id",
           "email",
           "name",
+          "phone",
           "lang",
-          "instanceId"
+          "instanceId",
+          "actions"
         ]
       },
       "AuthResponseDto": {
@@ -7657,7 +7944,6 @@
         "properties": {
           "email": {
             "type": "string",
-            "format": "email",
             "example": "teacher@basma.demo",
             "description": "Registered email address"
           },
@@ -7699,6 +7985,10 @@
             "type": "string",
             "example": "أحمد محمد"
           },
+          "phone": {
+            "type": "string",
+            "example": "+201234567890"
+          },
           "lang": {
             "type": "string",
             "example": "ar"
@@ -7724,17 +8014,41 @@
           "createdAt": {
             "type": "string",
             "example": "2025-01-01T00:00:00.000Z"
+          },
+          "actions": {
+            "example": [
+              "PHONE_NUMBER_REQUIRED"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
           "id",
           "email",
           "name",
+          "phone",
           "lang",
           "tier",
           "instanceId",
           "subdomain",
-          "createdAt"
+          "createdAt",
+          "actions"
+        ]
+      },
+      "UpdateTeacherProfileDto": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string",
+            "example": "+201234567890",
+            "description": "Phone number"
+          }
+        },
+        "required": [
+          "phone"
         ]
       },
       "StudentSignupDto": {
@@ -7742,13 +8056,11 @@
         "properties": {
           "name": {
             "type": "string",
-            "minLength": 2,
             "example": "علي أحمد",
             "description": "Student full name"
           },
           "email": {
             "type": "string",
-            "format": "email",
             "example": "ali@example.com",
             "description": "Student email"
           },
@@ -7759,7 +8071,6 @@
           },
           "password": {
             "type": "string",
-            "minLength": 4,
             "example": "1234",
             "description": "Account password (min 4 characters). If set, enables email+password login on other devices. Recommended if email is provided."
           },
@@ -7835,13 +8146,11 @@
         "properties": {
           "email": {
             "type": "string",
-            "minLength": 2,
             "example": "ali@example.com",
             "description": "Student email"
           },
           "password": {
             "type": "string",
-            "minLength": 4,
             "example": "1234",
             "description": "Student password or PIN"
           }
@@ -7913,7 +8222,6 @@
         "properties": {
           "name": {
             "type": "string",
-            "minLength": 2,
             "example": "الصف الأول الثانوي",
             "description": "Group name"
           },
@@ -7923,11 +8231,11 @@
             "description": "Optional description"
           },
           "registrationMode": {
+            "type": "string",
             "enum": [
               "OPEN",
               "CLOSED"
             ],
-            "type": "string",
             "example": "OPEN",
             "description": "Student registration mode (OPEN = public sign-up, CLOSED = invitation only)"
           }
@@ -7969,11 +8277,11 @@
             "example": "شعبة علمي رياضة"
           },
           "registrationMode": {
+            "type": "string",
             "enum": [
               "OPEN",
               "CLOSED"
             ],
-            "type": "string",
             "example": "OPEN"
           },
           "invitationCode": {
@@ -8021,18 +8329,11 @@
           },
           "limits": {
             "type": "object",
-            "properties": {
-              "groups": {
-                "type": "number"
-              },
-              "students": {
-                "type": "number"
-              }
+            "example": {
+              "groups": 5,
+              "students": 50
             },
-            "required": [
-              "groups",
-              "students"
-            ]
+            "description": "Current tier limits"
           }
         },
         "required": [
@@ -8046,7 +8347,6 @@
         "properties": {
           "name": {
             "type": "string",
-            "minLength": 2,
             "example": "الصف الأول الثانوي",
             "description": "Group name"
           },
@@ -8056,11 +8356,11 @@
             "description": "Optional description"
           },
           "registrationMode": {
+            "type": "string",
             "enum": [
               "OPEN",
               "CLOSED"
             ],
-            "type": "string",
             "example": "OPEN",
             "description": "Student registration mode (OPEN = public sign-up, CLOSED = invitation only)"
           }
@@ -8071,13 +8371,11 @@
         "properties": {
           "name": {
             "type": "string",
-            "minLength": 2,
             "example": "علي أحمد",
             "description": "Student full name"
           },
           "email": {
             "type": "string",
-            "format": "email",
             "example": "ali@example.com",
             "description": "Student email (unique within instance)"
           },
@@ -8117,11 +8415,11 @@
             "example": "+201234567890"
           },
           "status": {
+            "type": "string",
             "enum": [
               "ACTIVE",
               "INACTIVE"
             ],
-            "type": "string",
             "example": "ACTIVE"
           },
           "groupId": {
@@ -8167,22 +8465,11 @@
           },
           "summary": {
             "type": "object",
-            "properties": {
-              "active": {
-                "type": "number"
-              },
-              "inactive": {
-                "type": "number"
-              },
-              "limit": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "active",
-              "inactive",
-              "limit"
-            ]
+            "example": {
+              "active": 10,
+              "inactive": 5,
+              "limit": 50
+            }
           }
         },
         "required": [
@@ -8196,13 +8483,11 @@
         "properties": {
           "name": {
             "type": "string",
-            "minLength": 1,
             "example": "علي أحمد",
             "description": "Student full name"
           },
           "email": {
             "type": "string",
-            "format": "email",
             "example": "ali@example.com"
           },
           "phone": {
@@ -8289,13 +8574,11 @@
           },
           "name": {
             "type": "string",
-            "minLength": 2,
             "example": "علي أحمد",
             "description": "Student full name"
           },
           "email": {
             "type": "string",
-            "format": "email",
             "example": "ali@example.com"
           },
           "phone": {
@@ -8313,13 +8596,11 @@
         "properties": {
           "name": {
             "type": "string",
-            "minLength": 2,
             "example": "علي أحمد",
             "description": "Student full name"
           },
           "email": {
             "type": "string",
-            "format": "email",
             "example": "ali@example.com",
             "description": "Student email"
           },
@@ -8329,11 +8610,11 @@
             "description": "Student phone number"
           },
           "status": {
+            "type": "string",
             "enum": [
               "ACTIVE",
               "INACTIVE"
             ],
-            "type": "string",
             "example": "ACTIVE",
             "description": "Student status"
           },
@@ -8349,7 +8630,6 @@
         "properties": {
           "title": {
             "type": "string",
-            "minLength": 2,
             "example": "الرياضيات - الجبر",
             "description": "Course title"
           },
@@ -8360,7 +8640,6 @@
           },
           "price": {
             "type": "number",
-            "minimum": 0,
             "example": 0,
             "description": "Course price in EGP (0 = free)"
           },
@@ -8481,7 +8760,6 @@
         "properties": {
           "title": {
             "type": "string",
-            "minLength": 2,
             "example": "الرياضيات - الجبر",
             "description": "Course title"
           },
@@ -8492,7 +8770,6 @@
           },
           "price": {
             "type": "number",
-            "minimum": 0,
             "example": 199.99,
             "description": "Course price in EGP (0 = free)"
           }
@@ -8502,7 +8779,6 @@
         "type": "object",
         "properties": {
           "studentIds": {
-            "minItems": 1,
             "example": [
               "clx...",
               "clx..."
@@ -8536,7 +8812,8 @@
         },
         "required": [
           "id",
-          "name"
+          "name",
+          "email"
         ]
       },
       "EnrollmentResponseDto": {
@@ -8596,7 +8873,6 @@
         "properties": {
           "title": {
             "type": "string",
-            "minLength": 2,
             "example": "مراجعة الجبر - الوحدة الأولى",
             "description": "Session title"
           },
@@ -8611,11 +8887,11 @@
             "description": "Session end time (ISO 8601)"
           },
           "type": {
+            "type": "string",
             "enum": [
               "LOCAL",
               "ONLINE"
             ],
-            "type": "string",
             "example": "LOCAL",
             "description": "Session delivery mode. LOCAL = in-person (uses location field). ONLINE = virtual (uses platform + meetingUrl fields)."
           },
@@ -8625,19 +8901,18 @@
             "description": "Physical location (required when type=LOCAL)"
           },
           "platform": {
+            "type": "string",
             "enum": [
               "ZOOM",
               "GOOGLE_MEET",
               "MICROSOFT_TEAMS",
               "OTHER"
             ],
-            "type": "string",
             "example": "ZOOM",
             "description": "Video conferencing platform (used when type=ONLINE)"
           },
           "meetingUrl": {
             "type": "string",
-            "format": "uri",
             "example": "https://zoom.us/j/123456789",
             "description": "Meeting URL (used when type=ONLINE)"
           },
@@ -8678,11 +8953,11 @@
             "example": "2025-09-15T12:00:00.000Z"
           },
           "type": {
+            "type": "string",
             "enum": [
               "LOCAL",
               "ONLINE"
             ],
-            "type": "string",
             "example": "LOCAL"
           },
           "location": {
@@ -8690,13 +8965,13 @@
             "example": "قاعة 3 - مركز التعليم, القاهرة"
           },
           "platform": {
+            "type": "string",
             "enum": [
               "ZOOM",
               "GOOGLE_MEET",
               "MICROSOFT_TEAMS",
               "OTHER"
             ],
-            "type": "string",
             "example": "ZOOM"
           },
           "meetingUrl": {
@@ -8760,7 +9035,6 @@
         "properties": {
           "title": {
             "type": "string",
-            "minLength": 2,
             "example": "مراجعة الجبر - الوحدة الأولى",
             "description": "Session title"
           },
@@ -8775,11 +9049,11 @@
             "description": "Session end time (ISO 8601)"
           },
           "type": {
+            "type": "string",
             "enum": [
               "LOCAL",
               "ONLINE"
             ],
-            "type": "string",
             "example": "ONLINE",
             "description": "Session delivery mode"
           },
@@ -8789,19 +9063,18 @@
             "description": "Physical location (for LOCAL sessions)"
           },
           "platform": {
+            "type": "string",
             "enum": [
               "ZOOM",
               "GOOGLE_MEET",
               "MICROSOFT_TEAMS",
               "OTHER"
             ],
-            "type": "string",
             "example": "GOOGLE_MEET",
             "description": "Video conferencing platform (for ONLINE sessions)"
           },
           "meetingUrl": {
             "type": "string",
-            "format": "uri",
             "example": "https://meet.google.com/abc-defg-hij",
             "description": "Meeting URL (for ONLINE sessions)"
           },
@@ -8821,8 +9094,7 @@
             "description": "Brand ID"
           },
           "logoUrl": {
-            "type": "string",
-            "nullable": true,
+            "type": "object",
             "example": "http://localhost:9000/basma-assets/abc123/logo.png",
             "description": "Logo URL"
           },
@@ -8842,20 +9114,17 @@
             "description": "Font family"
           },
           "customDomain": {
-            "type": "string",
-            "nullable": true,
+            "type": "object",
             "example": "myschool.example.com",
             "description": "Custom domain"
           },
           "customDomainVerifiedAt": {
-            "type": "string",
-            "nullable": true,
+            "type": "object",
             "example": "2026-07-03T12:00:00.000Z",
             "description": "When the custom domain was DNS-verified (null if not verified)"
           },
           "customDomainVerifyToken": {
-            "type": "string",
-            "nullable": true,
+            "type": "object",
             "example": "a1b2c3d4e5f6g7h8",
             "description": "Verification token to place in the TXT record \"_basma.<domain>\" (present right after PATCH, cleared after verification)"
           },
@@ -8910,8 +9179,7 @@
             "description": "Font family name"
           },
           "customDomain": {
-            "type": "string",
-            "nullable": true,
+            "type": "object",
             "example": "myschool.example.com",
             "description": "Custom domain for the platform. Set to empty string or null to remove."
           },
@@ -8951,7 +9219,6 @@
         "properties": {
           "customDomain": {
             "type": "string",
-            "nullable": true,
             "example": "myschool.com",
             "description": "Current custom domain (null if none)"
           },
@@ -8962,19 +9229,16 @@
           },
           "verifiedAt": {
             "type": "string",
-            "nullable": true,
             "example": "2026-07-03T12:00:00.000Z",
             "description": "When the domain was verified (null if not verified)"
           },
           "verifyToken": {
             "type": "string",
-            "nullable": true,
             "example": "a1b2c3d4e5f6g7h8",
             "description": "The verification token to place in the TXT record"
           },
           "dnsInstructions": {
             "type": "string",
-            "nullable": true,
             "example": "Add a TXT record for \"_basma.myschool.com\" with value \"a1b2c3d4e5f6g7h8\"",
             "description": "Human-readable DNS setup instructions"
           }
@@ -8987,8 +9251,7 @@
         "type": "object",
         "properties": {
           "logoUrl": {
-            "type": "string",
-            "nullable": true,
+            "type": "object",
             "example": "http://localhost:9000/basma-assets/abc123/logo.png",
             "description": "Logo URL (null if no logo uploaded)"
           },
@@ -9032,7 +9295,6 @@
         "properties": {
           "title": {
             "type": "string",
-            "minLength": 2,
             "example": "اختبار الجبر - الوحدة الأولى",
             "description": "Quiz title"
           },
@@ -9043,7 +9305,6 @@
           },
           "totalMarks": {
             "type": "number",
-            "minimum": 1,
             "example": 20,
             "description": "Total marks for the quiz"
           },
@@ -9158,11 +9419,11 @@
             "example": "ما ناتج (x+2)(x-2)؟"
           },
           "type": {
+            "type": "string",
             "enum": [
               "MCQ",
               "THEORY"
             ],
-            "type": "string",
             "example": "MCQ"
           },
           "options": {
@@ -9265,7 +9526,8 @@
           "instanceId",
           "questionCount",
           "createdAt",
-          "updatedAt"
+          "updatedAt",
+          "questions"
         ]
       },
       "UpdateQuizDto": {
@@ -9273,7 +9535,6 @@
         "properties": {
           "title": {
             "type": "string",
-            "minLength": 2,
             "example": "اختبار الجبر - الوحدة الأولى (معدل)",
             "description": "Quiz title"
           },
@@ -9284,7 +9545,6 @@
           },
           "totalMarks": {
             "type": "number",
-            "minimum": 1,
             "example": 25,
             "description": "Total marks for the quiz"
           }
@@ -9295,16 +9555,15 @@
         "properties": {
           "text": {
             "type": "string",
-            "minLength": 2,
             "example": "ما ناتج (x+2)(x-2)؟",
             "description": "Question text"
           },
           "type": {
+            "type": "string",
             "enum": [
               "MCQ",
               "THEORY"
             ],
-            "type": "string",
             "example": "MCQ",
             "description": "Question type: MCQ (auto-graded) or THEORY (teacher graded)"
           },
@@ -9328,7 +9587,6 @@
           },
           "marks": {
             "type": "number",
-            "minimum": 1,
             "example": 5,
             "description": "Marks for this question"
           }
@@ -9363,16 +9621,15 @@
         "properties": {
           "text": {
             "type": "string",
-            "minLength": 2,
             "example": "ما ناتج (x+3)(x-3)؟",
             "description": "Question text"
           },
           "type": {
+            "type": "string",
             "enum": [
               "MCQ",
               "THEORY"
             ],
-            "type": "string",
             "example": "MCQ",
             "description": "Question type"
           },
@@ -9396,7 +9653,6 @@
           },
           "marks": {
             "type": "number",
-            "minimum": 1,
             "example": 5,
             "description": "Marks for this question"
           }
@@ -9425,7 +9681,6 @@
         "type": "object",
         "properties": {
           "answers": {
-            "minItems": 1,
             "example": [
               {
                 "questionId": "clx...",
@@ -9441,39 +9696,6 @@
         },
         "required": [
           "answers"
-        ]
-      },
-      "AttemptAnswerDetail": {
-        "type": "object",
-        "properties": {
-          "questionId": {
-            "type": "string",
-            "example": "clx...",
-            "description": "Question ID"
-          },
-          "answer": {
-            "type": "string",
-            "example": "x²-4",
-            "description": "Student's submitted answer"
-          },
-          "correct": {
-            "type": "boolean",
-            "nullable": true,
-            "example": true,
-            "description": "Whether the answer was correct (null for theory questions)"
-          },
-          "marksEarned": {
-            "type": "number",
-            "nullable": true,
-            "example": 5,
-            "description": "Marks earned for this question (null if ungraded theory)"
-          }
-        },
-        "required": [
-          "questionId",
-          "answer",
-          "correct",
-          "marksEarned"
         ]
       },
       "QuizAttemptResponseDto": {
@@ -9510,7 +9732,7 @@
             "description": "Detailed answer results",
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/AttemptAnswerDetail"
+              "type": "string"
             }
           },
           "submittedAt": {
@@ -9555,7 +9777,6 @@
           },
           "marksEarned": {
             "type": "number",
-            "minimum": 0,
             "example": 3,
             "description": "Marks to award for this question"
           }
@@ -9569,7 +9790,6 @@
         "type": "object",
         "properties": {
           "answers": {
-            "minItems": 1,
             "example": [
               {
                 "questionId": "clx...",
@@ -9592,7 +9812,6 @@
         "properties": {
           "title": {
             "type": "string",
-            "minLength": 2,
             "example": "واجب الجبر - الوحدة الأولى",
             "description": "Assignment title"
           },
@@ -9613,7 +9832,6 @@
           },
           "totalMarks": {
             "type": "number",
-            "minimum": 1,
             "example": 100,
             "description": "Maximum marks / total degree (defaults to 100)"
           }
@@ -9699,7 +9917,6 @@
         "properties": {
           "title": {
             "type": "string",
-            "minLength": 2,
             "example": "واجب الجبر - الوحدة الأولى (معدل)",
             "description": "Assignment title"
           },
@@ -9715,7 +9932,6 @@
           },
           "totalMarks": {
             "type": "number",
-            "minimum": 1,
             "example": 100,
             "description": "Maximum marks / total degree (defaults to 100)"
           }
@@ -9793,8 +10009,6 @@
         "properties": {
           "grade": {
             "type": "number",
-            "minimum": 0,
-            "maximum": 100,
             "example": 85,
             "description": "Grade / score for the submission (out of assignment maxGrade, default 100)"
           },
@@ -9822,8 +10036,7 @@
             "description": "Quiz title"
           },
           "score": {
-            "type": "number",
-            "nullable": true,
+            "type": "object",
             "example": 15,
             "description": "Score achieved (null if theory questions ungraded)"
           },
@@ -9833,8 +10046,7 @@
             "description": "Total marks for the quiz"
           },
           "percentage": {
-            "type": "number",
-            "nullable": true,
+            "type": "object",
             "example": 75,
             "description": "Percentage score (null if ungraded)"
           }
@@ -9860,8 +10072,7 @@
             "description": "Assignment title"
           },
           "grade": {
-            "type": "number",
-            "nullable": true,
+            "type": "object",
             "example": 85,
             "description": "Grade achieved (null if not yet graded)"
           },
@@ -9871,8 +10082,7 @@
             "description": "Maximum marks / total degree for this assignment"
           },
           "percentage": {
-            "type": "number",
-            "nullable": true,
+            "type": "object",
             "example": 85,
             "description": "Percentage of max grade in this assignment set"
           }
@@ -9916,8 +10126,7 @@
             }
           },
           "overallPercentage": {
-            "type": "number",
-            "nullable": true,
+            "type": "object",
             "example": 72.5,
             "description": "Overall percentage across all graded items"
           }
@@ -10007,8 +10216,7 @@
             }
           },
           "overallPercentage": {
-            "type": "number",
-            "nullable": true,
+            "type": "object",
             "example": 72.5
           }
         },
@@ -10128,11 +10336,11 @@
           },
           "mode": {
             "type": "string",
+            "description": "Operation mode — \"test\" for sandbox (test credentials), \"live\" for production (real money). Must match the key prefix (sk_test_ / sk_live_).",
             "enum": [
               "test",
               "live"
             ],
-            "description": "Operation mode — \"test\" for sandbox (test credentials), \"live\" for production (real money). Must match the key prefix (sk_test_ / sk_live_).",
             "default": "test",
             "example": "test"
           }
@@ -10166,16 +10374,16 @@
             "example": "pk_t****xxxx"
           },
           "cardIntegrationId": {
-            "type": "number",
-            "nullable": true,
+            "type": "object",
             "description": "Card Integration ID — numeric ID for card payment processing",
-            "example": 158
+            "example": 158,
+            "nullable": true
           },
           "walletIntegrationId": {
-            "type": "number",
-            "nullable": true,
+            "type": "object",
             "description": "Wallet/Mobile Integration ID — numeric ID for wallet payment processing",
-            "example": 475
+            "example": 475,
+            "nullable": true
           },
           "mode": {
             "type": "string",
@@ -10303,7 +10511,6 @@
           },
           "amountCents": {
             "type": "number",
-            "minimum": 1,
             "description": "Amount in cents (e.g. 2000 = 20.00 EGP)",
             "example": 2000
           },
@@ -10335,9 +10542,9 @@
             "description": "Student name"
           },
           "email": {
-            "type": "string",
-            "nullable": true,
-            "description": "Student email"
+            "type": "object",
+            "description": "Student email",
+            "nullable": true
           }
         },
         "required": [
@@ -10540,7 +10747,6 @@
         "properties": {
           "amountCents": {
             "type": "number",
-            "minimum": 1,
             "description": "Amount in cents to refund. Defaults to the full payment amount. Partial refunds are supported (set to less than the original amount).",
             "example": 500
           }
@@ -10721,11 +10927,11 @@
             "type": "string"
           },
           "senderRole": {
+            "type": "string",
             "enum": [
               "TEACHER",
               "STUDENT"
-            ],
-            "type": "string"
+            ]
           },
           "content": {
             "type": "string"
@@ -10813,17 +11019,18 @@
           },
           "fileType": {
             "type": "string",
+            "description": "File type",
             "enum": [
               "md",
               "txt"
             ],
-            "description": "File type",
             "default": "md"
           }
         },
         "required": [
           "filename",
-          "content"
+          "content",
+          "fileType"
         ]
       },
       "UpdateSpaceFileDto": {
@@ -10847,6 +11054,7 @@
           },
           "category": {
             "type": "string",
+            "description": "Note category",
             "enum": [
               "learning_style",
               "weakness",
@@ -10855,7 +11063,6 @@
               "progress",
               "general"
             ],
-            "description": "Note category",
             "default": "general"
           },
           "content": {
@@ -10874,7 +11081,9 @@
         },
         "required": [
           "studentId",
-          "content"
+          "category",
+          "content",
+          "source"
         ]
       },
       "UpdateProfileDto": {
@@ -10911,6 +11120,7 @@
           }
         },
         "required": [
+          "conversationId",
           "content"
         ]
       },
@@ -11041,7 +11251,7 @@
             ],
             "type": "array",
             "items": {
-              "type": "object"
+              "type": "string"
             }
           }
         },
@@ -11125,9 +11335,7 @@
             "example": 0
           },
           "completedAt": {
-            "format": "date-time",
-            "type": "string",
-            "nullable": true
+            "type": "object"
           }
         },
         "required": [
@@ -11264,13 +11472,13 @@
             "example": "clx..."
           },
           "state": {
+            "type": "string",
             "enum": [
               "pending",
               "processing",
               "ready",
               "failed"
             ],
-            "type": "string",
             "example": "ready"
           },
           "error": {
@@ -11299,10 +11507,6 @@
             "example": 1920
           },
           "container": {
-            "enum": [
-              "mp4",
-              "webm"
-            ],
             "type": "string",
             "example": "mp4"
           },
@@ -11341,10 +11545,6 @@
             "example": "2025-01-15T15:00:00.000Z"
           },
           "preferredContainer": {
-            "enum": [
-              "mp4",
-              "webm"
-            ],
             "type": "string",
             "example": "mp4"
           },
@@ -11438,7 +11638,7 @@
             "description": "Tiptap-compatible JSON body (array of nodes)",
             "type": "array",
             "items": {
-              "type": "object"
+              "type": "string"
             }
           }
         },
@@ -11451,7 +11651,6 @@
         "type": "object",
         "properties": {
           "elementIds": {
-            "minItems": 1,
             "description": "Element IDs in new order (must include all elements)",
             "type": "array",
             "items": {
@@ -11478,7 +11677,7 @@
             "description": "Rich content body JSON (for RICH_CONTENT type)",
             "type": "array",
             "items": {
-              "type": "object"
+              "type": "string"
             }
           },
           "description": {
@@ -11549,9 +11748,7 @@
             "example": 50
           },
           "completedAt": {
-            "format": "date-time",
-            "type": "string",
-            "nullable": true
+            "type": "object"
           }
         },
         "required": [
@@ -11630,48 +11827,11 @@
         "properties": {
           "progressPercent": {
             "type": "number",
-            "minimum": 0,
-            "maximum": 100,
             "description": "Progress percentage (0-100)"
           }
         },
         "required": [
           "progressPercent"
-        ]
-      },
-      "ChannelStatusDto": {
-        "type": "object",
-        "properties": {
-          "connected": {
-            "type": "boolean"
-          },
-          "channelId": {
-            "type": "string"
-          },
-          "channelTitle": {
-            "type": "string"
-          },
-          "needsReauth": {
-            "type": "boolean"
-          },
-          "cookiesAgeSec": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "connected",
-          "needsReauth"
-        ]
-      },
-      "OAuthBeginResponse": {
-        "type": "object",
-        "properties": {
-          "url": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "url"
         ]
       },
       "OAuthCallbackDto": {
@@ -11691,22 +11851,20 @@
         "properties": {
           "label": {
             "type": "string",
-            "maxLength": 60,
             "example": "سجل الآن"
           },
           "type": {
+            "type": "string",
             "enum": [
               "REGISTER",
               "COURSES",
               "WHATSAPP",
               "CUSTOM_URL"
             ],
-            "type": "string",
             "example": "REGISTER"
           },
           "href": {
             "type": "string",
-            "maxLength": 500,
             "example": "/courses"
           },
           "groupId": {
@@ -11726,17 +11884,14 @@
         "properties": {
           "eyebrow": {
             "type": "string",
-            "maxLength": 100,
             "example": "أكاديمية"
           },
           "title": {
             "type": "string",
-            "maxLength": 200,
             "example": "مرحباً بكم في أكاديميتنا"
           },
           "subtitle": {
             "type": "string",
-            "maxLength": 300,
             "example": "نعلّم الأجيال القادمة"
           },
           "imageUrl": {
@@ -11759,12 +11914,10 @@
         "properties": {
           "label": {
             "type": "string",
-            "maxLength": 200,
             "example": "عدد الطلاب"
           },
           "value": {
             "type": "string",
-            "maxLength": 100,
             "example": "500"
           }
         },
@@ -11778,19 +11931,16 @@
         "properties": {
           "title": {
             "type": "string",
-            "maxLength": 200,
             "example": "عن الأكاديمية"
           },
           "body": {
             "type": "string",
-            "maxLength": 5000,
             "example": "نحن مؤسسة تعليمية..."
           },
           "imageUrl": {
             "type": "string"
           },
           "stats": {
-            "maxItems": 6,
             "example": [
               {
                 "label": "عدد الطلاب",
@@ -11813,21 +11963,19 @@
         "properties": {
           "title": {
             "type": "string",
-            "maxLength": 200,
             "example": "دوراتنا"
           },
           "description": {
             "type": "string",
-            "maxLength": 300,
             "example": "اختر من بين دوراتنا المتميزة"
           },
           "mode": {
+            "type": "string",
             "enum": [
               "MANUAL",
               "LATEST",
               "NONE"
             ],
-            "type": "string",
             "example": "LATEST"
           },
           "courseIds": {
@@ -11848,15 +11996,14 @@
         "properties": {
           "title": {
             "type": "string",
-            "maxLength": 100,
             "example": "تعلم تفاعلي"
           },
           "description": {
             "type": "string",
-            "maxLength": 500,
             "example": "نستخدم أحدث أساليب التعليم"
           },
           "icon": {
+            "type": "string",
             "enum": [
               "book",
               "calendar",
@@ -11865,7 +12012,6 @@
               "target",
               "video"
             ],
-            "type": "string",
             "example": "book"
           }
         },
@@ -11879,17 +12025,14 @@
         "properties": {
           "name": {
             "type": "string",
-            "maxLength": 100,
             "example": "أحمد محمد"
           },
           "quote": {
             "type": "string",
-            "maxLength": 1000,
             "example": "تجربة رائعة جداً"
           },
           "role": {
             "type": "string",
-            "maxLength": 100,
             "example": "طالب"
           },
           "avatarUrl": {
@@ -11906,12 +12049,10 @@
         "properties": {
           "question": {
             "type": "string",
-            "maxLength": 300,
             "example": "ما هي رسوم التسجيل؟"
           },
           "answer": {
             "type": "string",
-            "maxLength": 2000,
             "example": "التسجيل مجاني تماماً"
           }
         },
@@ -11924,6 +12065,7 @@
         "type": "object",
         "properties": {
           "platform": {
+            "type": "string",
             "enum": [
               "facebook",
               "instagram",
@@ -11933,17 +12075,14 @@
               "telegram",
               "website"
             ],
-            "type": "string",
             "example": "facebook"
           },
           "label": {
             "type": "string",
-            "maxLength": 50,
             "example": "فيسبوك"
           },
           "url": {
             "type": "string",
-            "maxLength": 500,
             "example": "https://facebook.com/myacademy"
           }
         },
@@ -11957,22 +12096,18 @@
         "properties": {
           "phone": {
             "type": "string",
-            "maxLength": 20,
             "example": "+201234567890"
           },
           "whatsapp": {
             "type": "string",
-            "maxLength": 20,
             "example": "+201234567890"
           },
           "email": {
             "type": "string",
-            "maxLength": 200,
             "example": "info@academy.com"
           },
           "address": {
             "type": "string",
-            "maxLength": 300,
             "example": "القاهرة، مصر"
           }
         }
@@ -11997,28 +12132,24 @@
             "$ref": "#/components/schemas/LandingFeaturedCoursesDto"
           },
           "features": {
-            "maxItems": 12,
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/LandingFeatureDto"
             }
           },
           "testimonials": {
-            "maxItems": 20,
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/LandingTestimonialDto"
             }
           },
           "faqs": {
-            "maxItems": 30,
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/LandingFaqDto"
             }
           },
           "socialLinks": {
-            "maxItems": 20,
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/LandingSocialLinkDto"
@@ -12066,23 +12197,20 @@
             "type": "string"
           },
           "status": {
+            "type": "string",
             "enum": [
               "DRAFT",
               "PUBLISHED"
-            ],
-            "type": "string"
+            ]
           },
           "seoTitle": {
-            "type": "string",
-            "nullable": true
+            "type": "object"
           },
           "seoDescription": {
-            "type": "string",
-            "nullable": true
+            "type": "object"
           },
           "ogImageUrl": {
-            "type": "string",
-            "nullable": true
+            "type": "object"
           },
           "content": {
             "$ref": "#/components/schemas/LandingContentDto"
@@ -12097,8 +12225,7 @@
             "type": "string"
           },
           "publishedAt": {
-            "type": "string",
-            "nullable": true
+            "type": "object"
           }
         },
         "required": [
@@ -12114,11 +12241,11 @@
         "type": "object",
         "properties": {
           "status": {
+            "type": "string",
             "enum": [
               "DRAFT",
               "PUBLISHED"
-            ],
-            "type": "string"
+            ]
           },
           "locale": {
             "type": "string"
@@ -12150,8 +12277,7 @@
             "type": "string"
           },
           "customDomain": {
-            "type": "string",
-            "nullable": true
+            "type": "object"
           }
         },
         "required": [
@@ -12164,8 +12290,7 @@
         "type": "object",
         "properties": {
           "logoUrl": {
-            "type": "string",
-            "nullable": true
+            "type": "object"
           },
           "primaryColor": {
             "type": "string"
@@ -12197,16 +12322,13 @@
             ]
           },
           "seoTitle": {
-            "type": "string",
-            "nullable": true
+            "type": "object"
           },
           "seoDescription": {
-            "type": "string",
-            "nullable": true
+            "type": "object"
           },
           "ogImageUrl": {
-            "type": "string",
-            "nullable": true
+            "type": "object"
           },
           "content": {
             "$ref": "#/components/schemas/LandingContentDto"
@@ -12235,15 +12357,13 @@
             "type": "string"
           },
           "description": {
-            "type": "string",
-            "nullable": true
+            "type": "object"
           },
           "price": {
             "type": "number"
           },
           "imageUrl": {
-            "type": "string",
-            "nullable": true
+            "type": "object"
           },
           "groupId": {
             "type": "string"
@@ -12252,11 +12372,11 @@
             "type": "string"
           },
           "registrationMode": {
+            "type": "string",
             "enum": [
               "OPEN",
               "CLOSED"
-            ],
-            "type": "string"
+            ]
           },
           "studentCount": {
             "type": "number"
@@ -12297,21 +12417,98 @@
           "courses"
         ]
       },
+      "CreateFeedbackDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "example": "I love the new curriculum feature!",
+            "description": "Feedback content"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "BUG",
+              "FEATURE_REQUEST",
+              "GENERAL"
+            ],
+            "example": "FEATURE_REQUEST",
+            "description": "Feedback category"
+          }
+        },
+        "required": [
+          "content"
+        ]
+      },
+      "FeedbackResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "content": {
+            "type": "string",
+            "example": "I love the new curriculum feature!"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "BUG",
+              "FEATURE_REQUEST",
+              "GENERAL"
+            ],
+            "example": "FEATURE_REQUEST"
+          },
+          "senderRole": {
+            "type": "string",
+            "enum": [
+              "TEACHER",
+              "STUDENT"
+            ],
+            "example": "TEACHER"
+          },
+          "senderId": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "senderName": {
+            "type": "string",
+            "example": "أحمد علي"
+          },
+          "instanceId": {
+            "type": "string",
+            "example": "clx..."
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "content",
+          "senderRole",
+          "senderId",
+          "senderName",
+          "instanceId",
+          "createdAt"
+        ]
+      },
       "ContactMethodDto": {
         "type": "object",
         "properties": {
           "type": {
+            "type": "string",
             "enum": [
               "phone",
               "whatsapp",
               "email"
             ],
-            "type": "string",
             "example": "whatsapp"
           },
           "value": {
             "type": "string",
-            "maxLength": 100,
             "example": "+201234567890"
           }
         },
@@ -12324,7 +12521,6 @@
         "type": "object",
         "properties": {
           "subjects": {
-            "maxItems": 20,
             "example": [
               "الرياضيات",
               "الفيزياء"
@@ -12337,19 +12533,16 @@
           },
           "audience": {
             "type": "string",
-            "maxLength": 500,
             "example": "طلاب ثانوية عامة",
             "description": "الجمهور المستهدف"
           },
           "uniqueSellingPoint": {
             "type": "string",
-            "maxLength": 1000,
             "example": "بشرح بأسلوب مبسط وربط بالحياة العملية",
             "description": "إيه اللي يميزك كمدرس"
           },
           "location": {
             "type": "string",
-            "maxLength": 300,
             "example": "القاهرة، مصر",
             "description": "مكان الأكاديمية"
           },
@@ -12363,7 +12556,6 @@
           },
           "primaryColor": {
             "type": "string",
-            "pattern": "^#?([0-9A-F]{3}|[0-9A-F]{4}|[0-9A-F]{6}|[0-9A-F]{8})$",
             "example": "#2563eb",
             "description": "اللون الأساسي"
           },
@@ -12391,9 +12583,7 @@
             "description": "هل اكتمل الأونبوردينغ"
           },
           "answers": {
-            "nullable": true,
             "description": "الإجابات المحفوظة (إن وجدت)",
-            "type": "object",
             "allOf": [
               {
                 "$ref": "#/components/schemas/SaveAnswersDto"
@@ -12469,6 +12659,100 @@
           "completedCount",
           "totalCount"
         ]
+      },
+      "CreateMeetingDto": {
+        "type": "object",
+        "properties": {
+          "requestedDate": {
+            "type": "string",
+            "description": "Requested meeting start time (ISO 8601)",
+            "example": "2026-07-20T13:00:00.000Z"
+          },
+          "teacherNotes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "requestedDate"
+        ]
+      },
+      "MeetingResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "instanceId": {
+            "type": "string"
+          },
+          "requestedDate": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "CONFIRMED",
+              "CANCELLED",
+              "COMPLETED"
+            ]
+          },
+          "teacherNotes": {
+            "type": "string"
+          },
+          "adminNotes": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "instanceId",
+          "requestedDate",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "MeetingListResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MeetingResponseDto"
+            }
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "data",
+          "total"
+        ]
+      },
+      "UpdateMeetingDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "CONFIRMED",
+              "CANCELLED",
+              "COMPLETED"
+            ]
+          },
+          "adminNotes": {
+            "type": "string"
+          }
+        }
       },
       "JoinGroupDto": {
         "type": "object",

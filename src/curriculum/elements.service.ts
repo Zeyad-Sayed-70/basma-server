@@ -340,14 +340,9 @@ export class ElementsService {
       headers.range = range;
     }
 
-    const storedHeaders = (entry as any).httpHeaders;
+    const storedHeaders = entry.httpHeaders;
     if (storedHeaders && typeof storedHeaders === 'object') {
-      for (const key of [
-        'user-agent',
-        'accept',
-        'origin',
-        'referer',
-      ]) {
+      for (const key of ['user-agent', 'accept', 'origin', 'referer']) {
         const val = storedHeaders[key];
         if (val && typeof val === 'string') {
           headers[key] = val;
@@ -407,16 +402,19 @@ export class ElementsService {
       if (response.body) {
         const reader = response.body.getReader();
         const pump = () => {
-          reader.read().then(({ done, value }) => {
-            if (done) {
-              res.end();
-              return;
-            }
-            res.write(value);
-            pump();
-          }).catch(() => {
-            if (!res.destroyed) res.end();
-          });
+          reader
+            .read()
+            .then(({ done, value }) => {
+              if (done) {
+                res.end();
+                return;
+              }
+              res.write(value);
+              pump();
+            })
+            .catch(() => {
+              if (!res.destroyed) res.end();
+            });
         };
         pump();
       } else {

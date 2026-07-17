@@ -91,6 +91,17 @@ enum ChatSenderRole {
   STUDENT
 }
 
+enum FeedbackSenderRole {
+  TEACHER
+  STUDENT
+}
+
+enum FeedbackCategory {
+  BUG
+  FEATURE_REQUEST
+  GENERAL
+}
+
 enum CurriculumElementType {
   VIDEO
   RICH_CONTENT
@@ -103,6 +114,13 @@ enum CurriculumElementType {
 enum ElementProgressStatus {
   NOT_STARTED
   IN_PROGRESS
+  COMPLETED
+}
+
+enum MeetingRequestStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
   COMPLETED
 }
 
@@ -139,6 +157,7 @@ model Instance {
   questions     QuestionBank[]
   chatMessages      ChatMessage[]
   chatReadMarkers   ChatReadMarker[]
+  feedbacks         Feedback[]
   agentSpaceFiles   AgentSpaceFile[]
   agentStudentNotes AgentStudentNote[]
   agentConversations AgentConversation[]
@@ -149,6 +168,7 @@ model Instance {
   curricula               Curriculum[]
 
   landingPage           LandingPage?
+  meetingRequests       MeetingRequest[]
   tierChangeLogs        TierChangeLog[]
   onboardingAnswers     Json?               @map("onboarding_answers")
   onboardingCompleted   Boolean             @default(false) @map("onboarding_completed")
@@ -576,6 +596,22 @@ model ChatReadMarker {
   @@map("chat_read_markers")
 }
 
+model Feedback {
+  id         String             @id @default(cuid())
+  content    String
+  category   FeedbackCategory   @default(GENERAL)
+  senderRole FeedbackSenderRole
+  senderId   String
+  senderName String
+  instanceId String
+  instance   Instance           @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  createdAt  DateTime           @default(now())
+
+  @@index([instanceId])
+  @@index([createdAt])
+  @@map("feedbacks")
+}
+
 model AgentSpaceFile {
   id         String   @id @default(cuid())
   filename   String
@@ -856,6 +892,22 @@ model TierChangeLog {
 
   @@index([instanceId])
   @@map("tier_change_logs")
+}
+
+model MeetingRequest {
+  id            String               @id @default(cuid())
+  instanceId    String
+  instance      Instance             @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  requestedDate DateTime
+  status        MeetingRequestStatus @default(PENDING)
+  teacherNotes  String?
+  adminNotes    String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@index([instanceId])
+  @@index([requestedDate])
+  @@map("meeting_requests")
 }
 
 model YoutubeChannelAuth {

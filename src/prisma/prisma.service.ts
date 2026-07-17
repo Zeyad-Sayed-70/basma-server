@@ -25,6 +25,7 @@ const TENANT_MODELS = new Set([
   'QuestionBank',
   'ChatMessage',
   'ChatReadMarker',
+  'Feedback',
   'Curriculum',
   'CurriculumElement',
   'CurriculumVideo',

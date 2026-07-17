@@ -345,7 +345,7 @@ export class QuizzesController {
   @ApiOperation({
     summary: 'Grade theory answers',
     description:
-      'Grades a student\'s theory question answers for a quiz. ' +
+      "Grades a student's theory question answers for a quiz. " +
       'Accepts an array of questionId and marksEarned pairs. ' +
       'Updates the attempt score and marks for each theory answer. ' +
       'If all answers are now graded, a quiz.graded event is emitted and the student is notified.',

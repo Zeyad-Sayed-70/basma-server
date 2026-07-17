@@ -42,6 +42,9 @@ tr:hover { background: #f8f9fa; }
 .badge-khebir { background: #fff3cd; color: #856404; }
 .badge-hout { background: #f8d7da; color: #721c24; }
 .badge-expired { background: #f8d7da; color: #721c24; }
+.badge-bug { background: #fee2e2; color: #991b1b; }
+.badge-feature_request { background: #dbeafe; color: #1e40af; }
+.badge-general { background: #f3e8ff; color: #6b21a8; }
 .btn {
   display: inline-block; padding: 8px 16px; border-radius: 6px;
   border: none; cursor: pointer; font-size: 14px; text-decoration: none;

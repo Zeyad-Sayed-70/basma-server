@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>بصمة — الملاحظات</title>
+  <link rel="stylesheet" href="/admin/static/admin.css">
+</head>
+<body>
+  <div class="admin-layout">
+    <%- include('partials/sidebar') %>
+    <div class="main-content">
+      <div class="header-bar">
+        <h1>الملاحظات</h1>
+        <form method="GET" action="/admin/feedbacks" style="display:flex;gap:8px">
+          <input type="text" name="instanceId" class="search-box" placeholder="معرف المنصة..." value="<%= typeof instanceId !== 'undefined' ? instanceId : '' %>">
+          <button type="submit" class="btn btn-primary">تصفية</button>
+        </form>
+      </div>
+      <div class="card">
+        <table>
+          <tr>
+            <th>المحتوى</th>
+            <th>التصنيف</th>
+            <th>المرسل</th>
+            <th>الدور</th>
+            <th>المنصة</th>
+            <th>التاريخ</th>
+          </tr>
+          <% if (feedbacks.length === 0) { %>
+          <tr><td colspan="6" style="text-align:center;padding:24px">لا توجد ملاحظات</td></tr>
+          <% } %>
+          <% feedbacks.forEach(f => { %>
+          <tr>
+            <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="<%= f.content %>"><%= f.content %></td>
+            <td><span class="badge badge-<%= f.category.toLowerCase() %>"><%= f.category === 'BUG' ? 'خلل' : f.category === 'FEATURE_REQUEST' ? 'اقتراح' : 'عام' %></span></td>
+            <td><%= f.senderName %></td>
+            <td><%= f.senderRole === 'TEACHER' ? 'مدرس' : 'طالب' %></td>
+            <td><%= f.instance.name %> (<%= f.instance.subdomain %>)</td>
+            <td><%= new Date(f.createdAt).toLocaleDateString('ar-EG') %></td>
+          </tr>
+          <% }) %>
+        </table>
+        <% if (total > 50) { %>
+        <div style="margin-top:16px;text-align:center">
+          <% if (page > 1) { %>
+          <a href="/admin/feedbacks?page=<%= page - 1 %><%= instanceId ? '&instanceId=' + instanceId : '' %>" class="btn btn-secondary">السابق</a>
+          <% } %>
+          <span style="margin:0 12px">الصفحة <%= page %> من <%= Math.ceil(total / 50) %></span>
+          <% if (page * 50 < total) { %>
+          <a href="/admin/feedbacks?page=<%= page + 1 %><%= instanceId ? '&instanceId=' + instanceId : '' %>" class="btn btn-secondary">التالي</a>
+          <% } %>
+        </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -78,7 +78,9 @@ export class BundleService {
       mp4Video.length > 0 ? 'mp4' : 'webm',
     );
     if (!bestAudio) {
-      this.logger.warn('bundle.no_separate_audio_stream will_use_combined_format');
+      this.logger.warn(
+        'bundle.no_separate_audio_stream will_use_combined_format',
+      );
     }
 
     const containers: Array<'mp4' | 'webm'> = ['mp4', 'webm'];

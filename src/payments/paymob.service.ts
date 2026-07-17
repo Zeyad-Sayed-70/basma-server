@@ -104,7 +104,9 @@ export class PaymobService {
       };
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
-      this.logger.error(`Paymob createIntention network error: ${(error as Error).message}`);
+      this.logger.error(
+        `Paymob createIntention network error: ${(error as Error).message}`,
+      );
       throw new BadRequestException('Payment provider unreachable');
     }
   }
@@ -138,7 +140,9 @@ export class PaymobService {
       return res.json() as Promise<Record<string, unknown>>;
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
-      this.logger.error(`Paymob refund network error: ${(error as Error).message}`);
+      this.logger.error(
+        `Paymob refund network error: ${(error as Error).message}`,
+      );
       throw new BadRequestException('Payment provider unreachable');
     }
   }

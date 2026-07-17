@@ -133,6 +133,40 @@ export class AdminController {
   }
 
   @UseGuards(AuthGuard('admin-jwt'), AdminGuard)
+  @Get('api/admin/feedbacks')
+  async listFeedbacks(
+    @Query('instanceId') instanceId?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.adminService.listFeedbacks(
+      instanceId,
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 50,
+    );
+  }
+
+  @UseGuards(AuthGuard('admin-jwt'), AdminGuard)
+  @Get('admin/feedbacks')
+  @Render('feedbacks')
+  async feedbacksPage(
+    @Query('instanceId') instanceId?: string,
+    @Query('page') page?: string,
+  ) {
+    const result = await this.adminService.listFeedbacks(
+      instanceId,
+      page ? parseInt(page, 10) : 1,
+      50,
+    );
+    return {
+      feedbacks: result.data,
+      total: result.total,
+      page: result.page,
+      instanceId: instanceId ?? '',
+    };
+  }
+
+  @UseGuards(AuthGuard('admin-jwt'), AdminGuard)
   @Get('api/admin/stats')
   async getStats() {
     return this.adminService.getPlatformStats();

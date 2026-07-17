@@ -411,14 +411,17 @@ export class QuizzesService {
       throw new NotFoundException('Attempt not found');
     }
 
-    const existingAnswers = (attempt.answers as Array<{
-      questionId: string;
-      answer: string;
-      correct: boolean | null;
-      marksEarned: number | null;
-    }>) ?? [];
+    const existingAnswers =
+      (attempt.answers as Array<{
+        questionId: string;
+        answer: string;
+        correct: boolean | null;
+        marksEarned: number | null;
+      }>) ?? [];
 
-    const gradeMap = new Map(dto.answers.map((g) => [g.questionId, g.marksEarned]));
+    const gradeMap = new Map(
+      dto.answers.map((g) => [g.questionId, g.marksEarned]),
+    );
 
     const questionMap = new Map(quiz.questions.map((q) => [q.id, q]));
 

@@ -357,6 +357,44 @@ export class AdminService {
     });
   }
 
+  async listFeedbacks(instanceId?: string, page = 1, limit = 50) {
+    const where: Record<string, unknown> = {};
+    if (instanceId) {
+      where.instanceId = instanceId;
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [feedbacks, total] = await Promise.all([
+      this.prisma.feedback.findMany({
+        where,
+        include: {
+          instance: { select: { name: true, subdomain: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.feedback.count({ where }),
+    ]);
+
+    const data = feedbacks.map((f) => ({
+      id: f.id,
+      content: f.content,
+      category: f.category,
+      senderRole: f.senderRole,
+      senderName: f.senderName,
+      instance: {
+        id: f.instanceId,
+        name: f.instance.name,
+        subdomain: f.instance.subdomain,
+      },
+      createdAt: f.createdAt.toISOString(),
+    }));
+
+    return { data, total, page, limit };
+  }
+
   async getPlatformStats() {
     const [
       totalInstances,
