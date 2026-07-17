@@ -31,6 +31,14 @@ export class SignupDto {
   @MinLength(2)
   name: string;
 
+  @ApiProperty({
+    example: '+201234567890',
+    description: 'Phone number',
+  })
+  @IsString()
+  @MinLength(7)
+  phone: string;
+
   @ApiPropertyOptional({
     example: 'myschool',
     description:

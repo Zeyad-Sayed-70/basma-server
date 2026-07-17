@@ -10,6 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { SignupDto } from './dto/signup.dto';
+import { UpdateTeacherProfileDto } from './dto/update-profile.dto';
 import { LoginDto } from './dto/login.dto';
 import { StudentLoginDto } from './dto/student-login.dto';
 import { TenantContext } from '../common/context/tenant-context';
@@ -25,6 +26,26 @@ export class AuthService {
     configService: ConfigService,
   ) {
     this.jwtExpiration = configService.get<string>('JWT_EXPIRATION') ?? '7d';
+  }
+
+  private computeActions(teacher: { phone: string | null }): string[] {
+    const actions: string[] = [];
+    if (!teacher.phone) {
+      actions.push('PHONE_NUMBER_REQUIRED');
+    }
+    return actions;
+  }
+
+  private teacherToResponse(teacher: any, instance?: any) {
+    const responses = {
+      id: teacher.id,
+      email: teacher.email,
+      name: teacher.name,
+      phone: teacher.phone ?? undefined,
+      lang: teacher.lang,
+      instanceId: teacher.instanceId,
+    };
+    return responses;
   }
 
   async signup(dto: SignupDto) {
@@ -62,6 +83,7 @@ export class AuthService {
             email: dto.email,
             passwordHash,
             name: dto.name,
+            phone: dto.phone,
             lang: dto.lang ?? 'ar',
           },
         },
@@ -75,11 +97,8 @@ export class AuthService {
     return {
       ...tokens,
       teacher: {
-        id: teacher.id,
-        email: teacher.email,
-        name: teacher.name,
-        lang: teacher.lang,
-        instanceId: instance.id,
+        ...this.teacherToResponse(teacher),
+        actions: this.computeActions(teacher),
       },
     };
   }
@@ -109,11 +128,8 @@ export class AuthService {
     return {
       ...tokens,
       teacher: {
-        id: teacher.id,
-        email: teacher.email,
-        name: teacher.name,
-        lang: teacher.lang,
-        instanceId: teacher.instanceId,
+        ...this.teacherToResponse(teacher),
+        actions: this.computeActions(teacher),
       },
     };
   }
@@ -174,11 +190,8 @@ export class AuthService {
       return {
         ...tokens,
         teacher: {
-          id: teacher.id,
-          email: teacher.email,
-          name: teacher.name,
-          lang: teacher.lang,
-          instanceId: teacher.instanceId,
+          ...this.teacherToResponse(teacher),
+          actions: this.computeActions(teacher),
         },
       };
     } catch {
@@ -198,11 +211,29 @@ export class AuthService {
       id: teacher.id,
       email: teacher.email,
       name: teacher.name,
+      phone: teacher.phone ?? undefined,
       lang: teacher.lang,
       tier: teacher.instance.tier,
       instanceId: teacher.instanceId,
       subdomain: teacher.instance.subdomain,
       createdAt: teacher.createdAt.toISOString(),
+      actions: this.computeActions(teacher),
+    };
+  }
+
+  async updateProfile(teacherId: string, dto: UpdateTeacherProfileDto) {
+    const teacher = await this.prisma.teacher.update({
+      where: { id: teacherId },
+      data: { phone: dto.phone },
+    });
+    return {
+      id: teacher.id,
+      email: teacher.email,
+      name: teacher.name,
+      phone: teacher.phone ?? undefined,
+      lang: teacher.lang,
+      instanceId: teacher.instanceId,
+      actions: this.computeActions(teacher),
     };
   }
 

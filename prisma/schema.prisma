@@ -189,6 +189,7 @@ model Teacher {
   email        String   @unique
   passwordHash String
   name         String
+  phone        String?
   lang         String   @default("ar")
   instanceId   String   @unique
   instance     Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)

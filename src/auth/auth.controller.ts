@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   UseGuards,
   HttpCode,
@@ -15,8 +16,11 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
+import { RolesGuard } from './guards/roles.guard';
+import { Roles } from './decorators/roles.decorator';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
+import { UpdateTeacherProfileDto } from './dto/update-profile.dto';
 import { LoginDto } from './dto/login.dto';
 import { StudentLoginDto } from './dto/student-login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -115,6 +119,34 @@ export class AuthController {
   })
   async me(@CurrentUser() user: AuthenticatedUser) {
     return this.authService.getProfile(user.id);
+  }
+
+  @Patch('profile')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('teacher')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Update teacher profile',
+    description:
+      'Updates the authenticated teacher&#39;s profile (e.g., phone number). ' +
+      'Returns the updated profile with any remaining required actions.',
+  })
+  @ApiBody({ type: UpdateTeacherProfileDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Profile updated successfully',
+    type: MeResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized — invalid or missing token',
+  })
+  async updateProfile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateTeacherProfileDto,
+  ) {
+    return this.authService.updateProfile(user.id, dto);
   }
 
   @Post('student/signup')

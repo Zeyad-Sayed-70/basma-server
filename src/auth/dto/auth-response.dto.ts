@@ -10,11 +10,17 @@ class TeacherProfile {
   @ApiProperty({ example: 'أحمد محمد' })
   name: string;
 
+  @ApiProperty({ example: '+201234567890' })
+  phone?: string;
+
   @ApiProperty({ example: 'ar' })
   lang: string;
 
   @ApiProperty({ example: 'clx...' })
   instanceId: string;
+
+  @ApiProperty({ example: ['PHONE_NUMBER_REQUIRED'] })
+  actions: string[];
 }
 
 export class AuthResponseDto {
@@ -69,6 +75,9 @@ export class MeResponseDto {
   @ApiProperty({ example: 'أحمد محمد' })
   name: string;
 
+  @ApiProperty({ example: '+201234567890' })
+  phone?: string;
+
   @ApiProperty({ example: 'ar' })
   lang: string;
 
@@ -83,6 +92,9 @@ export class MeResponseDto {
 
   @ApiProperty({ example: '2025-01-01T00:00:00.000Z' })
   createdAt: string;
+
+  @ApiProperty({ example: ['PHONE_NUMBER_REQUIRED'] })
+  actions: string[];
 }
 
 export class StudentMeResponseDto {

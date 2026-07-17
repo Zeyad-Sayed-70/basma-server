@@ -33,6 +33,15 @@ interface AiLandingResponse {
     label: string;
     value: string;
   }>;
+  testimonials?: Array<{
+    name: string;
+    quote: string;
+    role?: string;
+  }>;
+  faqs?: Array<{
+    question: string;
+    answer: string;
+  }>;
 }
 
 @Injectable()
@@ -149,8 +158,8 @@ export class OnboardingService {
         courseIds: [],
       },
       features: aiContent.features ?? [],
-      testimonials: [],
-      faqs: [],
+      testimonials: aiContent.testimonials ?? [],
+      faqs: aiContent.faqs ?? [],
       socialLinks: answers.contactMethod
         ? [
             {
@@ -317,12 +326,27 @@ export class OnboardingService {
       "label": "تسمية الإحصائية",
       "value": "القيمة"
     }
+  ],
+  "testimonials": [
+    {
+      "name": "اسم الطالب أو ولي الأمر",
+      "quote": "رأي أو تجربة حقيقية (جملة أو جملتين)",
+      "role": "طالب / ولي أمر (اختياري)"
+    }
+  ],
+  "faqs": [
+    {
+      "question": "سؤال شائع حول الخدمة أو المواد",
+      "answer": "الإجابة الوافية على السؤال"
+    }
   ]
 }
 
 ملاحظات مهمة:
 - أيقونات الميزات تكون من: book, calendar, chat, certificate, target, video
 - عدد الميزات المقترح: من 3 إلى 6 ميزات
+- عدد التوصيات (testimonials): من 2 إلى 4
+- عدد الأسئلة الشائعة (faqs): من 3 إلى 5 أسئلة واقعية
 - الإحصائيات تكون تقديرية ومنطقية بناءً على إجابات المدرس (مثل عدد الطلاب، عدد السنوات الخبرة)
 - المحتوى يجب أن يكون أصلياً ومخصصاً لهذا المدرس بالذات، ليس عاماً
 - استخدم لغة مشوّقة وجذابة تناسب الجمهور المستهدف`;
