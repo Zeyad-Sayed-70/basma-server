@@ -4,42 +4,48 @@ import * as bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
-  const instance = await prisma.instance.upsert({
-    where: { subdomain: 'demo' },
-    update: {},
-    create: {
-      name: 'Demo School',
-      subdomain: 'demo',
-      tier: Tier.MUBTADI,
-      brand: {
-        create: {
-          primaryColor: '#2563eb',
-          secondaryColor: '#1e40af',
-          fontFamily: 'Cairo',
-        },
-      },
-      teacher: {
-        create: {
-          email: 'teacher@basma.demo',
-          passwordHash: await bcrypt.hash('Demo@123', 10),
-          name: 'أحمد محمد',
-          lang: 'ar',
-        },
-      },
-    },
-    include: { teacher: true },
-  });
+  const skipDemo = process.env.SKIP_DEMO_SEED === 'true' || process.env.NODE_ENV === 'production';
 
-  const notificationTypes = ['SESSION_REMINDER', 'QUIZ_GRADED', 'ASSIGNMENT_DUE', 'CUSTOM'] as const;
-  for (const type of notificationTypes) {
-    await prisma.notificationPreference.upsert({
-      where: { instanceId_type: { instanceId: instance.id, type } },
+  if (!skipDemo) {
+    const instance = await prisma.instance.upsert({
+      where: { subdomain: 'demo' },
       update: {},
-      create: { type, enabled: true, instanceId: instance.id },
+      create: {
+        name: 'Demo School',
+        subdomain: 'demo',
+        tier: Tier.MUBTADI,
+        brand: {
+          create: {
+            primaryColor: '#2563eb',
+            secondaryColor: '#1e40af',
+            fontFamily: 'Cairo',
+          },
+        },
+        teacher: {
+          create: {
+            email: 'teacher@basma.demo',
+            passwordHash: await bcrypt.hash('Demo@123', 10),
+            name: 'أحمد محمد',
+            lang: 'ar',
+          },
+        },
+      },
+      include: { teacher: true },
     });
-  }
 
-  console.log('Seed — demo instance created:', instance.subdomain);
+    const notificationTypes = ['SESSION_REMINDER', 'QUIZ_GRADED', 'ASSIGNMENT_DUE', 'CUSTOM'] as const;
+    for (const type of notificationTypes) {
+      await prisma.notificationPreference.upsert({
+        where: { instanceId_type: { instanceId: instance.id, type } },
+        update: {},
+        create: { type, enabled: true, instanceId: instance.id },
+      });
+    }
+
+    console.log('Seed — demo instance created:', instance.subdomain);
+  } else {
+    console.log('Seed — skipping demo instance (production mode)');
+  }
 
   const adminEmail = process.env.ADMIN_EMAIL ?? 'admin@basma.app';
   const adminPassword = process.env.ADMIN_PASSWORD ?? 'Admin@123';

@@ -25,7 +25,8 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "ts-node prisma/seed.ts",
     "prisma:studio": "prisma studio",
-    "gen:api": "ts-node scripts/generate-api-spec.ts"
+    "gen:api": "ts-node scripts/generate-api-spec.ts",
+    "seed:admin": "ts-node scripts/seed-admin.ts"
   },
   "dependencies": {
     "@googleapis/youtube": "^33.0.0",
