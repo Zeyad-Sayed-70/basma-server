@@ -62,17 +62,36 @@ export class PaymentResponseDto {
       'PENDING',
       'PROCESSING',
       'PAID',
+      'STUDENT_CONFIRMED',
       'FAILED',
       'REFUNDED',
       'PARTIALLY_REFUNDED',
       'VOIDED',
+      'CANCELLED',
     ],
     example: 'PAID',
   })
   status: string;
+  @ApiPropertyOptional({
+    description: 'Payment method type',
+    enum: ['PAYMOB', 'WALLET', 'INSTAPAY'],
+    example: 'PAYMOB',
+  })
+  paymentMethodType?: string;
 
   @ApiPropertyOptional({
-    description: 'Paymob intention ID — returned when creating the intention',
+    description: 'Timestamp when student confirmed payment',
+  })
+  studentConfirmedAt?: string;
+
+  @ApiPropertyOptional({
+    description: 'Timestamp when teacher approved payment',
+  })
+  teacherConfirmedAt?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Paymob intention ID — returned when creating the intention',
   })
   paymobIntentionId?: string;
 

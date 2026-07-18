@@ -11221,12 +11221,32 @@
               "PENDING",
               "PROCESSING",
               "PAID",
+              "STUDENT_CONFIRMED",
               "FAILED",
               "REFUNDED",
               "PARTIALLY_REFUNDED",
-              "VOIDED"
+              "VOIDED",
+              "CANCELLED"
             ],
             "example": "PAID"
+          },
+          "paymentMethodType": {
+            "type": "string",
+            "description": "Payment method type",
+            "enum": [
+              "PAYMOB",
+              "WALLET",
+              "INSTAPAY"
+            ],
+            "example": "PAYMOB"
+          },
+          "studentConfirmedAt": {
+            "type": "string",
+            "description": "Timestamp when student confirmed payment"
+          },
+          "teacherConfirmedAt": {
+            "type": "string",
+            "description": "Timestamp when teacher approved payment"
           },
           "paymobIntentionId": {
             "type": "string",
