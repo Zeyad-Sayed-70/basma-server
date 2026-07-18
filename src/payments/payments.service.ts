@@ -16,6 +16,8 @@ import { ConfigurePaymobDto } from './dto/configure-paymob.dto';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { ManualPaymentDto } from './dto/manual-payment.dto';
 import { RefundDto } from './dto/refund.dto';
+import { InitiateAlternativePaymentDto } from './dto/initiate-alternative-payment.dto';
+import { TeacherActionDto } from './dto/teacher-action.dto';
 
 function maskKey(key: string): string {
   if (key.length <= 8) return '****';
@@ -357,9 +359,12 @@ export class PaymentsService {
       amountFormatted: `${(p.amountCents / 100).toFixed(2)} ${p.currency}`,
       currency: p.currency,
       status: p.status,
+      paymentMethodType: p.paymentMethodType,
       paymobIntentionId: p.paymobIntentionId ?? undefined,
       paymobOrderId: p.paymobOrderId ?? undefined,
       paymobTransactionId: p.paymobTransactionId ?? undefined,
+      studentConfirmedAt: p.studentConfirmedAt?.toISOString() ?? undefined,
+      teacherConfirmedAt: p.teacherConfirmedAt?.toISOString() ?? undefined,
       notes: p.notes ?? undefined,
       createdAt: p.createdAt.toISOString(),
       updatedAt: p.updatedAt.toISOString(),
@@ -393,6 +398,9 @@ export class PaymentsService {
       amountFormatted: `${(payment.amountCents / 100).toFixed(2)} ${payment.currency}`,
       currency: payment.currency,
       status: payment.status,
+      paymentMethodType: payment.paymentMethodType,
+      studentConfirmedAt: payment.studentConfirmedAt?.toISOString() ?? undefined,
+      teacherConfirmedAt: payment.teacherConfirmedAt?.toISOString() ?? undefined,
       paymobIntentionId: payment.paymobIntentionId ?? undefined,
       paymobOrderId: payment.paymobOrderId ?? undefined,
       paymobTransactionId: payment.paymobTransactionId ?? undefined,
@@ -436,9 +444,9 @@ export class PaymentsService {
       throw new ForbiddenException('You can only cancel your own payments');
     }
 
-    if (!['PENDING', 'PROCESSING'].includes(payment.status)) {
+    if (!['PENDING', 'PROCESSING', 'STUDENT_CONFIRMED'].includes(payment.status)) {
       throw new BadRequestException(
-        `Cannot cancel payment with status "${payment.status}". Only PENDING or PROCESSING payments can be cancelled.`,
+        `Cannot cancel payment with status "${payment.status}". Only PENDING, PROCESSING, or STUDENT_CONFIRMED payments can be cancelled.`,
       );
     }
 
@@ -501,7 +509,10 @@ export class PaymentsService {
 
     const totalPaid = payments.filter((p) => p.status === 'PAID').length;
     const totalPending = payments.filter(
-      (p) => p.status === 'PENDING' || p.status === 'PROCESSING',
+      (p) =>
+        p.status === 'PENDING' ||
+        p.status === 'PROCESSING' ||
+        p.status === 'STUDENT_CONFIRMED',
     ).length;
     const totalRefunded = payments.filter(
       (p) => p.status === 'REFUNDED' || p.status === 'PARTIALLY_REFUNDED',
@@ -517,6 +528,210 @@ export class PaymentsService {
       revenueCents,
       revenueFormatted: `${(revenueCents / 100).toFixed(2)} EGP`,
     };
+  }
+
+  // ─── Alternative Payment (Wallet/Instapay) ──────────
+
+  async initiateAlternativePayment(
+    dto: InitiateAlternativePaymentDto,
+    studentUser: { id: string; instanceId: string },
+  ) {
+    const studentId = studentUser.id;
+    const instanceId = studentUser.instanceId;
+
+    const course = await this.prisma.course.findFirst({
+      where: { id: dto.courseId, instanceId },
+    });
+    if (!course) throw new NotFoundException('Course not found');
+
+    if (!course.price || course.price <= 0) {
+      throw new BadRequestException(
+        'This course is free. No payment required.',
+      );
+    }
+
+    const student = await this.prisma.student.findUnique({
+      where: { id: studentId },
+    });
+    if (!student) throw new NotFoundException('Student not found');
+
+    if (student.groupId !== course.groupId) {
+      throw new ForbiddenException('You do not have access to this course');
+    }
+
+    const existingEnrollment = await this.prisma.courseEnrollment.findFirst({
+      where: { courseId: dto.courseId, studentId, instanceId },
+    });
+    if (existingEnrollment) {
+      throw new BadRequestException('You are already enrolled in this course');
+    }
+
+    const existingPending = await this.prisma.payment.findFirst({
+      where: {
+        studentId,
+        courseId: dto.courseId,
+        status: { in: ['PENDING', 'PROCESSING', 'STUDENT_CONFIRMED'] },
+        instanceId,
+      },
+    });
+    if (existingPending) {
+      throw new BadRequestException(
+        'A pending payment already exists for this course. Cancel it first.',
+      );
+    }
+
+    const method = await this.prisma.teacherPaymentMethod.findFirst({
+      where: { id: dto.teacherPaymentMethodId, instanceId, isActive: true },
+    });
+    if (!method) {
+      throw new NotFoundException('Payment method not found or inactive');
+    }
+
+    const amountCents = Math.round(course.price * 100);
+
+    const payment = await this.prisma.payment.create({
+      data: {
+        studentId,
+        courseId: dto.courseId,
+        amountCents,
+        currency: 'EGP',
+        status: 'PENDING',
+        paymentMethodType: method.type,
+        teacherPaymentMethodId: method.id,
+        instanceId,
+        specialReference: `alt_${instanceId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      },
+    });
+
+    return {
+      id: payment.id,
+      amountCents,
+      amountFormatted: `${(amountCents / 100).toFixed(2)} EGP`,
+      currency: 'EGP',
+      status: 'PENDING',
+      methodType: method.type,
+      walletType: method.walletType ?? undefined,
+      accountName: method.accountName,
+      accountNumber: method.accountNumber,
+      createdAt: payment.createdAt.toISOString(),
+    };
+  }
+
+  async studentConfirmPayment(
+    id: string,
+    studentUser: { id: string; instanceId: string },
+  ) {
+    const { id: studentId, instanceId } = studentUser;
+    const payment = await this.prisma.payment.findFirst({
+      where: { id, instanceId },
+    });
+    if (!payment) throw new NotFoundException('Payment not found');
+
+    if (payment.studentId !== studentId) {
+      throw new ForbiddenException('You can only confirm your own payments');
+    }
+
+    if (payment.paymentMethodType === 'PAYMOB') {
+      throw new BadRequestException(
+        'This payment was initiated via Paymob. Use the Paymob checkout flow instead.',
+      );
+    }
+
+    if (payment.status !== 'PENDING') {
+      throw new BadRequestException(
+        `Cannot confirm payment with status "${payment.status}". Only PENDING payments can be confirmed.`,
+      );
+    }
+
+    await this.prisma.payment.update({
+      where: { id },
+      data: {
+        status: 'STUDENT_CONFIRMED',
+        studentConfirmedAt: new Date(),
+      },
+    });
+
+    return { message: 'Payment confirmed by student', id: payment.id };
+  }
+
+  async teacherApprovePayment(
+    id: string,
+    dto: TeacherActionDto,
+    teacherUser: { instanceId: string },
+  ) {
+    const { instanceId } = teacherUser;
+    const payment = await this.prisma.payment.findFirst({
+      where: { id, instanceId },
+    });
+    if (!payment) throw new NotFoundException('Payment not found');
+
+    if (payment.status !== 'STUDENT_CONFIRMED') {
+      throw new BadRequestException(
+        `Cannot approve payment with status "${payment.status}". Only STUDENT_CONFIRMED payments can be approved.`,
+      );
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.payment.update({
+        where: { id },
+        data: {
+          status: 'PAID',
+          teacherConfirmedAt: new Date(),
+          notes: dto.notes ?? payment.notes,
+        },
+      });
+
+      if (payment.courseId) {
+        await tx.courseEnrollment.upsert({
+          where: {
+            studentId_courseId: {
+              studentId: payment.studentId,
+              courseId: payment.courseId,
+            },
+          },
+          update: {},
+          create: {
+            studentId: payment.studentId,
+            courseId: payment.courseId,
+            instanceId,
+          },
+        });
+      }
+    });
+
+    this.logger.log(
+      `Teacher approved alternative payment ${id} — student ${payment.studentId} enrolled in course ${payment.courseId}`,
+    );
+
+    return { message: 'Payment approved and student enrolled', id: payment.id };
+  }
+
+  async teacherRejectPayment(
+    id: string,
+    dto: TeacherActionDto,
+    teacherUser: { instanceId: string },
+  ) {
+    const { instanceId } = teacherUser;
+    const payment = await this.prisma.payment.findFirst({
+      where: { id, instanceId },
+    });
+    if (!payment) throw new NotFoundException('Payment not found');
+
+    if (payment.status !== 'STUDENT_CONFIRMED') {
+      throw new BadRequestException(
+        `Cannot reject payment with status "${payment.status}". Only STUDENT_CONFIRMED payments can be rejected.`,
+      );
+    }
+
+    await this.prisma.payment.update({
+      where: { id },
+      data: {
+        status: 'FAILED',
+        notes: dto.notes ?? payment.notes,
+      },
+    });
+
+    return { message: 'Payment rejected', id: payment.id };
   }
 
   // ─── Webhook Handling ───────────────────────────────

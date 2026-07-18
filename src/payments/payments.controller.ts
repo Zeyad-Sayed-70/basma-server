@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Param,
   Query,
@@ -23,10 +24,15 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
+import { TeacherPaymentMethodsService } from './teacher-payment-methods.service';
 import { ConfigurePaymobDto } from './dto/configure-paymob.dto';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { RefundDto } from './dto/refund.dto';
 import { ManualPaymentDto } from './dto/manual-payment.dto';
+import { CreatePaymentMethodDto } from './dto/create-payment-method.dto';
+import { UpdatePaymentMethodDto } from './dto/update-payment-method.dto';
+import { InitiateAlternativePaymentDto } from './dto/initiate-alternative-payment.dto';
+import { TeacherActionDto } from './dto/teacher-action.dto';
 import {
   PaymentResponseDto,
   PaymobConfigStatusDto,
@@ -34,7 +40,12 @@ import {
   PaymentListResponseDto,
   PaymentStatsResponseDto,
   StudentPaymentInitiationResponseDto,
+  AlternativePaymentInitiationResponseDto,
 } from './dto/payment-response.dto';
+import {
+  PaymentMethodResponseDto,
+  PaymentMethodListResponseDto,
+} from './dto/payment-method-response.dto';
 import { PaymobConfigResponseDto } from './dto/paymob-config-response.dto';
 
 @ApiTags('Payments')
@@ -42,7 +53,10 @@ import { PaymobConfigResponseDto } from './dto/paymob-config-response.dto';
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller('payments')
 export class PaymentsController {
-  constructor(private readonly paymentsService: PaymentsService) {}
+  constructor(
+    private readonly paymentsService: PaymentsService,
+    private readonly paymentMethodsService: TeacherPaymentMethodsService,
+  ) {}
 
   // ─── Paymob Configuration (Teacher) ─────────────────
 
@@ -126,6 +140,109 @@ export class PaymentsController {
   })
   removePaymobConfig() {
     return this.paymentsService.removePaymobConfig();
+  }
+
+  // ─── Teacher Payment Methods (Wallet/Instapay) ──────
+
+  @Post('methods')
+  @Roles('teacher')
+  @ApiOperation({
+    summary: 'Create a wallet or Instapay payment method',
+    description:
+      'Saves a new alternative payment method (wallet or Instapay) for the teacher. ' +
+      'The teacher can have multiple methods. Each method can be toggled active/inactive.',
+  })
+  @ApiBody({ type: CreatePaymentMethodDto })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Payment method created successfully',
+    type: PaymentMethodResponseDto,
+  })
+  createPaymentMethod(@Body() dto: CreatePaymentMethodDto) {
+    return this.paymentMethodsService.create(dto);
+  }
+
+  @Get('methods')
+  @Roles('teacher')
+  @ApiOperation({
+    summary: 'List all payment methods',
+    description:
+      'Returns all wallet/Instapay payment methods configured by the teacher for this instance.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'List of payment methods',
+    type: PaymentMethodListResponseDto,
+  })
+  async findAllPaymentMethods() {
+    const data = await this.paymentMethodsService.findAll();
+    return { data };
+  }
+
+  @Get('methods/active')
+  @Roles('student')
+  @ApiOperation({
+    summary: 'List active payment methods (student view)',
+    description:
+      'Returns only the active payment methods. Account numbers are masked for privacy. ' +
+      'Full details are revealed when the student initiates a payment.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'List of active payment methods (masked)',
+    type: PaymentMethodListResponseDto,
+  })
+  async findActivePaymentMethods() {
+    const data = await this.paymentMethodsService.findActiveMethods(true);
+    return { data };
+  }
+
+  @Get('methods/:id')
+  @Roles('teacher')
+  @ApiOperation({ summary: 'Get a single payment method by ID' })
+  @ApiParam({ name: 'id', description: 'Payment method ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Payment method details',
+    type: PaymentMethodResponseDto,
+  })
+  findOnePaymentMethod(@Param('id') id: string) {
+    return this.paymentMethodsService.findOne(id);
+  }
+
+  @Patch('methods/:id')
+  @Roles('teacher')
+  @ApiOperation({ summary: 'Update a payment method' })
+  @ApiParam({ name: 'id', description: 'Payment method ID' })
+  @ApiBody({ type: UpdatePaymentMethodDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Payment method updated',
+    type: PaymentMethodResponseDto,
+  })
+  updatePaymentMethod(
+    @Param('id') id: string,
+    @Body() dto: UpdatePaymentMethodDto,
+  ) {
+    return this.paymentMethodsService.update(id, dto);
+  }
+
+  @Delete('methods/:id')
+  @Roles('teacher')
+  @ApiOperation({ summary: 'Delete a payment method' })
+  @ApiParam({ name: 'id', description: 'Payment method ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Payment method deleted',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Payment method deleted' },
+      },
+    },
+  })
+  deletePaymentMethod(@Param('id') id: string) {
+    return this.paymentMethodsService.delete(id);
   }
 
   // ─── Student Payment Initiation ─────────────────────
@@ -233,6 +350,7 @@ export class PaymentsController {
       'PENDING',
       'PROCESSING',
       'PAID',
+      'STUDENT_CONFIRMED',
       'FAILED',
       'REFUNDED',
       'PARTIALLY_REFUNDED',
@@ -302,6 +420,161 @@ export class PaymentsController {
     return this.paymentsService.getStats();
   }
 
+  // ─── Alternative Payment (Wallet/Instapay) ──────────
+
+  @Post('alternative/initiate')
+  @Roles('student')
+  @ApiOperation({
+    summary: 'Initiate alternative payment (wallet or Instapay)',
+    description:
+      'Creates a payment using a teacher-configured wallet or Instapay method. ' +
+      'Returns the teacher\'s full payment details so the student can transfer the money. ' +
+      'After paying externally, the student must call student-confirm to notify the teacher.',
+  })
+  @ApiBody({ type: InitiateAlternativePaymentDto })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description:
+      'Alternative payment initiated. Returns teacher payment details.',
+    type: AlternativePaymentInitiationResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Course or payment method not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Student does not have access to this course',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Free course, already enrolled, or pending payment exists',
+  })
+  initiateAlternativePayment(
+    @Body() dto: InitiateAlternativePaymentDto,
+    @CurrentUser() user: { id: string; instanceId: string },
+  ) {
+    return this.paymentsService.initiateAlternativePayment(dto, user);
+  }
+
+  @Patch(':id/student-confirm')
+  @Roles('student')
+  @ApiOperation({
+    summary: 'Student confirms they have paid',
+    description:
+      'Marks a pending alternative payment as confirmed by the student. ' +
+      'The student should call this after transferring the money to the teacher\'s wallet/Instapay. ' +
+      'Sets the status to STUDENT_CONFIRMED so the teacher can verify and approve.',
+  })
+  @ApiParam({ name: 'id', description: 'Payment record ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Payment confirmed by student',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Payment confirmed by student' },
+        id: { type: 'string' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Payment not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Student trying to confirm another student\'s payment',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Payment is not in PENDING status',
+  })
+  studentConfirm(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; instanceId: string },
+  ) {
+    return this.paymentsService.studentConfirmPayment(id, user);
+  }
+
+  @Patch(':id/teacher-approve')
+  @Roles('teacher')
+  @ApiOperation({
+    summary: 'Teacher approves a student-confirmed payment',
+    description:
+      'Verifies receipt of funds and approves the payment. ' +
+      'The payment must be in STUDENT_CONFIRMED status. ' +
+      'This sets the status to PAID and automatically enrolls the student in the course.',
+  })
+  @ApiParam({ name: 'id', description: 'Payment record ID' })
+  @ApiBody({ type: TeacherActionDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Payment approved and student enrolled',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Payment approved and student enrolled',
+        },
+        id: { type: 'string' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Payment not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Payment is not in STUDENT_CONFIRMED status',
+  })
+  teacherApprove(
+    @Param('id') id: string,
+    @Body() dto: TeacherActionDto,
+    @CurrentUser() user: { instanceId: string },
+  ) {
+    return this.paymentsService.teacherApprovePayment(id, dto, user);
+  }
+
+  @Patch(':id/teacher-reject')
+  @Roles('teacher')
+  @ApiOperation({
+    summary: 'Teacher rejects a student-confirmed payment',
+    description:
+      'Rejects a student-confirmed payment when funds were not received. ' +
+      'Sets the status to FAILED. An optional rejection reason can be provided in notes.',
+  })
+  @ApiParam({ name: 'id', description: 'Payment record ID' })
+  @ApiBody({ type: TeacherActionDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Payment rejected',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Payment rejected' },
+        id: { type: 'string' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Payment not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Payment is not in STUDENT_CONFIRMED status',
+  })
+  teacherReject(
+    @Param('id') id: string,
+    @Body() dto: TeacherActionDto,
+    @CurrentUser() user: { instanceId: string },
+  ) {
+    return this.paymentsService.teacherRejectPayment(id, dto, user);
+  }
+
   @Get(':id')
   @Roles('teacher', 'student')
   @ApiOperation({
@@ -341,7 +614,7 @@ export class PaymentsController {
   @ApiOperation({
     summary: 'Cancel a pending payment',
     description:
-      'Cancels a PENDING or PROCESSING payment. ' +
+      'Cancels a PENDING, PROCESSING, or STUDENT_CONFIRMED payment. ' +
       'Students can only cancel their own payments. ' +
       'Teachers can cancel any payment in their instance. ' +
       'Once cancelled, the student can re-initiate payment for the same course.',
@@ -372,7 +645,7 @@ export class PaymentsController {
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
-    description: 'Payment is not PENDING or PROCESSING',
+    description: 'Payment is not PENDING, PROCESSING, or STUDENT_CONFIRMED',
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,

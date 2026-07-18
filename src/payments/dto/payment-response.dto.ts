@@ -222,6 +222,49 @@ export class PaymobMessageDto {
   message: string;
 }
 
+export class AlternativePaymentInitiationResponseDto {
+  @ApiProperty({ description: 'Payment record ID' })
+  id: string;
+
+  @ApiProperty({ description: 'Amount in cents', example: 2000 })
+  amountCents: number;
+
+  @ApiProperty({ description: 'Human-readable amount', example: '20.00 EGP' })
+  amountFormatted: string;
+
+  @ApiProperty({ description: 'Currency', example: 'EGP' })
+  currency: string;
+
+  @ApiProperty({
+    description: 'Payment status',
+    example: 'PENDING',
+  })
+  status: string;
+
+  @ApiProperty({
+    description: 'Payment method type',
+    enum: ['WALLET', 'INSTAPAY'],
+  })
+  methodType: string;
+
+  @ApiPropertyOptional({
+    description: 'Wallet provider (only for wallet payments)',
+    enum: ['VODAFONE_CASH', 'ORANGE_CASH', 'ETISALAT_FLOUS', 'WE_PAY'],
+  })
+  walletType?: string;
+
+  @ApiProperty({ description: 'Name on the account' })
+  accountName: string;
+
+  @ApiProperty({
+    description: 'Full account number or Instapay handle for payment',
+  })
+  accountNumber: string;
+
+  @ApiProperty({ description: 'Creation timestamp' })
+  createdAt: string;
+}
+
 export class WebhookResponseDto {
   @ApiProperty({
     description: 'Whether the webhook was received and processed',

@@ -67,11 +67,25 @@ enum PaymentStatus {
   PENDING
   PROCESSING
   PAID
+  STUDENT_CONFIRMED
   FAILED
   REFUNDED
   PARTIALLY_REFUNDED
   VOIDED
   CANCELLED
+}
+
+enum PaymentMethodType {
+  PAYMOB
+  WALLET
+  INSTAPAY
+}
+
+enum WalletType {
+  VODAFONE_CASH
+  ORANGE_CASH
+  ETISALAT_FLOUS
+  WE_PAY
 }
 
 enum SessionType {
@@ -152,9 +166,10 @@ model Instance {
   quizzes       Quiz[]
   assignments   Assignment[]
   notifications Notification[]
-  paymobConfig  PaymobConfig?
-  payments      Payment[]
-  questions     QuestionBank[]
+  paymobConfig          PaymobConfig?
+  teacherPaymentMethods TeacherPaymentMethod[]
+  payments              Payment[]
+  questions             QuestionBank[]
   chatMessages      ChatMessage[]
   chatReadMarkers   ChatReadMarker[]
   feedbacks         Feedback[]
@@ -517,26 +532,49 @@ model PaymobConfig {
   @@map("paymob_configs")
 }
 
+model TeacherPaymentMethod {
+  id            String             @id @default(cuid())
+  instanceId    String
+  instance      Instance           @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  type          PaymentMethodType
+  walletType    WalletType?
+  accountName   String
+  accountNumber String
+  isActive      Boolean            @default(true)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  payments      Payment[]
+
+  @@index([instanceId])
+  @@map("teacher_payment_methods")
+}
+
 model Payment {
-  id                  String        @id @default(cuid())
-  studentId           String
-  student             Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  courseId            String?
-  course              Course?       @relation(fields: [courseId], references: [id], onDelete: SetNull)
-  amountCents         Int
-  currency            String        @default("EGP")
-  status              PaymentStatus @default(PENDING)
-  paymobIntentionId   String?
-  paymobOrderId       String?
-  paymobTransactionId String?
-  clientSecret        String?
-  specialReference    String?       @unique
-  notes               String?
-  metadata            Json          @default("{}")
-  instanceId          String
-  instance            Instance      @relation(fields: [instanceId], references: [id], onDelete: Cascade)
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
+  id                    String             @id @default(cuid())
+  studentId             String
+  student               Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  courseId              String?
+  course                Course?            @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  amountCents           Int
+  currency              String             @default("EGP")
+  status                PaymentStatus      @default(PENDING)
+  paymentMethodType     PaymentMethodType  @default(PAYMOB)
+  teacherPaymentMethodId String?
+  teacherPaymentMethod  TeacherPaymentMethod? @relation(fields: [teacherPaymentMethodId], references: [id], onDelete: SetNull)
+  studentConfirmedAt    DateTime?
+  teacherConfirmedAt    DateTime?
+  paymobIntentionId     String?
+  paymobOrderId         String?
+  paymobTransactionId   String?
+  clientSecret          String?
+  specialReference      String?            @unique
+  notes                 String?
+  metadata              Json               @default("{}")
+  instanceId            String
+  instance              Instance           @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
 
   @@index([studentId])
   @@index([courseId])

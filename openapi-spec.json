@@ -3710,6 +3710,221 @@
         ]
       }
     },
+    "/payments/methods": {
+      "post": {
+        "description": "Saves a new alternative payment method (wallet or Instapay) for the teacher. The teacher can have multiple methods. Each method can be toggled active/inactive.",
+        "operationId": "PaymentsController_createPaymentMethod",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePaymentMethodDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Payment method created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a wallet or Instapay payment method",
+        "tags": [
+          "Payments"
+        ]
+      },
+      "get": {
+        "description": "Returns all wallet/Instapay payment methods configured by the teacher for this instance.",
+        "operationId": "PaymentsController_findAllPaymentMethods",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "List of payment methods",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodListResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all payment methods",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/payments/methods/active": {
+      "get": {
+        "description": "Returns only the active payment methods. Account numbers are masked for privacy. Full details are revealed when the student initiates a payment.",
+        "operationId": "PaymentsController_findActivePaymentMethods",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "List of active payment methods (masked)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodListResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List active payment methods (student view)",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/payments/methods/{id}": {
+      "get": {
+        "operationId": "PaymentsController_findOnePaymentMethod",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Payment method ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment method details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get a single payment method by ID",
+        "tags": [
+          "Payments"
+        ]
+      },
+      "patch": {
+        "operationId": "PaymentsController_updatePaymentMethod",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Payment method ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePaymentMethodDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment method updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a payment method",
+        "tags": [
+          "Payments"
+        ]
+      },
+      "delete": {
+        "operationId": "PaymentsController_deletePaymentMethod",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Payment method ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment method deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Payment method deleted"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a payment method",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
     "/payments/pay": {
       "post": {
         "description": "Creates a Paymob payment intention and returns a checkout URL. The student must NOT already be enrolled in the course, and the course must have price > 0. If a pending payment already exists with a valid clientSecret, the existing checkout URL is returned instead of creating a new intention. Only one pending payment per student per course is allowed at a time — cancel the old one first via POST /payments/:id/cancel. The returned checkoutUrl should be opened in a browser to redirect to Paymob Unified Checkout. The webhook will update the payment status and auto-enroll the student when payment succeeds.",
@@ -3838,6 +4053,7 @@
                 "PENDING",
                 "PROCESSING",
                 "PAID",
+                "STUDENT_CONFIRMED",
                 "FAILED",
                 "REFUNDED",
                 "PARTIALLY_REFUNDED",
@@ -3925,6 +4141,235 @@
         ]
       }
     },
+    "/payments/alternative/initiate": {
+      "post": {
+        "description": "Creates a payment using a teacher-configured wallet or Instapay method. Returns the teacher's full payment details so the student can transfer the money. After paying externally, the student must call student-confirm to notify the teacher.",
+        "operationId": "PaymentsController_initiateAlternativePayment",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InitiateAlternativePaymentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Alternative payment initiated. Returns teacher payment details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlternativePaymentInitiationResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Free course, already enrolled, or pending payment exists"
+          },
+          "403": {
+            "description": "Student does not have access to this course"
+          },
+          "404": {
+            "description": "Course or payment method not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Initiate alternative payment (wallet or Instapay)",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/payments/{id}/student-confirm": {
+      "patch": {
+        "description": "Marks a pending alternative payment as confirmed by the student. The student should call this after transferring the money to the teacher's wallet/Instapay. Sets the status to STUDENT_CONFIRMED so the teacher can verify and approve.",
+        "operationId": "PaymentsController_studentConfirm",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Payment record ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment confirmed by student",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Payment confirmed by student"
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payment is not in PENDING status"
+          },
+          "403": {
+            "description": "Student trying to confirm another student's payment"
+          },
+          "404": {
+            "description": "Payment not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Student confirms they have paid",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/payments/{id}/teacher-approve": {
+      "patch": {
+        "description": "Verifies receipt of funds and approves the payment. The payment must be in STUDENT_CONFIRMED status. This sets the status to PAID and automatically enrolls the student in the course.",
+        "operationId": "PaymentsController_teacherApprove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Payment record ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeacherActionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment approved and student enrolled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Payment approved and student enrolled"
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payment is not in STUDENT_CONFIRMED status"
+          },
+          "404": {
+            "description": "Payment not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Teacher approves a student-confirmed payment",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/payments/{id}/teacher-reject": {
+      "patch": {
+        "description": "Rejects a student-confirmed payment when funds were not received. Sets the status to FAILED. An optional rejection reason can be provided in notes.",
+        "operationId": "PaymentsController_teacherReject",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Payment record ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeacherActionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Payment rejected"
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payment is not in STUDENT_CONFIRMED status"
+          },
+          "404": {
+            "description": "Payment not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Teacher rejects a student-confirmed payment",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
     "/payments/{id}": {
       "get": {
         "description": "Returns full details for a single payment, including student info, course info, all Paymob correlation IDs, and the checkout URL (if applicable). Students can only access their own payments.",
@@ -3972,7 +4417,7 @@
     },
     "/payments/{id}/cancel": {
       "post": {
-        "description": "Cancels a PENDING or PROCESSING payment. Students can only cancel their own payments. Teachers can cancel any payment in their instance. Once cancelled, the student can re-initiate payment for the same course.",
+        "description": "Cancels a PENDING, PROCESSING, or STUDENT_CONFIRMED payment. Students can only cancel their own payments. Teachers can cancel any payment in their instance. Once cancelled, the student can re-initiate payment for the same course.",
         "operationId": "PaymentsController_cancelPayment",
         "parameters": [
           {
@@ -4007,7 +4452,7 @@
             }
           },
           "400": {
-            "description": "Payment is not PENDING or PROCESSING"
+            "description": "Payment is not PENDING, PROCESSING, or STUDENT_CONFIRMED"
           },
           "401": {
             "description": "Invalid or missing JWT token"
@@ -10428,6 +10873,160 @@
           "message"
         ]
       },
+      "CreatePaymentMethodDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Payment method type",
+            "enum": [
+              "WALLET",
+              "INSTAPAY"
+            ],
+            "example": "WALLET"
+          },
+          "walletType": {
+            "type": "string",
+            "description": "Wallet provider (required when type=WALLET)",
+            "enum": [
+              "VODAFONE_CASH",
+              "ORANGE_CASH",
+              "ETISALAT_FLOUS",
+              "WE_PAY"
+            ],
+            "example": "VODAFONE_CASH"
+          },
+          "accountName": {
+            "type": "string",
+            "description": "Name on the account",
+            "example": "Ahmed Ali"
+          },
+          "accountNumber": {
+            "type": "string",
+            "description": "Account number (phone for wallets) or Instapay handle/phone",
+            "example": "01012341234"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Whether this method is active",
+            "default": true
+          }
+        },
+        "required": [
+          "type",
+          "accountName",
+          "accountNumber"
+        ]
+      },
+      "PaymentMethodResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Payment method ID"
+          },
+          "type": {
+            "type": "string",
+            "description": "Payment method type",
+            "enum": [
+              "PAYMOB",
+              "WALLET",
+              "INSTAPAY"
+            ]
+          },
+          "walletType": {
+            "type": "string",
+            "description": "Wallet provider",
+            "enum": [
+              "VODAFONE_CASH",
+              "ORANGE_CASH",
+              "ETISALAT_FLOUS",
+              "WE_PAY"
+            ]
+          },
+          "accountName": {
+            "type": "string",
+            "description": "Name on the account"
+          },
+          "accountNumber": {
+            "type": "string",
+            "description": "Account number (masked in student list, full after initiation)"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Whether this method is active"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Creation timestamp"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "Last update timestamp"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "accountName",
+          "accountNumber",
+          "isActive",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "PaymentMethodListResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "description": "Array of payment methods",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodResponseDto"
+            }
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "UpdatePaymentMethodDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Payment method type",
+            "enum": [
+              "WALLET",
+              "INSTAPAY"
+            ]
+          },
+          "walletType": {
+            "type": "string",
+            "description": "Wallet provider",
+            "enum": [
+              "VODAFONE_CASH",
+              "ORANGE_CASH",
+              "ETISALAT_FLOUS",
+              "WE_PAY"
+            ]
+          },
+          "accountName": {
+            "type": "string",
+            "description": "Name on the account",
+            "example": "Ahmed Ali"
+          },
+          "accountNumber": {
+            "type": "string",
+            "description": "Account number or Instapay handle",
+            "example": "01012341234"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Whether this method is active"
+          }
+        }
+      },
       "CreatePaymentDto": {
         "type": "object",
         "properties": {
@@ -10741,6 +11340,105 @@
           "revenueCents",
           "revenueFormatted"
         ]
+      },
+      "InitiateAlternativePaymentDto": {
+        "type": "object",
+        "properties": {
+          "courseId": {
+            "type": "string",
+            "description": "ID of the course the student wants to enroll in",
+            "example": "clxq8a2b30001jf08m3n4o5p6"
+          },
+          "teacherPaymentMethodId": {
+            "type": "string",
+            "description": "ID of the teacher payment method the student wants to use",
+            "example": "clxq8a2b30001jf08m3n4o5p6"
+          }
+        },
+        "required": [
+          "courseId",
+          "teacherPaymentMethodId"
+        ]
+      },
+      "AlternativePaymentInitiationResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Payment record ID"
+          },
+          "amountCents": {
+            "type": "number",
+            "description": "Amount in cents",
+            "example": 2000
+          },
+          "amountFormatted": {
+            "type": "string",
+            "description": "Human-readable amount",
+            "example": "20.00 EGP"
+          },
+          "currency": {
+            "type": "string",
+            "description": "Currency",
+            "example": "EGP"
+          },
+          "status": {
+            "type": "string",
+            "description": "Payment status",
+            "example": "PENDING"
+          },
+          "methodType": {
+            "type": "string",
+            "description": "Payment method type",
+            "enum": [
+              "WALLET",
+              "INSTAPAY"
+            ]
+          },
+          "walletType": {
+            "type": "string",
+            "description": "Wallet provider (only for wallet payments)",
+            "enum": [
+              "VODAFONE_CASH",
+              "ORANGE_CASH",
+              "ETISALAT_FLOUS",
+              "WE_PAY"
+            ]
+          },
+          "accountName": {
+            "type": "string",
+            "description": "Name on the account"
+          },
+          "accountNumber": {
+            "type": "string",
+            "description": "Full account number or Instapay handle for payment"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Creation timestamp"
+          }
+        },
+        "required": [
+          "id",
+          "amountCents",
+          "amountFormatted",
+          "currency",
+          "status",
+          "methodType",
+          "accountName",
+          "accountNumber",
+          "createdAt"
+        ]
+      },
+      "TeacherActionDto": {
+        "type": "object",
+        "properties": {
+          "notes": {
+            "type": "string",
+            "description": "Optional notes (e.g. rejection reason)",
+            "example": "Payment not received in my account"
+          }
+        }
       },
       "RefundDto": {
         "type": "object",

@@ -21,6 +21,7 @@ const TENANT_MODELS = new Set([
   'NotificationPreference',
   'WhatsAppSession',
   'PaymobConfig',
+  'TeacherPaymentMethod',
   'Payment',
   'QuestionBank',
   'ChatMessage',
