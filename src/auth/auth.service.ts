@@ -440,6 +440,7 @@ export class AuthService {
       email,
       instanceId,
       type: 'refresh',
+      role: 'teacher',
     };
 
     return {
@@ -468,6 +469,7 @@ export class AuthService {
       email: name,
       instanceId,
       type: 'refresh',
+      role: 'student',
     };
 
     return {
