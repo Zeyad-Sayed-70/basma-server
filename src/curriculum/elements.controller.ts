@@ -27,6 +27,7 @@ import {
   ApiConsumes,
   ApiExtraModels,
 } from '@nestjs/swagger';
+import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { SessionGuard } from '../auth/guards/session.guard';
 import { StreamAuthGuard } from './stream-auth.guard';
@@ -56,7 +57,7 @@ import {
 
 @ApiTags('Curriculum')
 @ApiBearerAuth()
-@UseGuards(RolesGuard, SessionGuard)
+@UseGuards(AuthGuard('jwt'), RolesGuard, SessionGuard)
 @Controller()
 export class ElementsController {
   constructor(
