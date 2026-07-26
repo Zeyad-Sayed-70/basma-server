@@ -948,6 +948,25 @@ model MeetingRequest {
   @@map("meeting_requests")
 }
 
+model UserSession {
+  id           String   @id @default(cuid())
+  userId       String
+  role         String
+  instanceId   String
+  tokenJti     String   @unique
+  ipAddress    String?
+  userAgent    String?
+  deviceId     String?
+  lastActivity DateTime @default(now())
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([userId, role])
+  @@index([instanceId])
+  @@index([tokenJti])
+  @@map("user_sessions")
+}
+
 model YoutubeChannelAuth {
   id            String   @id @default("singleton")
   clientId      String

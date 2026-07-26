@@ -2,7 +2,9 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CoursesService } from '../courses/courses.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -13,11 +15,14 @@ import { UpdateSessionDto } from './dto/update-session.dto';
 
 @Injectable()
 export class SessionsService {
+  private readonly logger = new Logger(SessionsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly coursesService: CoursesService,
     private readonly tierFeatureService: TierFeatureService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly jwtService: JwtService,
   ) {}
 
   private getInstanceId(): string {
@@ -179,6 +184,47 @@ export class SessionsService {
         ...(dto.notes !== undefined && { notes: dto.notes }),
       },
     });
+  }
+
+  async getJoinLink(id: string, user: { id: string; role: string; name: string }) {
+    const instanceId = this.getInstanceId();
+    const session = await this.prisma.session.findFirst({
+      where: { id, instanceId },
+    });
+    if (!session) throw new NotFoundException('Session not found');
+
+    if (user.role === 'student') {
+      await this.coursesService.assertStudentEnrolled(session.courseId, user.id);
+    }
+
+    if (!session.meetingUrl) {
+      throw new NotFoundException('No meeting URL configured for this session');
+    }
+
+    const joinToken = this.jwtService.sign(
+      {
+        sub: user.id,
+        sessionId: id,
+        name: user.name,
+        role: user.role,
+        instanceId,
+        type: 'session-join',
+      },
+      { expiresIn: '5m' },
+    );
+
+    const separator = session.meetingUrl.includes('?') ? '&' : '?';
+    const signedUrl = `${session.meetingUrl}${separator}participantToken=${joinToken}`;
+
+    this.logger.log(`session.join sessionId=${id} userId=${user.id}`);
+
+    return {
+      meetingUrl: signedUrl,
+      title: session.title,
+      startTime: session.startTime.toISOString(),
+      endTime: session.endTime?.toISOString() ?? null,
+      expiresInSeconds: 300,
+    };
   }
 
   async remove(id: string) {

@@ -15,6 +15,7 @@ import { LoginDto } from './dto/login.dto';
 import { StudentLoginDto } from './dto/student-login.dto';
 import { TenantContext } from '../common/context/tenant-context';
 import * as bcrypt from 'bcrypt';
+import { randomUUID } from 'node:crypto';
 
 @Injectable()
 export class AuthService {
@@ -94,6 +95,10 @@ export class AuthService {
     const teacher = instance.teacher!;
     const tokens = this.generateTokens(teacher.id, teacher.email, instance.id);
 
+    if (tokens.jti) {
+      await this.createSession(teacher.id, 'teacher', instance.id, tokens.jti);
+    }
+
     return {
       ...tokens,
       teacher: {
@@ -125,6 +130,12 @@ export class AuthService {
       teacher.instanceId,
     );
 
+    await this.enforceSessionLimit(teacher.id, 'teacher', teacher.instanceId);
+
+    if (tokens.jti) {
+      await this.createSession(teacher.id, 'teacher', teacher.instanceId, tokens.jti);
+    }
+
     return {
       ...tokens,
       teacher: {
@@ -142,11 +153,14 @@ export class AuthService {
         instanceId: string;
         type: string;
         role?: string;
+        jti?: string;
       }>(refreshToken);
 
       if (payload.type !== 'refresh') {
         throw new UnauthorizedException('Invalid refresh token');
       }
+
+      const oldJti = payload.jti;
 
       if (payload.role === 'student') {
         const student = await this.prisma.student.findUnique({
@@ -161,6 +175,15 @@ export class AuthService {
           student.name,
           student.instanceId,
         );
+
+        if (oldJti) {
+          await this.deactivateSession(oldJti);
+        }
+        await this.enforceSessionLimit(student.id, 'student', student.instanceId);
+        if (tokens.jti) {
+          await this.createSession(student.id, 'student', student.instanceId, tokens.jti);
+        }
+
         return {
           ...tokens,
           student: {
@@ -186,6 +209,14 @@ export class AuthService {
         teacher.email,
         teacher.instanceId,
       );
+
+      if (oldJti) {
+        await this.deactivateSession(oldJti);
+      }
+      await this.enforceSessionLimit(teacher.id, 'teacher', teacher.instanceId);
+      if (tokens.jti) {
+        await this.createSession(teacher.id, 'teacher', teacher.instanceId, tokens.jti);
+      }
 
       return {
         ...tokens,
@@ -305,6 +336,12 @@ export class AuthService {
           existing.name,
           instanceIdForGroup,
         );
+
+        await this.enforceSessionLimit(existing.id, 'student', instanceIdForGroup);
+        if (tokens.jti) {
+          await this.createSession(existing.id, 'student', instanceIdForGroup, tokens.jti);
+        }
+
         return {
           ...tokens,
           student: {
@@ -339,6 +376,12 @@ export class AuthService {
       student.name,
       instanceIdForGroup,
     );
+
+    await this.enforceSessionLimit(student.id, 'student', instanceIdForGroup);
+    if (tokens.jti) {
+      await this.createSession(student.id, 'student', instanceIdForGroup, tokens.jti);
+    }
+
     return {
       ...tokens,
       student: {
@@ -394,6 +437,12 @@ export class AuthService {
       student.name,
       student.instanceId,
     );
+
+    await this.enforceSessionLimit(student.id, 'student', student.instanceId);
+    if (tokens.jti) {
+      await this.createSession(student.id, 'student', student.instanceId, tokens.jti);
+    }
+
     return {
       ...tokens,
       student: {
@@ -428,12 +477,19 @@ export class AuthService {
     };
   }
 
-  private generateTokens(teacherId: string, email: string, instanceId: string) {
+  private generateTokens(
+    teacherId: string,
+    email: string,
+    instanceId: string,
+    jti?: string,
+  ) {
+    const tokenId = jti ?? randomUUID();
     const accessPayload = {
       sub: teacherId,
       email,
       instanceId,
       role: 'teacher',
+      jti: tokenId,
     };
     const refreshPayload = {
       sub: teacherId,
@@ -441,6 +497,7 @@ export class AuthService {
       instanceId,
       type: 'refresh',
       role: 'teacher',
+      jti: tokenId,
     };
 
     return {
@@ -450,6 +507,7 @@ export class AuthService {
       refreshToken: this.jwtService.sign(refreshPayload, {
         expiresIn: '30d' as unknown as never,
       }),
+      jti: tokenId,
     };
   }
 
@@ -457,12 +515,15 @@ export class AuthService {
     studentId: string,
     name: string,
     instanceId: string,
+    jti?: string,
   ) {
+    const tokenId = jti ?? randomUUID();
     const accessPayload = {
       sub: studentId,
       email: name,
       instanceId,
       role: 'student',
+      jti: tokenId,
     };
     const refreshPayload = {
       sub: studentId,
@@ -470,6 +531,7 @@ export class AuthService {
       instanceId,
       type: 'refresh',
       role: 'student',
+      jti: tokenId,
     };
 
     return {
@@ -479,6 +541,87 @@ export class AuthService {
       refreshToken: this.jwtService.sign(refreshPayload, {
         expiresIn: '30d' as unknown as never,
       }),
+      jti: tokenId,
     };
+  }
+
+  private async createSession(
+    userId: string,
+    role: string,
+    instanceId: string,
+    jti: string,
+    ipAddress?: string,
+    userAgent?: string,
+    deviceId?: string,
+  ) {
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+
+    await this.prisma.userSession.create({
+      data: {
+        userId,
+        role,
+        instanceId,
+        tokenJti: jti,
+        ipAddress,
+        userAgent,
+        deviceId,
+        expiresAt,
+      },
+    });
+  }
+
+  private async enforceSessionLimit(
+    userId: string,
+    role: string,
+    instanceId: string,
+    maxSessions = 3,
+  ) {
+    const activeSessions = await this.prisma.userSession.findMany({
+      where: {
+        userId,
+        role,
+        instanceId,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { lastActivity: 'desc' },
+    });
+
+    const activeCount = activeSessions.length;
+
+    if (activeCount >= maxSessions) {
+      const toRemove = activeSessions.slice(maxSessions - 1);
+      await this.prisma.userSession.updateMany({
+        where: { id: { in: toRemove.map((s) => s.id) } },
+        data: { expiresAt: new Date(0) },
+      });
+    }
+  }
+
+  async deactivateSession(jti: string) {
+    await this.prisma.userSession.updateMany({
+      where: { tokenJti: jti },
+      data: { expiresAt: new Date(0) },
+    });
+  }
+
+  async deactivateAllSessions(userId: string, role: string, instanceId: string) {
+    await this.prisma.userSession.updateMany({
+      where: { userId, role, instanceId },
+      data: { expiresAt: new Date(0) },
+    });
+  }
+
+  async validateSession(jti: string): Promise<boolean> {
+    const session = await this.prisma.userSession.findUnique({
+      where: { tokenJti: jti },
+    });
+    if (!session) return false;
+    if (session.expiresAt < new Date()) return false;
+    await this.prisma.userSession.update({
+      where: { id: session.id },
+      data: { lastActivity: new Date() },
+    });
+    return true;
   }
 }

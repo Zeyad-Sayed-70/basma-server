@@ -28,7 +28,9 @@ import {
   ApiExtraModels,
 } from '@nestjs/swagger';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { SessionGuard } from '../auth/guards/session.guard';
 import { StreamAuthGuard } from './stream-auth.guard';
+import { StreamRateGuard } from './stream-rate.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/decorators/current-user.decorator';
@@ -39,6 +41,7 @@ import { CreateFileElementDto } from './dto/create-file-element.dto';
 import { CreateRichContentDto } from './dto/create-rich-content.dto';
 import { UpdateElementDto } from './dto/update-element.dto';
 import { ReorderDto } from './dto/reorder.dto';
+import { SignStreamDto } from './dto/sign-stream.dto';
 import { ElementResponseDto } from './dto/element-response.dto';
 import {
   videoDiskStorage,
@@ -53,7 +56,7 @@ import {
 
 @ApiTags('Curriculum')
 @ApiBearerAuth()
-@UseGuards(StreamAuthGuard, RolesGuard)
+@UseGuards(StreamAuthGuard, RolesGuard, SessionGuard)
 @Controller()
 export class ElementsController {
   constructor(
@@ -255,6 +258,37 @@ export class ElementsController {
     @CurrentUser() user?: AuthenticatedUser,
   ) {
     return this.elementsService.getStream(id, user?.id, user?.role);
+  }
+
+  @Post('elements/:id/stream/sign')
+  @Roles('teacher', 'student')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get signed stream URL',
+    description:
+      'Returns a short-lived signed URL for the video or audio track. ' +
+      'The URL expires in 30 seconds and must be refreshed. ' +
+      'The signed token is in the query param, not the Authorization header. ' +
+      'This prevents the auth token from being exposed in the video element src.',
+  })
+  @ApiResponse({ status: 200, description: 'Signed stream URL' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Not enrolled in course' })
+  @ApiResponse({ status: 404, description: 'Quality or track not found' })
+  @UseGuards(StreamRateGuard)
+  async signStream(
+    @Param('id') id: string,
+    @Body() dto: SignStreamDto,
+    @CurrentUser() user?: AuthenticatedUser,
+  ) {
+    return this.elementsService.signStream(
+      id,
+      dto.quality,
+      dto.track,
+      dto.container,
+      user?.id,
+      user?.role,
+    );
   }
 
   @Get('elements/:id/stream/:quality/:track')

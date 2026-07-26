@@ -5,6 +5,8 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { MinioService } from '../minio/minio.service';
 import { TenantContext } from '../common/context/tenant-context';
@@ -31,6 +33,8 @@ export class ElementsService {
     private readonly minio: MinioService,
     private readonly videoJobsProducer: VideoJobsProducer,
     private readonly bundleService: BundleService,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
   ) {}
 
   private getInstanceId(): string {
@@ -266,17 +270,75 @@ export class ElementsService {
     return { kind: 'uploading' };
   }
 
-  async streamMedia(
+  async signStream(
     elementId: string,
     quality: string,
     track: string,
     container: string | undefined,
-    userId: string | undefined,
-    role: string | undefined,
-    res: any,
+    userId?: string,
+    role?: string,
   ) {
     const instanceId = this.getInstanceId();
 
+    await this.assertEnrollment(elementId, instanceId, userId, role);
+
+    const job = await this.prisma.videoJob.findFirst({
+      where: { elementId, instanceId },
+    });
+
+    if (!job?.bundleJson) {
+      throw new NotFoundException('Stream bundle not available');
+    }
+
+    const raw = job.bundleJson as unknown;
+    const bundles = Array.isArray(raw)
+      ? (raw as Array<{
+          quality: string;
+          container: string;
+          videoUrl: string;
+          audioUrl: string;
+        }>)
+      : (raw as { bundles: Array<any> }).bundles;
+
+    const resolvedContainer = container ?? 'mp4';
+    const entry = bundles.find(
+      (b) => b.quality === quality && b.container === resolvedContainer,
+    );
+
+    if (!entry) {
+      throw new NotFoundException(
+        `Quality "${quality}" with container "${resolvedContainer}" not found`,
+      );
+    }
+
+    const streamToken = this.jwtService.sign(
+      {
+        sub: userId ?? 'stream',
+        elementId,
+        quality,
+        track,
+        container: resolvedContainer,
+        instanceId,
+        role: role ?? 'student',
+        type: 'stream',
+      },
+      { expiresIn: '30s' },
+    );
+
+    const apiBase = this.configService.get<string>('API_BASE_URL', 'http://localhost:3000/api');
+
+    return {
+      url: `${apiBase}/elements/${elementId}/stream/${quality}/${track}?container=${resolvedContainer}&st=${streamToken}`,
+      expiresInSeconds: 30,
+    };
+  }
+
+  private async assertEnrollment(
+    elementId: string,
+    instanceId: string,
+    userId?: string,
+    role?: string,
+  ) {
     if (role === 'student' && userId) {
       const element = await this.prisma.curriculumElement.findFirst({
         where: { id: elementId, instanceId },
@@ -295,6 +357,20 @@ export class ElementsService {
         }
       }
     }
+  }
+
+  async streamMedia(
+    elementId: string,
+    quality: string,
+    track: string,
+    container: string | undefined,
+    userId: string | undefined,
+    role: string | undefined,
+    res: any,
+  ) {
+    const instanceId = this.getInstanceId();
+
+    await this.assertEnrollment(elementId, instanceId, userId, role);
 
     const job = await this.prisma.videoJob.findFirst({
       where: { elementId, instanceId },

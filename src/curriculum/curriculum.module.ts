@@ -13,13 +13,16 @@ import { SessionCompleteScheduler } from './session-complete.scheduler';
 import { CoursesModule } from '../courses/courses.module';
 import { MinioModule } from '../minio/minio.module';
 import { YoutubeModule } from '../youtube/youtube.module';
+import { AuthModule } from '../auth/auth.module';
 import { StreamAuthGuard } from './stream-auth.guard';
+import { StreamRateGuard } from './stream-rate.guard';
 
 @Module({
   imports: [
     CoursesModule,
     MinioModule,
     YoutubeModule,
+    AuthModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -40,6 +43,7 @@ import { StreamAuthGuard } from './stream-auth.guard';
     ProgressListener,
     SessionCompleteScheduler,
     StreamAuthGuard,
+    StreamRateGuard,
   ],
   exports: [CurriculumService, ProgressService],
 })

@@ -127,6 +127,32 @@ export class SessionsController {
     return this.sessionsService.findOne(id, user);
   }
 
+  @Post(':id/join')
+  @Roles('teacher', 'student')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get session join link',
+    description:
+      'Returns a signed meeting URL with a short-lived participant token. ' +
+      'The student must be enrolled in the session\'s course. ' +
+      'The token expires in 5 minutes. Access is logged for tracking.',
+  })
+  @ApiParam({ name: 'id', description: 'Session ID' })
+  @ApiResponse({ status: 200, description: 'Join link generated' })
+  @ApiResponse({ status: 404, description: 'Session not found' })
+  @ApiResponse({ status: 403, description: 'Not enrolled in course' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getJoinLink(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.sessionsService.getJoinLink(id, {
+      id: user.id,
+      role: user.role,
+      name: user.name,
+    });
+  }
+
   @Patch(':id')
   @Roles('teacher')
   @HttpCode(HttpStatus.OK)

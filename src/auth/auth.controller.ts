@@ -226,4 +226,40 @@ export class AuthController {
   async studentMe(@CurrentUser() user: AuthenticatedUser) {
     return this.authService.getStudentProfile(user.id);
   }
+
+  @Post('logout')
+  @UseGuards(AuthGuard('jwt'))
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Logout current session',
+    description:
+      'Deactivates the current session by its JWT ID. ' +
+      'The access token and refresh token will no longer be valid.',
+  })
+  @ApiResponse({ status: 200, description: 'Logged out successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async logout(@CurrentUser() user: AuthenticatedUser) {
+    if (user.jti) {
+      await this.authService.deactivateSession(user.jti);
+    }
+    return { message: 'Logged out successfully' };
+  }
+
+  @Post('logout/all')
+  @UseGuards(AuthGuard('jwt'))
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Logout all sessions',
+    description: 'Deactivates all active sessions for the current user.',
+  })
+  @ApiResponse({ status: 200, description: 'All sessions logged out' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async logoutAll(@CurrentUser() user: AuthenticatedUser) {
+    await this.authService.deactivateAllSessions(
+      user.id,
+      user.role,
+      user.instanceId,
+    );
+    return { message: 'All sessions logged out' };
+  }
 }

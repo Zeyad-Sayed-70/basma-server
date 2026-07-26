@@ -7,6 +7,7 @@ export interface AuthenticatedUser {
   lang: string;
   instanceId: string;
   role: string;
+  jti?: string;
 }
 
 export const CurrentUser = createParamDecorator(

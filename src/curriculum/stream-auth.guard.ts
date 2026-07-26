@@ -12,40 +12,65 @@ export class StreamAuthGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<{
-      headers: { authorization?: string };
-      query: { token?: string };
+      headers: { authorization?: string; 'user-agent'?: string };
+      query: { st?: string };
       user?: any;
+      signedStreamPayload?: {
+        elementId: string;
+        quality: string;
+        track: string;
+        container?: string;
+      };
     }>();
 
     const authHeader = request.headers.authorization;
-    const queryToken = request.query.token;
-
-    let token: string | null = null;
+    const signedToken = request.query.st;
 
     if (authHeader?.startsWith('Bearer ')) {
-      token = authHeader.slice(7);
-    } else if (queryToken) {
-      token = queryToken;
+      const token = authHeader.slice(7);
+
+      try {
+        const payload = this.jwtService.verify(token);
+
+        request.user = {
+          id: payload.sub,
+          email: payload.email,
+          name: payload.name ?? '',
+          instanceId: payload.instanceId,
+          role: payload.role,
+        };
+
+        return true;
+      } catch {
+        throw new UnauthorizedException('Invalid or expired token');
+      }
     }
 
-    if (!token) {
-      throw new UnauthorizedException('Authentication required');
+    if (signedToken) {
+      try {
+        const payload = this.jwtService.verify(signedToken);
+
+        request.user = {
+          id: payload.sub ?? 'anonymous',
+          email: payload.email ?? '',
+          name: payload.name ?? '',
+          instanceId: payload.instanceId,
+          role: payload.role ?? 'student',
+        };
+
+        request.signedStreamPayload = {
+          elementId: payload.elementId,
+          quality: payload.quality,
+          track: payload.track,
+          container: payload.container,
+        };
+
+        return true;
+      } catch {
+        throw new UnauthorizedException('Invalid or expired stream token');
+      }
     }
 
-    try {
-      const payload = this.jwtService.verify(token);
-
-      request.user = {
-        id: payload.sub,
-        email: payload.email,
-        name: payload.name ?? '',
-        instanceId: payload.instanceId,
-        role: payload.role,
-      };
-
-      return true;
-    } catch {
-      throw new UnauthorizedException('Invalid or expired token');
-    }
+    throw new UnauthorizedException('Authentication required');
   }
 }
