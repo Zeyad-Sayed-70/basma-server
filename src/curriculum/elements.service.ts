@@ -322,14 +322,14 @@ export class ElementsService {
         role: role ?? 'student',
         type: 'stream',
       },
-      { expiresIn: '30s' },
+      { expiresIn: '5m' },
     );
 
     const apiBase = this.configService.get<string>('API_BASE_URL', 'http://localhost:3000/api');
 
     return {
       url: `${apiBase}/elements/${elementId}/stream/${quality}/${track}?container=${resolvedContainer}&st=${streamToken}`,
-      expiresInSeconds: 30,
+      expiresInSeconds: 300,
     };
   }
 

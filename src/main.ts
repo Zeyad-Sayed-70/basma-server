@@ -62,7 +62,7 @@ async function bootstrap() {
             );
             res.setHeader(
               'Access-Control-Allow-Headers',
-              'Content-Type,Authorization',
+              'Content-Type,Authorization,x-device-id',
             );
             return res.status(204).end();
           }
