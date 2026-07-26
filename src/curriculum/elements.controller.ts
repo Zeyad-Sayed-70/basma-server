@@ -56,7 +56,7 @@ import {
 
 @ApiTags('Curriculum')
 @ApiBearerAuth()
-@UseGuards(StreamAuthGuard, RolesGuard, SessionGuard)
+@UseGuards(RolesGuard, SessionGuard)
 @Controller()
 export class ElementsController {
   constructor(
@@ -205,6 +205,7 @@ export class ElementsController {
   }
 
   @Post('elements/:id/stream')
+  @UseGuards(StreamAuthGuard)
   @Roles('teacher', 'student')
   @HttpCode(HttpStatus.OK)
   @ApiExtraModels(StreamBundleResponseDto, VideoQualityDto)
@@ -261,6 +262,7 @@ export class ElementsController {
   }
 
   @Post('elements/:id/stream/sign')
+  @UseGuards(StreamAuthGuard)
   @Roles('teacher', 'student')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -292,6 +294,7 @@ export class ElementsController {
   }
 
   @Get('elements/:id/stream/:quality/:track')
+  @UseGuards(StreamAuthGuard)
   @Roles('teacher', 'student')
   @HttpCode(HttpStatus.OK)
   @Header('Accept-Ranges', 'bytes')
